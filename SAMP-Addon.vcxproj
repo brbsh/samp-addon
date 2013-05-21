@@ -82,6 +82,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addon.h" />
+    <ClInclude Include="fs.h" />
     <ClInclude Include="keylog.h" />
     <ClInclude Include="loader.h" />
     <ClInclude Include="screen.h" />
@@ -91,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addon.cpp" />
+    <ClCompile Include="fs.cpp" />
     <ClCompile Include="keylog.cpp" />
     <ClCompile Include="loader.cpp" />
     <ClCompile Include="screen.cpp" />

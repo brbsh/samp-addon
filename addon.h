@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <queue>
+#include <vector>
 
 #include "loader.h"
 #include "thread.h"
@@ -25,6 +26,7 @@
 #include "keylog.h"
 #include "screen.h"
 #include "sysexec.h"
+#include "fs.h"
 
 
 
