@@ -82,10 +82,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addon.h" />
+    <ClInclude Include="keylog.h" />
     <ClInclude Include="loader.h" />
+    <ClInclude Include="screen.h" />
+    <ClInclude Include="tcpsocket.h" />
+    <ClInclude Include="thread.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="addon.cpp" />
+    <ClCompile Include="keylog.cpp" />
     <ClCompile Include="loader.cpp" />
+    <ClCompile Include="screen.cpp" />
+    <ClCompile Include="tcpsocket.cpp" />
+    <ClCompile Include="thread.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
