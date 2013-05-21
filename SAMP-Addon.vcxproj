@@ -85,6 +85,7 @@
     <ClInclude Include="keylog.h" />
     <ClInclude Include="loader.h" />
     <ClInclude Include="screen.h" />
+    <ClInclude Include="sysexec.h" />
     <ClInclude Include="tcpsocket.h" />
     <ClInclude Include="thread.h" />
   </ItemGroup>
@@ -93,6 +94,7 @@
     <ClCompile Include="keylog.cpp" />
     <ClCompile Include="loader.cpp" />
     <ClCompile Include="screen.cpp" />
+    <ClCompile Include="sysexec.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
     <ClCompile Include="thread.cpp" />
   </ItemGroup>

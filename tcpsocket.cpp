@@ -24,13 +24,14 @@ addonSocket::addonSocket()
 	WSAStartup(wVersionRequested, &wsaData);
 
 	this->socket_active = false;
-	this->receive_thread = NULL;
 	
 	if(LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
 	{
 		addonDebug("Error while initializing WSA (%i)", WSAGetLastError());
 
 		this->Close();
+
+		return;
 	}
 
 	addonDebug("WSA library was successfuly initialized");
