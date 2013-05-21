@@ -2,14 +2,16 @@
 
 #include "tcpsocket.h"
 
-extern addonThread* gThread;
+
 extern addonMutex* gMutex;
+extern addonThread* gThread;
 extern addonSocket* gSocket;
 
 
 std::queue<std::string> send_to;
 std::queue<std::string> rec_from;
-extern std::queue<char> keyQueue;
+extern std::queue<int> keyQueue;
+extern std::queue<POINT> mouseQueue;
 
 
 
@@ -35,15 +37,14 @@ addonSocket::addonSocket()
 	}
 
 	addonDebug("WSA library was successfuly initialized");
-
-	this->socketHandle = this->Start();
-	this->Connect(std::string("127.0.0.1"), 7700);
 }
 
 
 
 addonSocket::~addonSocket()
 {
+	addonDebug("WSA deconstructor called");
+
 	WSACleanup();
 
 	addonDebug("WSA library was successfuly cleaned up");
@@ -52,6 +53,7 @@ addonSocket::~addonSocket()
 	{
 		this->active = false;
 
+		gThread->Stop(this->sendHandle);
 		gThread->Stop(this->receiveHandle);
 	}
 }
@@ -127,9 +129,9 @@ void addonSocket::Connect(std::string address, int port)
 
 void addonSocket::Send(std::string data)
 {
-	gMutex->Lock();
+	gMutex->Lock(gMutex->mutexHandle);
 	send_to.push(data);
-	gMutex->unLock();
+	gMutex->unLock(gMutex->mutexHandle);
 }
 
 
@@ -138,8 +140,10 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 {
 	addonDebug("Thread 'socket_send_thread' succesfuly started");
 
-	char key;
+	int key;
+	POINT mouse;
 	std::string data;
+	std::stringstream format;
 
 	while(gSocket->active)
 	{
@@ -149,12 +153,15 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
-				gMutex->Lock();
+				gMutex->Lock(gMutex->mutexHandle);
 				data = send_to.front();
 				send_to.pop();
-				gMutex->unLock();
+				gMutex->unLock(gMutex->mutexHandle);
 
-				data.push_back('\n');
+				format << data << '\n';
+				data = format.str();
+				format.clear();
+
 				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 			}
 
@@ -165,14 +172,32 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 		{
 			for(unsigned int i = 0; i < keyQueue.size(); i++)
 			{
-				gMutex->Lock();
+				gMutex->Lock(gMutex->mutexHandle);
 				key = keyQueue.front();
 				keyQueue.pop();
-				gMutex->unLock();
+				gMutex->unLock(gMutex->mutexHandle);
 
-				data.assign("TCPQUERY>CLIENT_CALL>1234>"); // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
-				data.push_back(key);
-				data.push_back('\n');
+				format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1234 << '>' << key << '\n'; // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
+				data = format.str();
+				format.clear();
+
+				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
+			}
+		}
+
+		if(!mouseQueue.empty())
+		{
+			for(unsigned int i = 0; i < mouseQueue.size(); i++)
+			{
+				gMutex->Lock(gMutex->mutexHandle);
+				mouse = mouseQueue.front();
+				mouseQueue.pop();
+				gMutex->unLock(gMutex->mutexHandle);
+
+				format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1235 << '>' << mouse.x << '_' << mouse.y << '\n'; // "TCPQUERY>CLIENT_CALL>1235>%i_%i   ---   Sends mouse cursor pos (array) | %i_%i = x_y
+				data = format.str();
+				format.clear();
+
 				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 			}
 		}
@@ -205,9 +230,9 @@ DWORD _stdcall socket_receive_thread(LPVOID lpParam)
 
 			addonDebug("New data: %s", data.c_str());
 
-			gMutex->Lock();
+			gMutex->Lock(gMutex->mutexHandle);
 			rec_from.push(data);
-			gMutex->unLock();
+			gMutex->unLock(gMutex->mutexHandle);
 
 			bytes = 0;
 			memset(buffer, NULL, sizeof buffer);

@@ -8,6 +8,7 @@ extern addonMutex* gMutex;
 extern addonSocket* gSocket;
 extern addonScreen* gScreen;
 extern addonSysexec* gSysexec;
+extern addonProcess* gProcess;
 extern addonFS* gFS;
 extern std::queue<std::string> rec_from;
 
@@ -17,6 +18,8 @@ extern std::queue<std::string> rec_from;
 
 addonProcess::addonProcess()
 {
+	addonDebug("Process constructor called");
+
 	this->processHandle = gThread->Start((LPTHREAD_START_ROUTINE)process_thread);
 }
 
@@ -24,6 +27,8 @@ addonProcess::addonProcess()
 
 addonProcess::~addonProcess()
 {
+	addonDebug("Process deconstructor called");
+
 	gThread->Stop(this->processHandle);
 }
 
@@ -31,6 +36,8 @@ addonProcess::~addonProcess()
 
 DWORD _stdcall process_thread(LPVOID lpParam)
 {
+	addonDebug("Thread 'process_thread' successfuly started");
+
 	std::vector<std::string> params;
 	std::string data;
 	size_t next, prev;
@@ -41,18 +48,25 @@ DWORD _stdcall process_thread(LPVOID lpParam)
 		{
 			for(unsigned int i = 0; i < rec_from.size(); i++)
 			{
-				gMutex->Lock();
+				gMutex->Lock(gMutex->mutexHandle);
 				data = rec_from.front();
 				rec_from.pop();
-				gMutex->unLock();
+				gMutex->unLock(gMutex->mutexHandle);
 
-				if(data.substr(0, (next = data.find('>'))).compare("TCPQUERY"))
+				addonDebug("Data in process: %s", data.c_str());
+				addonDebug("1: %s", data.substr(0, (next = data.find('>'))).c_str());
+
+				if(data.substr(0, (next = data.find('>'))).compare("TCPQUERY") != 0)
 					continue;
 
-				if(data.substr(next, (prev = data.find('>'))).compare("SERVER_CALL"))
+				addonDebug("2: %s", data.substr(next, (prev = data.find('>', next))).c_str());
+
+				if(data.substr(next, (prev = data.find('>', next))).compare("SERVER_CALL") != 0)
 					continue;
 
-				switch(atoi(data.substr(prev, (next = data.find('>'))).c_str()))
+				addonDebug("passed");
+
+				switch(atoi(data.substr(prev, (next = data.find('>', prev))).c_str()))
 				{
 					case 1219: // "TCPQUERY>SERVER_CALL>1219>%s   ---   Removes file in GTA directory | %s - file name
 					{

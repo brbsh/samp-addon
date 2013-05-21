@@ -16,6 +16,8 @@ public:
 	void Stop(HANDLE threadHandle);
 };
 
+
+
 class addonMutex
 {
 public:
@@ -24,7 +26,8 @@ public:
 	addonMutex();
 	~addonMutex();
 
-	void Lock();
-	void unLock();
+	HANDLE Create(std::string mutexcode);
+	void Delete(HANDLE mutexHandle);
+	void Lock(HANDLE mutexHandle);
+	void unLock(HANDLE mutexHandle);
 };
-

@@ -3,22 +3,19 @@
 #include "fs.h"
 
 
-extern addonThread* gThread;
-
-
 
 
 
 addonFS::addonFS()
 {
-
+	addonDebug("FS constructor called");
 }
 
 
 
 addonFS::~addonFS()
 {
-
+	addonDebug("FS deconstructor called");
 }
 
 

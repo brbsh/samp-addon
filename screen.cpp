@@ -13,6 +13,8 @@ extern addonScreen* gScreen;
 
 addonScreen::addonScreen()
 {
+	addonDebug("Screen constructor called");
+
 	this->screen = false;
 
 	this->screenHandle = gThread->Start((LPTHREAD_START_ROUTINE)screenshot_thread);
@@ -22,6 +24,8 @@ addonScreen::addonScreen()
 
 addonScreen::~addonScreen()
 {
+	addonDebug("Screen deconstructor called");
+
 	this->screen = false;
 
 	gThread->Stop(this->screenHandle);
@@ -31,10 +35,10 @@ addonScreen::~addonScreen()
 
 void addonScreen::Get(std::string filename)
 {
-	gMutex->Lock();
+	gMutex->Lock(gMutex->mutexHandle);
 	this->screen = true;
 	this->filename = filename;
-	gMutex->unLock();
+	gMutex->unLock(gMutex->mutexHandle);
 }
 
 
@@ -157,6 +161,8 @@ int addonScreen::Process()
 
 DWORD _stdcall screenshot_thread(LPVOID lpParam)
 {
+	addonDebug("Thread 'screenshot_thread' successfuly started");
+
 	while(true)
 	{
 		while(!gScreen->screen)
@@ -166,10 +172,10 @@ DWORD _stdcall screenshot_thread(LPVOID lpParam)
 
 		gScreen->Process();
 
-		gMutex->Lock();
+		gMutex->Lock(gMutex->mutexHandle);
 		gScreen->screen = false;
 		gScreen->filename.clear();
-		gMutex->unLock();
+		gMutex->unLock(gMutex->mutexHandle);
 
 		Sleep(1);
 	}

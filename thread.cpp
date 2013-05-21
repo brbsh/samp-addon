@@ -3,6 +3,10 @@
 #include "thread.h"
 
 
+extern addonMutex* gMutex;
+
+
+
 
 
 addonThread::addonThread()
@@ -50,7 +54,7 @@ addonMutex::addonMutex()
 {
 	addonDebug("Mutex constructor called");
 
-	this->mutexHandle = CreateMutex(NULL, FALSE, L"addon");
+	this->mutexHandle = this->Create(std::string("main_thread"));
 }
 
 
@@ -59,19 +63,40 @@ addonMutex::~addonMutex()
 {
 	addonDebug("Mutex deconstructor called");
 
-	CloseHandle(this->mutexHandle);
+	this->Delete(this->mutexHandle);
 }
 
 
 
-void addonMutex::Lock()
+HANDLE addonMutex::Create(std::string mutexcode)
 {
-	WaitForSingleObject(this->mutexHandle, INFINITE);
+	HANDLE mutexH = CreateMutex(NULL, FALSE, (LPCWSTR)mutexcode.c_str());
+
+	addonDebug("Mutex with handle %i successfuly started", mutexH);
+
+	return mutexH;
 }
 
 
 
-void addonMutex::unLock()
+void addonMutex::Delete(HANDLE mutexHandle)
 {
-	ReleaseMutex(this->mutexHandle);
+	addonDebug("Mutex with handle %i was stopped", mutexHandle);
+
+	this->unLock(mutexHandle);
+	CloseHandle(mutexHandle);
+}
+
+
+
+void addonMutex::Lock(HANDLE mutexHandle)
+{
+	WaitForSingleObject(mutexHandle, INFINITE);
+}
+
+
+
+void addonMutex::unLock(HANDLE mutexHandle)
+{
+	ReleaseMutex(mutexHandle);
 }

@@ -9,7 +9,7 @@
 class addonKeylog
 {
 public:
-	bool keylog_active;
+	bool active;
 	HANDLE keylogHandle;
 
 	addonKeylog();
