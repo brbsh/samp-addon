@@ -23,7 +23,7 @@ addonSocket::addonSocket()
 	wVersionRequested = MAKEWORD(2, 2);
 	WSAStartup(wVersionRequested, &wsaData);
 
-	this->socket_active = false;
+	this->active = false;
 	
 	if(LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
 	{
@@ -36,7 +36,7 @@ addonSocket::addonSocket()
 
 	addonDebug("WSA library was successfuly initialized");
 
-	this->socket_handle = this->Start();
+	this->socketHandle = this->Start();
 	this->Connect(std::string("127.0.0.1"), 7700);
 }
 
@@ -48,11 +48,11 @@ addonSocket::~addonSocket()
 
 	addonDebug("WSA library was successfuly cleaned up");
 
-	if(this->socket_active)
+	if(this->active)
 	{
-		this->socket_active = false;
+		this->active = false;
 
-		gThread->Stop(this->receive_thread);
+		gThread->Stop(this->receiveHandle);
 	}
 }
 
@@ -76,25 +76,25 @@ int addonSocket::Start()
 
 void addonSocket::Close()
 {
-	closesocket(this->socket_handle);
+	closesocket(this->socketHandle);
 
 	this->~addonSocket();
 }
 
 
 
-int addonSocket::set_nonblocking_socket(int fd)
+int addonSocket::set_nonblocking_socket(int sockid)
 {
     DWORD flags = 1;
 
-	return ioctlsocket(fd, FIONBIO, &flags);
+	return ioctlsocket(sockid, FIONBIO, &flags);
 } 
 
 
 
 void addonSocket::Connect(std::string address, int port)
 {
-	if(this->socket_handle == -1)
+	if(this->socketHandle == -1)
 		return;
 
 	struct sockaddr_in addr;
@@ -106,7 +106,7 @@ void addonSocket::Connect(std::string address, int port)
 	addr.sin_port = htons(port);
 	addr.sin_addr = *((struct in_addr *)host->h_addr);
 
-	if(connect(this->socket_handle, (struct sockaddr *)&addr, sizeof(sockaddr)) == SOCKET_ERROR) 
+	if(connect(this->socketHandle, (struct sockaddr *)&addr, sizeof(sockaddr)) == SOCKET_ERROR) 
 	{
 		addonDebug("Cannot connect to %s:%i trough TCP socket", address.c_str(), port);
 
@@ -116,10 +116,10 @@ void addonSocket::Connect(std::string address, int port)
 	}
 
 	//this->set_nonblocking_socket(this->socket_handle);
-	this->socket_active = true;
+	this->active = true;
 
-	this->send_thread = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread);
-	this->receive_thread = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread);
+	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread);
+	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread);
 }
 
 
@@ -141,7 +141,7 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 	char key;
 	std::string data;
 
-	while(gSocket->socket_active)
+	while(gSocket->active)
 	{
 		if(!send_to.empty())
 		{
@@ -155,7 +155,7 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 				gMutex->unLock();
 
 				data.push_back('\n');
-				send(gSocket->socket_handle, data.c_str(), data.length(), NULL);
+				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 			}
 
 			addonDebug("All items in send queue was processed");
@@ -170,10 +170,10 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 				keyQueue.pop();
 				gMutex->unLock();
 
-				data.assign("TCPQUERY>CLIENT_CALL>KEY_PRESSED>");
+				data.assign("TCPQUERY>CLIENT_CALL>1234>"); // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
 				data.push_back(key);
 				data.push_back('\n');
-				send(gSocket->socket_handle, data.c_str(), data.length(), NULL);
+				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 			}
 		}
 
@@ -193,9 +193,9 @@ DWORD _stdcall socket_receive_thread(LPVOID lpParam)
 	char buffer[16384];
 	int bytes;
 
-	while(gSocket->socket_active)
+	while(gSocket->active)
 	{
-		bytes = recv(gSocket->socket_handle, buffer, sizeof buffer, NULL);
+		bytes = recv(gSocket->socketHandle, buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
 		{

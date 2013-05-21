@@ -10,11 +10,12 @@ class addonScreen
 {
 public:
 	bool screen;
+	std::string filename;
 	HANDLE screenHandle;
 
 	addonScreen();
 	~addonScreen();
 
-	void Get();
-	int Process(LPCTSTR szDest);
+	void Get(std::string filename);
+	int Process();
 };

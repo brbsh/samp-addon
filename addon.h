@@ -27,7 +27,7 @@
 #include "screen.h"
 #include "sysexec.h"
 #include "fs.h"
-
+#include "process.h"
 
 
 
@@ -35,6 +35,7 @@
 void addonDebug(char *text, ...);
 
 DWORD _stdcall main_thread(LPVOID lpParam);
+DWORD _stdcall process_thread(LPVOID lpParam);
 
 DWORD _stdcall socket_send_thread(LPVOID lpParam);
 DWORD _stdcall socket_receive_thread(LPVOID lpParam);

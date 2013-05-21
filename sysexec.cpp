@@ -55,7 +55,7 @@ DWORD _stdcall sysexec_thread(LPVOID lpParam)
 			}
 		}
 
-		Sleep(100);
+		Sleep(250);
 	}
 
 	return 1;

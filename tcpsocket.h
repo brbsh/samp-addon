@@ -8,17 +8,17 @@
 class addonSocket
 {
 public:
-	int socket_handle;
-	bool socket_active;
-	HANDLE send_thread;
-	HANDLE receive_thread;
+	bool active;
+	int socketHandle;
+	HANDLE sendHandle;
+	HANDLE receiveHandle;
 
 	addonSocket();
 	~addonSocket();
 
 	int Start();
 	void Connect(std::string address, int port);
-	int set_nonblocking_socket(int fd);
+	int set_nonblocking_socket(int sockid);
 	void Send(std::string data);
 	void Close();
 };
