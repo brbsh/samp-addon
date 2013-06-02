@@ -10,14 +10,26 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
-		DisableThreadLibraryCalls(hinstDLL);
-
 		remove("SAMP\\addon\\addon.log");
 			
 		addonDebug("\tDebugging started\n");
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called asi attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
+
+		if(!GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll"))
+		{
+			addonDebug("Loader attached from unknown process, terminating");
+
+			return TRUE;
+		}
+
+		if(!GetModuleHandleW(L"samp.dll"))
+		{
+			addonDebug("Singleplayer loaded, terminating");
+
+			return TRUE;
+		}
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (LPVOID)hinstDLL, NULL, NULL);
 	}
@@ -37,13 +49,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 DWORD __stdcall addon_load_thread(LPVOID lpParam)
 {
 	Sleep(1000);
-
-	if(!GetModuleHandleW(L"samp.dll"))
-	{
-		addonDebug("Singleplayer launched, terminating...");
-
-		return 0;
-	}
 
 	SetDllDirectoryW(L"SAMP\\addon");
 

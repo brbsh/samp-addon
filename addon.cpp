@@ -23,8 +23,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
-		DisableThreadLibraryCalls(hinstDLL);
-
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called dll attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
@@ -62,14 +60,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 __declspec(dllexport) void addon_start()
 {
-	if(!GetModuleHandleW(L"addon.asi") || !GetModuleHandleW(L"samp.dll") || !GetModuleHandleW(L"VorbisFile.dll"))
+	if(!GetModuleHandleW(L"addon.asi") || !GetModuleHandleW(L"samp.dll") || !GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll"))
 	{
-		addonDebug("Called from unknown module, call interrupted");
+		addonDebug("Addon attached from unknown module, treminating");
 
 		return;
 	}
 
-	addonDebug("Start call from loader. Processing...");
+	addonDebug("Addon attached from loader. Processing...");
 
 	gMutex = new addonMutex();
 	gThread = new addonThread();
