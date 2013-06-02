@@ -24,13 +24,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			return TRUE;
 		}
 
-		if(!GetModuleHandleW(L"samp.dll"))
-		{
-			addonDebug("Singleplayer loaded, terminating");
-
-			return TRUE;
-		}
-
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (LPVOID)hinstDLL, NULL, NULL);
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
@@ -49,6 +42,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 DWORD __stdcall addon_load_thread(LPVOID lpParam)
 {
 	Sleep(1000);
+
+	if(!GetModuleHandleW(L"samp.dll"))
+	{
+		addonDebug("Singleplayer loaded, terminating");
+
+		return 0;
+	}
 
 	SetDllDirectoryW(L"SAMP\\addon");
 
