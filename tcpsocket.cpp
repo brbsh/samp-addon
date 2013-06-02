@@ -3,22 +3,22 @@
 #include "tcpsocket.h"
 
 
-extern addonMutex* gMutex;
-extern addonThread* gThread;
-extern addonSocket* gSocket;
+
+extern addonMutex *gMutex;
+extern addonThread *gThread;
+extern addonSocket *gSocket;
 
 
 std::queue<std::string> send_to;
 std::queue<std::string> rec_from;
-extern std::queue<int> keyQueue;
-extern std::queue<POINT> mouseQueue;
+
 
 
 
 
 addonSocket::addonSocket()
 {
-	addonDebug("WSA constructor called from 'main_thread'");
+	addonDebug("WSA constructor called");
 
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -26,6 +26,7 @@ addonSocket::addonSocket()
 	WSAStartup(wVersionRequested, &wsaData);
 
 	this->active = false;
+	this->socketHandle = -1;
 	
 	if(LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
 	{
@@ -45,10 +46,6 @@ addonSocket::~addonSocket()
 {
 	addonDebug("WSA deconstructor called");
 
-	WSACleanup();
-
-	addonDebug("WSA library was successfuly cleaned up");
-
 	if(this->active)
 	{
 		this->active = false;
@@ -56,40 +53,54 @@ addonSocket::~addonSocket()
 		gThread->Stop(this->sendHandle);
 		gThread->Stop(this->receiveHandle);
 	}
+
+	this->socketHandle = -1;
+
+	WSACleanup();
+
+	addonDebug("WSA library was successfuly cleaned up");
 }
 
 
 
-int addonSocket::Start()
+int addonSocket::Create()
 {
-	int socket_handle = socket(AF_INET, SOCK_STREAM, NULL);
+	addonDebug("Trying to create TCP socket...");
 
-	if(socket_handle == -1)
+	int socketH = socket(AF_INET, SOCK_STREAM, NULL);
+
+	if(socketH == -1)
 	{
 		addonDebug("Error while creating new socket (%i)", WSAGetLastError());
 
 		this->Close();
 	}
 
-	return socket_handle;
+	addonDebug("Created TCP socket with id %i", socketH);
+
+	return socketH;
 }
 
 
 
 void addonSocket::Close()
 {
-	closesocket(this->socketHandle);
+	if(this->active)
+		closesocket(this->socketHandle);
 
 	this->~addonSocket();
 }
 
 
 
-int addonSocket::set_nonblocking_socket(int sockid)
+int addonSocket::set_nonblocking_socket()
 {
+	if(this->socketHandle == -1)
+		return 0;
+
     DWORD flags = 1;
 
-	return ioctlsocket(sockid, FIONBIO, &flags);
+	return ioctlsocket(this->socketHandle, FIONBIO, &flags);
 } 
 
 
@@ -98,6 +109,8 @@ void addonSocket::Connect(std::string address, int port)
 {
 	if(this->socketHandle == -1)
 		return;
+
+	addonDebug("Connecting to %s:%i ...", address.c_str(), port);
 
 	struct sockaddr_in addr;
 	struct hostent *host;
@@ -117,11 +130,13 @@ void addonSocket::Connect(std::string address, int port)
 		return;
 	}
 
-	//this->set_nonblocking_socket(this->socket_handle);
-	this->active = true;
+	addonDebug("Connected to %s:%i trough TCP", address.c_str(), port);
 
-	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread);
-	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread);
+	this->active = true;
+	this->set_nonblocking_socket();
+
+	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, NULL);
+	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, NULL);
 }
 
 
@@ -129,21 +144,21 @@ void addonSocket::Connect(std::string address, int port)
 
 void addonSocket::Send(std::string data)
 {
-	gMutex->Lock(gMutex->mutexHandle);
+	if(!this->active)
+		return;
+
+	gMutex->Lock();
 	send_to.push(data);
-	gMutex->unLock(gMutex->mutexHandle);
+	gMutex->unLock();
 }
 
 
 
-DWORD _stdcall socket_send_thread(LPVOID lpParam)
+DWORD __stdcall socket_send_thread(LPVOID lpParam)
 {
 	addonDebug("Thread 'socket_send_thread' succesfuly started");
 
-	int key;
-	POINT mouse;
 	std::string data;
-	std::stringstream format;
 
 	while(gSocket->active)
 	{
@@ -153,53 +168,17 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
-				gMutex->Lock(gMutex->mutexHandle);
+				gMutex->Lock();
 				data = send_to.front();
 				send_to.pop();
-				gMutex->unLock(gMutex->mutexHandle);
+				gMutex->unLock();
 
-				format << data << '\n';
-				data = format.str();
-				format.clear();
+				data.push_back('\n');
 
 				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 			}
 
 			addonDebug("All items in send queue was processed");
-		}
-
-		if(!keyQueue.empty())
-		{
-			for(unsigned int i = 0; i < keyQueue.size(); i++)
-			{
-				gMutex->Lock(gMutex->mutexHandle);
-				key = keyQueue.front();
-				keyQueue.pop();
-				gMutex->unLock(gMutex->mutexHandle);
-
-				format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1234 << '>' << key << '\n'; // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
-				data = format.str();
-				format.clear();
-
-				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
-			}
-		}
-
-		if(!mouseQueue.empty())
-		{
-			for(unsigned int i = 0; i < mouseQueue.size(); i++)
-			{
-				gMutex->Lock(gMutex->mutexHandle);
-				mouse = mouseQueue.front();
-				mouseQueue.pop();
-				gMutex->unLock(gMutex->mutexHandle);
-
-				format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1235 << '>' << mouse.x << '_' << mouse.y << '\n'; // "TCPQUERY>CLIENT_CALL>1235>%i_%i   ---   Sends mouse cursor pos (array) | %i_%i = x_y
-				data = format.str();
-				format.clear();
-
-				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
-			}
 		}
 
 		Sleep(50);
@@ -210,13 +189,13 @@ DWORD _stdcall socket_send_thread(LPVOID lpParam)
 
 
 
-DWORD _stdcall socket_receive_thread(LPVOID lpParam)
+DWORD __stdcall socket_receive_thread(LPVOID lpParam)
 {
 	addonDebug("Thread 'socket_receive_thread' successfuly started");
 
-	std::string data;
-	char buffer[16384];
 	int bytes;
+	char buffer[32768];
+	std::string data;
 
 	while(gSocket->active)
 	{
@@ -230,9 +209,9 @@ DWORD _stdcall socket_receive_thread(LPVOID lpParam)
 
 			addonDebug("New data: %s", data.c_str());
 
-			gMutex->Lock(gMutex->mutexHandle);
+			gMutex->Lock();
 			rec_from.push(data);
-			gMutex->unLock(gMutex->mutexHandle);
+			gMutex->unLock();
 
 			bytes = 0;
 			memset(buffer, NULL, sizeof buffer);

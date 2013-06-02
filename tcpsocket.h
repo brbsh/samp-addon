@@ -7,7 +7,9 @@
 
 class addonSocket
 {
+
 public:
+
 	bool active;
 	int socketHandle;
 	HANDLE sendHandle;
@@ -16,9 +18,9 @@ public:
 	addonSocket();
 	~addonSocket();
 
-	int Start();
+	int Create();
 	void Connect(std::string address, int port);
-	int set_nonblocking_socket(int sockid);
+	int set_nonblocking_socket();
 	void Send(std::string data);
 	void Close();
 };

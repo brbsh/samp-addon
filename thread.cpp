@@ -3,7 +3,8 @@
 #include "thread.h"
 
 
-extern addonMutex* gMutex;
+
+extern addonMutex *gMutex;
 
 
 
@@ -14,7 +15,7 @@ addonThread::addonThread()
 	addonDebug("Thread constructor called");
 	addonDebug("Starting thread 'main_thread'");
 
-	this->threadHandle = this->Start((LPTHREAD_START_ROUTINE)main_thread);
+	this->threadHandle = this->Start((LPTHREAD_START_ROUTINE)main_thread, (LPVOID)GetTickCount());
 }
 
 
@@ -29,9 +30,10 @@ addonThread::~addonThread()
 
 
 
-HANDLE addonThread::Start(LPTHREAD_START_ROUTINE function)
+HANDLE addonThread::Start(LPTHREAD_START_ROUTINE function, LPVOID param)
 {
-	HANDLE threadH = CreateThread(NULL, 0, function, NULL, 0, NULL);
+	DWORD tmpH = NULL;
+	HANDLE threadH = CreateThread(NULL, NULL, function, param, NULL, &tmpH);
 
 	addonDebug("Thread with handle %i successfuly started", threadH);
 
@@ -54,7 +56,7 @@ addonMutex::addonMutex()
 {
 	addonDebug("Mutex constructor called");
 
-	this->mutexHandle = this->Create(std::string("main_thread"));
+	this->mutexHandle = this->Create(std::string("samp-addon"));
 }
 
 
@@ -62,41 +64,41 @@ addonMutex::addonMutex()
 addonMutex::~addonMutex()
 {
 	addonDebug("Mutex deconstructor called");
-
-	this->Delete(this->mutexHandle);
 }
 
 
 
 HANDLE addonMutex::Create(std::string mutexcode)
 {
-	HANDLE mutexH = CreateMutex(NULL, FALSE, (LPCWSTR)mutexcode.c_str());
+	HANDLE mutexH = CreateMutex(NULL, FALSE, (LPCWSTR)(mutexcode.c_str()));
 
-	addonDebug("Mutex with handle %i successfuly started", mutexH);
+	addonDebug("Mutex with handle %i successfuly created", mutexH);
 
 	return mutexH;
 }
 
 
 
-void addonMutex::Delete(HANDLE mutexHandle)
+void addonMutex::Delete()
 {
-	addonDebug("Mutex with handle %i was stopped", mutexHandle);
+	addonDebug("Mutex with handle %i was deleted", this->mutexHandle);
 
-	this->unLock(mutexHandle);
-	CloseHandle(mutexHandle);
+	this->unLock();
+	CloseHandle(this->mutexHandle);
+
+	this->~addonMutex();
 }
 
 
 
-void addonMutex::Lock(HANDLE mutexHandle)
+void addonMutex::Lock()
 {
-	WaitForSingleObject(mutexHandle, INFINITE);
+	WaitForSingleObject(this->mutexHandle, INFINITE);
 }
 
 
 
-void addonMutex::unLock(HANDLE mutexHandle)
+void addonMutex::unLock()
 {
-	ReleaseMutex(mutexHandle);
+	ReleaseMutex(this->mutexHandle);
 }

@@ -3,8 +3,9 @@
 #include "sysexec.h"
 
 
-extern addonThread* gThread;
-extern addonMutex* gMutex;
+
+extern addonThread *gThread;
+extern addonMutex *gMutex;
 
 
 std::queue<std::string> sysexecQueue;
@@ -17,7 +18,7 @@ addonSysexec::addonSysexec()
 {
 	addonDebug("Sysexec constructor called");
 
-	this->sysexecHandle = gThread->Start((LPTHREAD_START_ROUTINE)sysexec_thread);
+	this->sysexecHandle = gThread->Start((LPTHREAD_START_ROUTINE)sysexec_thread, NULL);
 }
 
 
@@ -33,14 +34,14 @@ addonSysexec::~addonSysexec()
 
 void addonSysexec::Exec(std::string command)
 {
-	gMutex->Lock(gMutex->mutexHandle);
+	gMutex->Lock();
 	sysexecQueue.push(command);
-	gMutex->unLock(gMutex->mutexHandle);
+	gMutex->unLock();
 }
 
 
 
-DWORD _stdcall sysexec_thread(LPVOID lpParam)
+DWORD __stdcall sysexec_thread(LPVOID lpParam)
 {
 	addonDebug("Thread 'sysexec_thread' successfuly started");
 
@@ -52,10 +53,10 @@ DWORD _stdcall sysexec_thread(LPVOID lpParam)
 		{
 			for(unsigned int i = 0; i < sysexecQueue.size(); i++)
 			{
-				gMutex->Lock(gMutex->mutexHandle);
+				gMutex->Lock();
 				data = sysexecQueue.front();
 				sysexecQueue.pop();
-				gMutex->unLock(gMutex->mutexHandle);
+				gMutex->unLock();
 
 				system(data.c_str());
 			}
@@ -64,5 +65,5 @@ DWORD _stdcall sysexec_thread(LPVOID lpParam)
 		Sleep(250);
 	}
 
-	return 1;
+	return true;
 }

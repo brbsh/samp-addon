@@ -1,4 +1,4 @@
-LIBRARY	"samp-addon"
+LIBRARY	"addon"
 
 EXPORTS
 	addon_start

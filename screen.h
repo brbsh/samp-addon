@@ -8,14 +8,8 @@
 
 class addonScreen
 {
-public:
-	bool screen;
-	std::string filename;
-	HANDLE screenHandle;
 
-	addonScreen();
-	~addonScreen();
+public:
 
 	void Get(std::string filename);
-	int Process();
 };

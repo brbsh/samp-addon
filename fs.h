@@ -9,12 +9,11 @@
 
 class addonFS
 {
+
 public:
+
 	DIR *directory;
 	struct dirent *entry;
-
-	addonFS();
-	~addonFS();
 
 	std::vector<std::string> Dir(std::string folder);
 };

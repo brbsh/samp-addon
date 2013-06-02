@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{6C802FED-CCC0-49FE-A4CC-7818D8AB3ADD}</ProjectGuid>
+    <ProjectGuid>{91C8F0DA-FCE8-420B-BA90-8519214178DA}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>SAMPAddon</RootNamespace>
+    <RootNamespace>sampaddonloader</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -39,23 +39,21 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)compiled\</OutDir>
-    <TargetName>samp-addon-debug</TargetName>
-    <TargetExt>.asi</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)compiled\</OutDir>
     <TargetName>addon</TargetName>
-    <TargetExt>.dll</TargetExt>
+    <TargetExt>.asi</TargetExt>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;SAMPADDON_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;SAMPADDONLOADER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -65,11 +63,12 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <Optimization>Full</Optimization>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SAMPADDON_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SAMPADDONLOADER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
@@ -78,32 +77,13 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ModuleDefinitionFile>addon.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="addon.h" />
-    <ClInclude Include="fs.h" />
-    <ClInclude Include="keylog.h" />
-    <ClInclude Include="mouselog.h" />
-    <ClInclude Include="process.h" />
-    <ClInclude Include="screen.h" />
-    <ClInclude Include="string.h" />
-    <ClInclude Include="sysexec.h" />
-    <ClInclude Include="tcpsocket.h" />
-    <ClInclude Include="thread.h" />
+    <ClInclude Include="loader.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="addon.cpp" />
-    <ClCompile Include="fs.cpp" />
-    <ClCompile Include="keylog.cpp" />
-    <ClCompile Include="mouselog.cpp" />
-    <ClCompile Include="process.cpp" />
-    <ClCompile Include="screen.cpp" />
-    <ClCompile Include="string.cpp" />
-    <ClCompile Include="sysexec.cpp" />
-    <ClCompile Include="tcpsocket.cpp" />
-    <ClCompile Include="thread.cpp" />
+    <ClCompile Include="loader.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

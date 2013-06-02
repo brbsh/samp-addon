@@ -4,50 +4,111 @@
 
 
 
-addonMutex* gMutex;
-addonThread* gThread;
-extern addonSocket* gSocket;
-extern addonProcess* gProcess;
-extern addonKeylog* gKeylog;
-extern addonScreen* gScreen;
-extern addonSysexec* gSysexec;
-extern addonFS* gFS;
 
 
-
-
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-	if(ul_reason_for_call == DLL_PROCESS_ATTACH)
+	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
-		remove("samp-addon.log");
+		DisableThreadLibraryCalls(hinstDLL);
+
+		remove("SAMP\\addon\\addon.log");
 			
 		addonDebug("\tDebugging started\n");
-		addonDebug("Called asi attach | hModule 0x%x | ul_reason_for_call %i | lpReserved %i", hModule, ul_reason_for_call, lpReserved);
+		addonDebug("-----------------------------------------------------------------");
+		addonDebug("Called asi attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
+		addonDebug("-----------------------------------------------------------------");
 
-		gMutex = new addonMutex();
-		gThread = new addonThread();
-		
-		addonDebug("Moved to separated thread");
+		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (LPVOID)hinstDLL, NULL, NULL);
 	}
-	else if(ul_reason_for_call == DLL_PROCESS_DETACH)
+	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
-		gSocket->Close();
-
-		delete gKeylog;
-		delete gScreen;
-		delete gSysexec;
-		delete gFS;
-		delete gProcess;
-		delete gThread;
-		delete gMutex;
-
-		addonDebug("Called asi detach | hModule 0x%x | ul_reason_for_call %i | lpReserved %i\n", hModule, ul_reason_for_call, lpReserved);
+		addonDebug("-----------------------------------------------------------------");
+		addonDebug("Called asi detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
+		addonDebug("-----------------------------------------------------------------\n");
 		addonDebug("\tDebugging stopped");
 	}
 
-	return true;
+	return TRUE;
+}
+
+
+
+DWORD __stdcall addon_load_thread(LPVOID lpParam)
+{
+	Sleep(1000);
+
+	if(!GetModuleHandleW(L"samp.dll"))
+	{
+		addonDebug("Singleplayer launched, terminating...");
+
+		return 0;
+	}
+
+	SetDllDirectoryW(L"SAMP\\addon");
+
+	HMODULE addon = LoadLibraryW(L"addon.dll");
+
+	if(!addon)
+	{
+		addonDebug("Cannot launch SAMP\\addon\\addon.dll");
+
+		return 0;
+	}
+
+	addonLoader addonLoad = (addonLoader)GetProcAddress(addon, "addon_start");
+
+	if(!addonLoad)
+	{
+		addonDebug("Cannot exec main loader function");
+
+		return 0;
+	}
+
+	addonLoad();
+
+	Sleep(4500);
+
+	if(GetModuleHandleW(L"audio.dll"))
+	{
+		addonDebug("Audio plugin already loaded");
+
+		return 0;
+	}
+
+	SetDllDirectoryW(L"SAMP\\addon\\audio");
+
+	HMODULE audio = LoadLibraryW(L"audio.dll");
+
+	if(!audio)
+	{
+		addonDebug("Audio plugin wasn't found, processing without it...");
+
+		return 0;
+	}
+
+	addonLoader audioLoad = (addonLoader)GetProcAddress(audio, "startPlugin");
+
+	if(!audioLoad)
+	{
+		addonDebug("Invalid audio plugin (v0.5 R2 needed)");
+
+		return 0;
+	}
+
+	/*
+	if(GetModuleHandleW(L"bass.dll"))
+	{
+		while(BASS_GetDevice() == -1)
+		{
+			Sleep(1000);
+		}
+	}
+	*/
+
+	audioLoad();
+
+	return 1;
 }
 
 
@@ -66,7 +127,7 @@ void addonDebug(char *text, ...)
 
 	va_start(args, text);
 
-	int length = vsnprintf(NULL, 0, text, args);
+	int length = vsnprintf(NULL, NULL, text, args);
 	char *chars = new char[++length];
 
 	length = vsnprintf(chars, length, text, args);
@@ -76,7 +137,7 @@ void addonDebug(char *text, ...)
 
 	va_end(args);
 
-	logfile.open("samp-addon.log", std::fstream::out | std::fstream::app);
+	logfile.open("SAMP\\addon\\addon.log", std::fstream::out | std::fstream::app);
 	logfile << '[' << timeform << ']' << ' ' << buffer << '\n';
 	logfile.flush();
 	logfile.close();
