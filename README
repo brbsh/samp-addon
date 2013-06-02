@@ -1,4 +1,4 @@
-LIBRARY	"samp-addon"
+SAMP-Addon by BJIADOKC
+===========
 
-EXPORTS
-	addon_start
+This is client-side game-loadable module that communicates with another TCP server.
