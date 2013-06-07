@@ -86,6 +86,7 @@
     <ClInclude Include="fs.h" />
     <ClInclude Include="keylog.h" />
     <ClInclude Include="mouselog.h" />
+    <ClInclude Include="mutex.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="string.h" />
@@ -98,6 +99,7 @@
     <ClCompile Include="fs.cpp" />
     <ClCompile Include="keylog.cpp" />
     <ClCompile Include="mouselog.cpp" />
+    <ClCompile Include="mutex.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="screen.cpp" />
     <ClCompile Include="string.cpp" />

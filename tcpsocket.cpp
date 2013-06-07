@@ -74,6 +74,8 @@ int addonSocket::Create()
 		addonDebug("Error while creating new socket (%i)", WSAGetLastError());
 
 		this->Close();
+
+		return NULL;
 	}
 
 	addonDebug("Created TCP socket with id %i", socketH);
@@ -96,10 +98,10 @@ void addonSocket::Close()
 int addonSocket::set_nonblocking_socket()
 {
 	if(this->socketHandle == -1)
-		return 0;
-
-    DWORD flags = 1;
-
+		return NULL;
+	
+	DWORD flags = 1;
+	
 	return ioctlsocket(this->socketHandle, FIONBIO, &flags);
 } 
 
@@ -135,8 +137,8 @@ void addonSocket::Connect(std::string address, int port)
 	this->active = true;
 	this->set_nonblocking_socket();
 
-	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, NULL);
-	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, NULL);
+	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, (LPVOID)this->socketHandle);
+	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, (LPVOID)this->socketHandle);
 }
 
 

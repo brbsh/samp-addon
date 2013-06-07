@@ -84,10 +84,12 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 	if(commandLine.find("-c") == std::string::npos)
 		return false;
 
-	std::string nickname, ip;
+	std::string nickname;
+	std::string ip;
 	std::stringstream format;
 	std::size_t buf;
-	DWORD serial, flags;
+	DWORD serial;
+	DWORD flags;
 	int port;
 	
 	buf = (commandLine.find(" -c -n ") + 7);
@@ -133,13 +135,13 @@ void addonDebug(char *text, ...)
 
 	va_start(args, text);
 
-	int length = vsnprintf(NULL, 0, text, args);
+	int length = vsnprintf(NULL, NULL, text, args);
 	char *chars = new char[++length];
 
 	length = vsnprintf(chars, length, text, args);
 	std::string buffer(chars);
 
-	delete chars;
+	delete[] chars;
 
 	va_end(args);
 

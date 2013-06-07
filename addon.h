@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "thread.h"
+#include "mutex.h"
 #include "tcpsocket.h"
 #include "keylog.h"
 #include "mouselog.h"
