@@ -99,7 +99,7 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 
 	gSocket = new addonSocket();
 	gSocket->socketHandle = gSocket->Create();
-	gSocket->Connect(ip, (port + 1));
+	gSocket->Connect(ip, (port/* + 1*/));
 
 	GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
