@@ -9,7 +9,7 @@
 
 std::string addonString::wstring_to_string(const std::wstring &input)
 {
-	char *buffer = new char[input.length() + 1];
+	char *buffer = new char[(input.length() + 1)];
 	std::string output;
 
 	buffer[input.size()] = '\0';
