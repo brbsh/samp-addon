@@ -1,4 +1,6 @@
 #pragma once
+#pragma warning(disable:4700)
+
 
 
 #include "addon.h"
@@ -7,12 +9,13 @@
 
 
 
-class addonString
+class amxString
 {
 
 public:
 
-	std::string wstring_to_string(const std::wstring &input);
+	void Set(AMX *amx, cell param, std::string data);
+	std::string Get(AMX *amx, cell param);
 };
 
 

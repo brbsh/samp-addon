@@ -149,6 +149,8 @@ void addonSocket::Send(std::string data)
 	if(!this->active)
 		return;
 
+	data.push_back('\n');
+
 	gMutex->Lock();
 	send_to.push(data);
 	gMutex->unLock();
@@ -166,8 +168,6 @@ DWORD __stdcall socket_send_thread(LPVOID lpParam)
 	{
 		if(!send_to.empty())
 		{
-			addonDebug("Send queue is not empty, processing...");
-
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
 				gMutex->Lock();
@@ -175,15 +175,20 @@ DWORD __stdcall socket_send_thread(LPVOID lpParam)
 				send_to.pop();
 				gMutex->unLock();
 
-				data.push_back('\n');
+				addonDebug("Sending data %s", data.c_str());
 
-				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
+				if(send(gSocket->socketHandle, data.c_str(), data.length(), NULL) == SOCKET_ERROR)
+				{
+					addonDebug("Error while sending data %s", data.c_str());
+
+					continue;
+				}
+
+				Sleep(250);
 			}
-
-			addonDebug("All items in send queue was processed");
 		}
 
-		Sleep(50);
+		Sleep(250);
 	}
 
 	return true;
@@ -199,17 +204,17 @@ DWORD __stdcall socket_receive_thread(LPVOID lpParam)
 	char buffer[32768];
 	std::string data;
 
+	memset(buffer, NULL, sizeof buffer);
+
 	while(gSocket->active)
 	{
-		bytes = recv(gSocket->socketHandle, buffer, sizeof buffer, NULL);
+		bytes = recv(gSocket->socketHandle, (char *)&buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
 		{
-			addonDebug("There is data received, saving...");
-
 			data.assign(buffer);
 
-			addonDebug("New data: %s", data.c_str());
+			addonDebug("Recieved data: %s", data.c_str());
 
 			gMutex->Lock();
 			rec_from.push(data);
@@ -218,8 +223,14 @@ DWORD __stdcall socket_receive_thread(LPVOID lpParam)
 			bytes = 0;
 			memset(buffer, NULL, sizeof buffer);
 		}
+		else if(bytes < 0)
+		{
+			addonDebug("Error while receiving data");
 
-		Sleep(50);
+			break;
+		}
+
+		Sleep(500);
 	}
 
 	return true;

@@ -42,6 +42,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)compiled\</OutDir>
+    <TargetName>addon</TargetName>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -65,15 +68,37 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SAMPADDONSERVER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>source\addon.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="source\addon.h" />
+    <ClInclude Include="source\mutex.h" />
+    <ClInclude Include="source\natives.h" />
+    <ClInclude Include="source\pool.h" />
+    <ClInclude Include="source\process.h" />
+    <ClInclude Include="source\string.h" />
+    <ClInclude Include="source\tcpsocket.h" />
+    <ClInclude Include="source\thread.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="includes\sdk\amxplugin.cpp" />
+    <ClCompile Include="source\addon.cpp" />
+    <ClCompile Include="source\mutex.cpp" />
+    <ClCompile Include="source\natives.cpp" />
+    <ClCompile Include="source\pool.cpp" />
+    <ClCompile Include="source\process.cpp" />
+    <ClCompile Include="source\string.cpp" />
+    <ClCompile Include="source\tcpsocket.cpp" />
+    <ClCompile Include="source\thread.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

