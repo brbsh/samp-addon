@@ -11,7 +11,7 @@ void addonScreen::Get(std::string filename)
 	DWORD addr = 0x5D0820; // screenshot take addr
 	char *c_filename = new char[(filename.length() + 1)];
 	
-	strcpy(c_filename, filename.c_str())
+	strcpy(c_filename, filename.c_str());
 
 	_asm
 	{
