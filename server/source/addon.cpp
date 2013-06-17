@@ -188,11 +188,10 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientKeyDataUpdate(clientid, keys[], keys_size)
+				// public Addon_OnClientKeyDataUpdate(clientid, keys[])
 				if(!amx_FindPublic(*amx, "Addon_OnClientKeyDataUpdate", &amx_idx))
 				{
-					amx_Push(*amx, keyData.numcells);
-					amx_PushArray(*amx, &amxAddress, NULL, keyData.arr, keyData.numcells);
+					amx_PushString(*amx, &amxAddress, NULL, keyData.keys, NULL, NULL);
 					amx_Push(*amx, keyData.clientID);
 
 					amx_Exec(*amx, NULL, amx_idx);
@@ -219,7 +218,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 				// public Addon_OnScreenshotTaken(clientid, remote_file[])
 				if(!amx_FindPublic(*amx, "Addon_OnScreenshotTaken", &amx_idx))
 				{
-					amx_PushString(*amx, &amxAddress, NULL, screenshotData.name.c_str(), NULL, NULL);
+					amx_PushString(*amx, &amxAddress, NULL, screenshotData.name, NULL, NULL);
 					amx_Push(*amx, screenshotData.clientID);
 
 					amx_Exec(*amx, NULL, amx_idx);

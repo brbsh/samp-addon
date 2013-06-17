@@ -1,6 +1,14 @@
 #pragma once
 
+
+
 #include "thread.h"
+
+
+
+
+
+addonThread *gThread;
 
 
 
@@ -11,7 +19,7 @@ addonThread::addonThread()
 	addonDebug("Thread constructor called");
 	addonDebug("Starting thread 'main_thread'");
 
-	this->threadHandle = this->Start((LPTHREAD_START_ROUTINE)main_thread, (void *)GetTickCount());
+	this->threadHandle = this->Start(addonThread::Thread, (void *)GetTickCount());
 }
 
 
@@ -25,9 +33,9 @@ addonThread::~addonThread()
 
 
 
-HANDLE addonThread::Start(LPTHREAD_START_ROUTINE function, void *param)
+HANDLE addonThread::Start(threadFunc function, void *param)
 {
-	HANDLE threadH = CreateThread(NULL, NULL, function, param, NULL, NULL);
+	HANDLE threadH = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)function, param, NULL, NULL);
 
 	addonDebug("Thread with handle %i successfuly started", threadH);
 

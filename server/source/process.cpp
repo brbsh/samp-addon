@@ -13,6 +13,7 @@ extern amxSocket *gSocket;
 extern logprintf_t logprintf;
 
 
+extern std::queue<amxDisconnect> amxDisconnectQueue;
 extern std::queue<amxKey> amxKeyQueue;
 extern std::queue<amxScreenshot> amxScreenshotQueue;
 extern std::queue<processStruct> recvQueue;
@@ -86,15 +87,20 @@ extern std::queue<processStruct> recvQueue;
 						break;
 					}
 
-					case 1001: // TCPQUERY CLIENT_CALL 1001 %i1 %i2 %i3   ---   Sends addon module detach info | %i1 - DLL address, %i2 - Detach reason, %i3 - Reserved var
+					case 1001: // TCPQUERY CLIENT_CALL 1001 %i1   ---   Sends addon module detach info | %i1 - Reason
 					{
-						int dll;
+						amxDisconnect pushme;
+
 						int reason;
-						int reserved;
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %d %d %d", &dll, &reason, &reserved);
+						sscanf_s(input.data.c_str(), "%*s %*s %*d %d", &reason);
+						logprintf("%i disconnected (Reason: %i)", input.clientID, reason);
 
-						logprintf("%i module %i unloaded (Reason: %i)", input.clientID, dll, reason);
+						pushme.clientID = input.clientID;
+
+						gMutex->Lock();
+						amxDisconnectQueue.push(pushme);
+						gMutex->unLock();
 
 						break;
 					}
@@ -103,19 +109,12 @@ extern std::queue<processStruct> recvQueue;
 					{
 						amxKey amxKeyData;
 
-						input.data.erase(0, (input.data.find("1002 ") + 5));
-
+						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxKeyData.keys, sizeof amxKeyData.keys);
 						amxKeyData.clientID = input.clientID;
-						amxKeyData.numcells = input.data.length();
-						amxKeyData.arr = (cell *)malloc(sizeof(cell) * (amxKeyData.numcells + 1));
-
-						memcpy(amxKeyData.arr, input.data.data(), amxKeyData.numcells);
 						
 						gMutex->Lock();
 						amxKeyQueue.push(amxKeyData);
 						gMutex->unLock();
-
-						delete[] amxKeyData.arr;
 
 						break;
 					}
@@ -124,10 +123,8 @@ extern std::queue<processStruct> recvQueue;
 					{
 						amxScreenshot amxScreenshotData;
 
-						input.data.erase(0, (input.data.find("1003 ") + 5));
-
+						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxScreenshotData.name, sizeof amxScreenshotData.name);
 						amxScreenshotData.clientID = input.clientID;
-						amxScreenshotData.name = input.data;
 
 						gMutex->Lock();
 						amxScreenshotQueue.push(amxScreenshotData);

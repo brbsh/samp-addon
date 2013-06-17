@@ -1,7 +1,14 @@
 #pragma once
 
 
+
 #include "string.h"
+
+
+
+
+
+addonString *gString;
 
 
 

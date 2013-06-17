@@ -1,6 +1,14 @@
 #pragma once
 
+
+
 #include "addon.h"
+
+
+
+typedef DWORD (*threadFunc)(void *lpParam);
+
+
 
 
 
@@ -8,12 +16,16 @@ class addonThread
 {
 
 public:
-
-	HANDLE threadHandle;
 	
+	static DWORD Thread(void *lpParam);
+
 	addonThread();
 	~addonThread();
 
-	HANDLE Start(LPTHREAD_START_ROUTINE function, LPVOID param);
+	HANDLE Start(threadFunc function, void *param);
 	void Stop(HANDLE threadHandle);
+
+private:
+
+	HANDLE threadHandle;
 };

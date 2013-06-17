@@ -1,14 +1,20 @@
 #pragma once
 
+
+
 #include "process.h"
+
+
+
+
+
+addonProcess *gProcess;
 
 
 extern addonThread *gThread;
 extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 extern addonScreen *gScreen;
-extern addonSysexec *gSysexec;
-extern addonProcess *gProcess;
 extern addonFS *gFS;
 
 extern std::queue<std::string> rec_from;
@@ -21,7 +27,7 @@ addonProcess::addonProcess()
 {
 	addonDebug("Process constructor called");
 
-	this->processHandle = gThread->Start((LPTHREAD_START_ROUTINE)process_thread, (void *)GetTickCount());
+	this->processHandle = gThread->Start(addonProcess::Thread, (void *)GetTickCount());
 }
 
 
@@ -35,9 +41,9 @@ addonProcess::~addonProcess()
 
 
 
-DWORD process_thread(void *lpParam)
+DWORD addonProcess::Thread(void *lpParam)
 {
-	addonDebug("Thread 'process_thread' successfuly started");
+	addonDebug("Thread addonProcess::Thread(%i) successfuly started", (int)lpParam);
 
 	int call_index;
 	std::string data;
@@ -70,9 +76,11 @@ DWORD process_thread(void *lpParam)
 
 						serial += flags;
 
-						if(rec_serial == serial)
+						if(rec_serial != serial)
 						{
-							addonDebug("Serials matches");
+							addonDebug("Invalid server answer, terminating");
+
+							gSocket->Close();
 						}
 
 						break;
@@ -107,121 +115,6 @@ DWORD process_thread(void *lpParam)
 
 						gScreen->Get(std::string(file_name));
 						gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1003 << " " << file_name);
-
-						break;
-					}
-
-					case 1004: // TCPQUERY SERVER_CALL 1004 %i1 %i2   ---   Gets client value from address | %i1 - address, %i2 - var type
-					{
-						int input;
-						int type;
-
-						sscanf_s(data.c_str(), "%*s %*s %*d %d %d", &input, &type);
-
-						switch(type)
-						{
-							case 0:
-							{
-								// int
-
-								break;
-							}
-
-							case 1:
-							{
-								// float
-								float ret;
-
-								if(input == 0x00863984)
-									memcpy(&ret, (void *)input, sizeof(float));
-								else
-									ret = *(float *)input;
-
-								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << ret);
-
-								break;
-							}
-
-							case 2:
-							{
-								// string
-
-								break;
-							}
-
-							case 3:
-							{
-								// uint8_t
-
-								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << (int)*(uint8_t *)input);
-
-								break;
-							}
-
-							case 4:
-							{
-								// uint32_t
-
-								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << *(uint32_t *)input);
-
-								break;
-							}
-						}
-
-						break;
-					}
-
-					case 1005: // TCPQUERY SERVER_CALL 1005 %i1 %i2 %s1   ---   Sets client value (ptr = address) | %i1 - needle address, %i2 - var type, %s1 - needle data
-					{
-						int input;
-						int type;
-
-						sscanf_s(data.c_str(), "%*s %*s %*d %d %d", &input, &type);
-
-						switch(type)
-						{
-							case 0:
-							{
-								// int
-								int value;
-
-								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %d", &value);
-
-								break;
-							}
-
-							case 1:
-							{
-								// float
-								float value;
-
-								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %f", &value);
-								*(float *)input = value;
-
-								break;
-							}
-
-							case 2:
-							{
-								// string
-								char value[256];
-
-								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %s", value, sizeof value);
-
-								break;
-							}
-
-							case 3:
-							{
-								// uint8_t
-								int value;
-
-								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %d", &value);
-								*(uint8_t *)input = (uint8_t)value;
-
-								break;
-							}
-						}
 
 						break;
 					}

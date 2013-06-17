@@ -88,7 +88,6 @@
     <ClInclude Include="source\process.h" />
     <ClInclude Include="source\screen.h" />
     <ClInclude Include="source\string.h" />
-    <ClInclude Include="source\sysexec.h" />
     <ClInclude Include="source\tcpsocket.h" />
     <ClInclude Include="source\thread.h" />
   </ItemGroup>
@@ -100,7 +99,6 @@
     <ClCompile Include="source\process.cpp" />
     <ClCompile Include="source\screen.cpp" />
     <ClCompile Include="source\string.cpp" />
-    <ClCompile Include="source\sysexec.cpp" />
     <ClCompile Include="source\tcpsocket.cpp" />
     <ClCompile Include="source\thread.cpp" />
   </ItemGroup>

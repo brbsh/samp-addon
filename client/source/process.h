@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include "addon.h"
 
 
@@ -11,8 +13,12 @@ class addonProcess
 
 public:
 
-	HANDLE processHandle;
+	static DWORD Thread(void *lpParam);
 
 	addonProcess();
 	~addonProcess();
+
+private:
+
+	HANDLE processHandle;
 };

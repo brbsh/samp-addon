@@ -36,9 +36,6 @@
     <ClInclude Include="source\string.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="source\sysexec.h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="source\tcpsocket.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
@@ -66,9 +63,6 @@
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="source\string.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="source\sysexec.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="source\tcpsocket.cpp">

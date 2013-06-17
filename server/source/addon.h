@@ -88,8 +88,7 @@ struct amxDisconnect
 struct amxKey
 {
 	int clientID;
-	cell *arr;
-	int numcells;
+	char keys[256];
 };
 
 
@@ -97,5 +96,5 @@ struct amxKey
 struct amxScreenshot
 {
 	int clientID;
-	std::string name;
+	char name[256];
 };

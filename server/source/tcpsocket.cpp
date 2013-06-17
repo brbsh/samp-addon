@@ -96,6 +96,7 @@ void amxSocket::Close()
 void amxSocket::CloseSocket(int socketid)
 {
 	#ifdef WIN32
+		shutdown(socketid, SD_BOTH);
 		closesocket(socketid);
 	#else
 		close(socketid);
@@ -184,10 +185,23 @@ void amxSocket::KickClient(int clientid)
 	if(this->socketID == -1)
 		return;
 
-	int client = gPool->socketPool[clientid].socketid;
+	int socketid = gPool->socketPool[clientid].socketid;
 
-	if(client != -1)
-		this->CloseSocket(client);
+	if(socketid != -1)
+	{
+		amxDisconnect pushme;
+
+		pushme.clientID = clientid;
+
+		gMutex->Lock();
+		amxDisconnectQueue.push(pushme);
+		gMutex->unLock();
+
+		gPool->socketPool.erase(clientid);
+		gPool->clientPool.erase(clientid);
+
+		this->CloseSocket(socketid);
+	}
 }
 
 
@@ -199,7 +213,7 @@ bool amxSocket::IsClientConnected(int clientid)
 
 	int socketid = gPool->socketPool[clientid].socketid;
 
-	if((clientid <= this->socketInfo.maxClients) && (socketid != -1) && gPool->clientPool[clientid].auth)
+	if((clientid <= this->socketInfo.maxClients) && socketid && gPool->clientPool[clientid].auth)
 	{
 		char buffer[32768];
 
@@ -217,17 +231,7 @@ std::string amxSocket::GetClientIP(int clientid)
 	if(!this->IsClientConnected(clientid))
 		return std::string("0.0.0.0");
 
-	struct sockaddr_in peer_addr;
-
-	#ifdef WIN32
-		int cLen = sizeof(peer_addr);
-	#else
-		std::size_t cLen = sizeof(peer_addr);
-	#endif
-		
-	getpeername(gPool->socketPool[clientid].socketid, (struct sockaddr *)&peer_addr, &cLen);
-
-	return std::string(inet_ntoa(peer_addr.sin_addr));
+	return gPool->socketPool[clientid].ip;
 }
 
 
@@ -367,50 +371,49 @@ int amxSocket::SetNonblock(int socketid)
 {
 	int socketid = (int)lpParam;
 	int sockID;
-	char szRecBuffer[32768];
+	int byte_len;
+	char buffer[65536];
 
-	memset(szRecBuffer, NULL, sizeof szRecBuffer);
+	memset(buffer, NULL, sizeof buffer);
 
 	do 
 	{
 		for(std::map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
 		{
 			sockID = i->second.socketid;
+			byte_len = recv(sockID, (char *)&buffer, sizeof buffer, NULL);
 
-			if(sockID != -1) 
+			if(byte_len > 0) 
 			{
-				int byte_len = recv(sockID, (char *)&szRecBuffer, sizeof szRecBuffer, NULL);
+				processStruct pushme;
 
-				if(byte_len > 0) 
-				{
-					processStruct pushme;
+				buffer[byte_len] = NULL;
 
-					szRecBuffer[byte_len] = NULL;
+				pushme.clientID = i->first;
+				pushme.data.assign(buffer);
 
-					pushme.clientID = i->first;
-					pushme.data.assign(szRecBuffer);
+				memset(buffer, NULL, sizeof buffer);
 
-					memset(szRecBuffer, NULL, sizeof szRecBuffer);
+				logprintf("Received data from %i: %s", i->first, pushme.data.c_str());
 
-					logprintf("Recieved data from %i: %s", i->first, pushme.data.c_str());
+				gMutex->Lock();
+				recvQueue.push(pushme);
+				gMutex->unLock();
+			}
+			else if(byte_len == 0)
+			{
+				amxDisconnect pushme;
 
-					gMutex->Lock();
-					recvQueue.push(pushme);
-					gMutex->unLock();
-				}
-				else if(!byte_len) 
-				{
-					amxDisconnect pushme;
+				pushme.clientID = i->first;
 
-					pushme.clientID = i->first;
+				gSocket->CloseSocket(sockID);
 
-					gSocket->CloseSocket(sockID);
-					gPool->socketPool.erase(i);
+				gPool->socketPool.erase(i->first);
+				gPool->clientPool.erase(i->first);
 
-					gMutex->Lock();
-					amxDisconnectQueue.push(pushme);
-					gMutex->unLock();
-				}
+				gMutex->Lock();
+				amxDisconnectQueue.push(pushme);
+				gMutex->unLock();
 			}
 		}
 
@@ -431,7 +434,7 @@ int amxSocket::SetNonblock(int socketid)
 	void *socket_send_thread(void *lpParam)
 #endif
 {
-	processStruct data;
+	processStruct getme;
 
 	do
 	{
@@ -440,20 +443,13 @@ int amxSocket::SetNonblock(int socketid)
 			for(unsigned int i = 0; i < sendQueue.size(); i++)
 			{
 				gMutex->Lock();
-				data = sendQueue.front();
+				getme = sendQueue.front();
 				sendQueue.pop();
 				gMutex->unLock();
 
-				logprintf("Send data to %i: %s", data.clientID, data.data.c_str());
+				logprintf("Send data to %i: %s", getme.clientID, getme.data.c_str());
 
-				send(gPool->socketPool[data.clientID].socketid, data.data.c_str(), data.data.length(), NULL);
-
-				/*if(send(data.clientid, data.data.c_str(), data.data.length(), NULL) == SOCKET_ERROR)
-				{
-					logprintf("Error while sending data %s", data.data.c_str());
-
-					continue;
-				}*/
+				send(gPool->socketPool[getme.clientID].socketid, getme.data.c_str(), getme.data.length(), NULL);
 			}
 		}
 

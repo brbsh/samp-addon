@@ -1,7 +1,14 @@
 #pragma once
 
 
+
 #include "mutex.h"
+
+
+
+
+
+addonMutex *gMutex;
 
 
 
@@ -11,21 +18,23 @@ addonMutex::addonMutex()
 {
 	addonDebug("Mutex constructor called");
 
-	this->mutexHandle = this->Create(std::wstring(L"samp-addon"));
+	this->mutexHandle = this->Create();
 }
 
 
 
 addonMutex::~addonMutex()
 {
+	this->Delete();
+
 	addonDebug("Mutex deconstructor called");
 }
 
 
 
-HANDLE addonMutex::Create(std::wstring mutex_name)
+HANDLE addonMutex::Create()
 {
-	HANDLE mutexH = CreateMutexW(NULL, FALSE, mutex_name.c_str());
+	HANDLE mutexH = CreateMutexW(NULL, FALSE, L"samp-addon");
 
 	addonDebug("Mutex with handle %i successfuly created", mutexH);
 
@@ -40,8 +49,6 @@ void addonMutex::Delete()
 
 	this->unLock();
 	CloseHandle(this->mutexHandle);
-
-	this->~addonMutex();
 }
 
 

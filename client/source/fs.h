@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include "addon.h"
 #include <dirent.h>
 
@@ -12,8 +14,11 @@ class addonFS
 
 public:
 
-	DIR *directory;
-	struct dirent *entry;
+	void RemoveFile(std::string file);
+	std::vector<std::string> ListDirectory(std::string folder);
 
-	std::vector<std::string> Dir(std::string folder);
+private:
+
+	struct dirent *entry;
+	DIR *directory;
 };

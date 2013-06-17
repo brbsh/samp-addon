@@ -1,16 +1,21 @@
 #pragma once
 
+
+
 #include "tcpsocket.h"
 
 
 
-extern addonMutex *gMutex;
-extern addonThread *gThread;
-extern addonSocket *gSocket;
 
+
+addonSocket *gSocket;
 
 std::queue<std::string> send_to;
 std::queue<std::string> rec_from;
+
+
+extern addonMutex *gMutex;
+extern addonThread *gThread;
 
 
 
@@ -25,7 +30,7 @@ addonSocket::addonSocket()
 	wVersionRequested = MAKEWORD(2, 2);
 	WSAStartup(wVersionRequested, &wsaData);
 
-	this->active = false;
+	this->threadActive = false;
 	this->socketHandle = -1;
 	
 	if(LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
@@ -38,6 +43,8 @@ addonSocket::addonSocket()
 	}
 
 	addonDebug("WSA library was successfuly initialized");
+
+	this->socketHandle = this->Create();
 }
 
 
@@ -46,9 +53,9 @@ addonSocket::~addonSocket()
 {
 	addonDebug("WSA deconstructor called");
 
-	if(this->active)
+	if(this->threadActive)
 	{
-		this->active = false;
+		this->threadActive = false;
 
 		gThread->Stop(this->sendHandle);
 		gThread->Stop(this->receiveHandle);
@@ -87,15 +94,20 @@ int addonSocket::Create()
 
 void addonSocket::Close()
 {
-	if(this->active)
+	if(this->threadActive)
+	{
+		send(this->socketHandle, "TCPQUERY CLIENT_CALL 1001 1", 27, NULL);
+
+		shutdown(this->socketHandle, SD_BOTH);
 		closesocket(this->socketHandle);
+	}
 
 	this->~addonSocket();
 }
 
 
 
-int addonSocket::set_nonblocking_socket()
+int addonSocket::Nonblock()
 {
 	if(this->socketHandle == -1)
 		return NULL;
@@ -134,11 +146,11 @@ void addonSocket::Connect(std::string address, int port)
 
 	addonDebug("Connected to %s:%i trough TCP", address.c_str(), port);
 
-	this->active = true;
-	this->set_nonblocking_socket();
+	this->threadActive = true;
+	this->Nonblock();
 
-	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, (void *)this->socketHandle);
-	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, (void *)this->socketHandle);
+	this->sendHandle = gThread->Start(addonSocket::SendThread, (void *)this->socketHandle);
+	this->receiveHandle = gThread->Start(addonSocket::ReceiveThread, (void *)this->socketHandle);
 }
 
 
@@ -146,7 +158,7 @@ void addonSocket::Connect(std::string address, int port)
 
 void addonSocket::Send(std::string data)
 {
-	if(!this->active)
+	if(!this->threadActive)
 		return;
 
 	//data.push_back('\n');
@@ -158,26 +170,28 @@ void addonSocket::Send(std::string data)
 
 
 
-DWORD socket_send_thread(void *lpParam)
+DWORD addonSocket::SendThread(void *lpParam)
 {
-	addonDebug("Thread 'socket_send_thread' succesfuly started");
+	int socketHandle = (int)lpParam;
 
-	std::string data;
+	addonDebug("Thread addonSocket::SendThread(%i) succesfuly started", socketHandle);
 
 	do
 	{
 		if(!send_to.empty())
 		{
+			std::string getme;
+
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
 				gMutex->Lock();
-				data = send_to.front();
+				getme = send_to.front();
 				send_to.pop();
 				gMutex->unLock();
 
-				addonDebug("Sending data %s", data.c_str());
+				addonDebug("Sending data %s", getme.c_str());
 
-				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
+				send(socketHandle, getme.c_str(), getme.length(), NULL);
 
 				Sleep(100);
 			}
@@ -185,25 +199,24 @@ DWORD socket_send_thread(void *lpParam)
 
 		Sleep(1);
 	}
-	while(gSocket->active);
+	while(gSocket->threadActive);
 
 	return true;
 }
 
 
 
-DWORD socket_receive_thread(void *lpParam)
+DWORD addonSocket::ReceiveThread(void *lpParam)
 {
-	addonDebug("Thread 'socket_receive_thread' successfuly started");
-
 	int bytes;
-	char buffer[32768];
-
-	memset(buffer, NULL, sizeof buffer);
+	int socketHandle = (int)lpParam;
+	char buffer[65536];
+	
+	addonDebug("Thread addonSocket::ReceiveThread(%i) successfuly started", socketHandle);
 
 	do
 	{
-		bytes = recv(gSocket->socketHandle, (char *)&buffer, sizeof buffer, NULL);
+		bytes = recv(socketHandle, (char *)&buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
 		{
@@ -213,13 +226,12 @@ DWORD socket_receive_thread(void *lpParam)
 			rec_from.push(std::string(buffer));
 			gMutex->unLock();
 
-			bytes = 0;
 			memset(buffer, NULL, sizeof buffer);
 		}
 
 		Sleep(1);
 	}
-	while(gSocket->active);
+	while(gSocket->threadActive);
 
 	return true;
 }

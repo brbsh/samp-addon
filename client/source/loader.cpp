@@ -42,18 +42,18 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 DWORD addon_load_thread(void *lpParam)
 {
 	int parentDLL = (int)lpParam;
-	unsigned long int tick = 0;
+	int tick = 0;
 
 	while(!GetModuleHandleW(L"samp.dll"))
 	{
-		if(++tick > 4294967293)
+		if(++tick >= 120) // 30 seconds
 		{
 			addonDebug("Singleplayer loaded, terminating");
 
 			return false;
 		}
 
-		Sleep(1);
+		Sleep(250);
 	}
 
 	HMODULE addon;
