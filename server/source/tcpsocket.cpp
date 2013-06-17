@@ -215,7 +215,7 @@ bool amxSocket::IsClientConnected(int clientid)
 
 	if((clientid <= this->socketInfo.maxClients) && socketid && gPool->clientPool[clientid].auth)
 	{
-		char buffer[32768];
+		char buffer[65536];
 
 		if(recv(socketid, buffer, sizeof buffer, NULL) != 0)
 			return true;
