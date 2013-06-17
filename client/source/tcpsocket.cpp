@@ -137,8 +137,8 @@ void addonSocket::Connect(std::string address, int port)
 	this->active = true;
 	this->set_nonblocking_socket();
 
-	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, (LPVOID)this->socketHandle);
-	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, (LPVOID)this->socketHandle);
+	this->sendHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_send_thread, (void *)this->socketHandle);
+	this->receiveHandle = gThread->Start((LPTHREAD_START_ROUTINE)socket_receive_thread, (void *)this->socketHandle);
 }
 
 
@@ -149,7 +149,7 @@ void addonSocket::Send(std::string data)
 	if(!this->active)
 		return;
 
-	data.push_back('\n');
+	//data.push_back('\n');
 
 	gMutex->Lock();
 	send_to.push(data);
@@ -158,13 +158,13 @@ void addonSocket::Send(std::string data)
 
 
 
-DWORD __stdcall socket_send_thread(LPVOID lpParam)
+DWORD socket_send_thread(void *lpParam)
 {
 	addonDebug("Thread 'socket_send_thread' succesfuly started");
 
 	std::string data;
 
-	while(gSocket->active)
+	do
 	{
 		if(!send_to.empty())
 		{
@@ -177,61 +177,49 @@ DWORD __stdcall socket_send_thread(LPVOID lpParam)
 
 				addonDebug("Sending data %s", data.c_str());
 
-				if(send(gSocket->socketHandle, data.c_str(), data.length(), NULL) == SOCKET_ERROR)
-				{
-					addonDebug("Error while sending data %s", data.c_str());
+				send(gSocket->socketHandle, data.c_str(), data.length(), NULL);
 
-					continue;
-				}
-
-				Sleep(250);
+				Sleep(100);
 			}
 		}
 
-		Sleep(250);
+		Sleep(1);
 	}
+	while(gSocket->active);
 
 	return true;
 }
 
 
 
-DWORD __stdcall socket_receive_thread(LPVOID lpParam)
+DWORD socket_receive_thread(void *lpParam)
 {
 	addonDebug("Thread 'socket_receive_thread' successfuly started");
 
 	int bytes;
 	char buffer[32768];
-	std::string data;
 
 	memset(buffer, NULL, sizeof buffer);
 
-	while(gSocket->active)
+	do
 	{
 		bytes = recv(gSocket->socketHandle, (char *)&buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
 		{
-			data.assign(buffer);
-
-			addonDebug("Recieved data: %s", data.c_str());
+			addonDebug("Recieved data: %s", buffer);
 
 			gMutex->Lock();
-			rec_from.push(data);
+			rec_from.push(std::string(buffer));
 			gMutex->unLock();
 
 			bytes = 0;
 			memset(buffer, NULL, sizeof buffer);
 		}
-		else if(bytes < 0)
-		{
-			addonDebug("Error while receiving data");
 
-			break;
-		}
-
-		Sleep(500);
+		Sleep(1);
 	}
+	while(gSocket->active);
 
 	return true;
 }

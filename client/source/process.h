@@ -8,7 +8,9 @@
 
 class addonProcess
 {
+
 public:
+
 	HANDLE processHandle;
 
 	addonProcess();

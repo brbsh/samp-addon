@@ -7,18 +7,21 @@
 
 
 extern amxMutex *gMutex;
+extern amxPool *gPool;
 extern amxThread *gThread;
 
-extern bool gInit;
 extern logprintf_t logprintf;
+
 
 extern std::queue<amxConnect> amxConnectQueue;
 extern std::queue<amxConnectError> amxConnectErrorQueue;
 extern std::queue<amxDisconnect> amxDisconnectQueue;
 
+
 amxSocket *gSocket;
-std::queue<sockStruct> sendQueue;
-std::queue<sockStruct> recvQueue;
+
+std::queue<processStruct> sendQueue;
+std::queue<processStruct> recvQueue;
 
 
 
@@ -27,7 +30,7 @@ std::queue<sockStruct> recvQueue;
 amxSocket::amxSocket()
 {
 	this->socketID = -1;
-	this->maxClients = -1;
+	this->socketInfo.maxClients = -1;
 
 	#ifdef WIN32
 		WORD wVersionRequested = MAKEWORD(2, 2);
@@ -65,7 +68,7 @@ void amxSocket::Create()
 
 	if(this->socketID == -1)
 	{
-		logprintf("samp-addon: socket_create() failed (function 'socket' returned -1)");
+		logprintf("samp-addon: socket creation failed (function 'socket' returned -1)");
 
 		return;
 	}
@@ -75,15 +78,13 @@ void amxSocket::Create()
 
 void amxSocket::Close()
 {
-	for(int i = 0; i < this->maxClients; i++) 
+	for(std::map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
 	{
-		if(this->clientsPool[i] != -1) 
+		if(i->second.socketid != -1) 
 		{
-			this->CloseSocket(this->clientsPool[i]);
+			this->CloseSocket(i->second.socketid);
 		}
 	}
-
-	free(this->clientsPool);
 
 	this->CloseSocket(this->socketID);
 
@@ -108,18 +109,16 @@ void amxSocket::MaxClients(int max)
 	if(this->socketID == -1)
 		return;
 
-	this->clientsPool = (int *)malloc(sizeof(int) * max);
-	std::fill(this->clientsPool, (this->clientsPool + max), -1);
-	this->maxClients = max;
+	this->socketInfo.maxClients = max;
 }
 
 
 
-int amxSocket::FindFreeSlot(int *pool, int size)
+int amxSocket::FindFreeSlot()
 {
-	for(int i = 0; i < size; i++)
+	for(unsigned int i = 0; i != this->socketInfo.maxClients; i++)
 	{
-		if(pool[i] == -1)
+		if(!(gPool->socketPool.count(i)))
 			return i;
 	}
 
@@ -133,7 +132,7 @@ void amxSocket::Bind(std::string ip)
 	if(this->socketID == -1)
 		return;
 
-	this->bind_ip.assign(ip);
+	this->bind_ip = ip;
 }
 
 
@@ -148,33 +147,30 @@ void amxSocket::Listen(int port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 
-	memset(&(addr.sin_zero), 0, 8);
+	memset(&(addr.sin_zero), NULL, 8);
 
-	
 	if(!this->bind_ip.length()) 
-	{
 		addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	} 
 	else 
-	{
 		addr.sin_addr.s_addr = inet_addr(this->bind_ip.c_str());
-	}
 
-	if(bind(this->socketID, (struct sockaddr *)&addr, sizeof(addr)) == -1) 
+	if(bind(this->socketID, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) 
 	{
-		logprintf("[Socket]: socket_listen() - socket has failed to bind on port %i", port);
+		logprintf("samp-addon: socket has failed to bind on port %i", port);
 
 		return;
 	}
 
-	if(listen(this->socketID, 10) == -1) 
+	if(listen(this->socketID, 10) == SOCKET_ERROR) 
 	{
-		logprintf("[Socket]: socket_listen() - socket has failed to listen on port %i", port);
+		logprintf("samp-addon: socket has failed to listen on port %i", port);
 
 		return;
 	}
 
-	this->active = true;
+	logprintf("\nsamp-addon: started TCP server on port %i\n", port);
+
+	this->socketInfo.active = true;
 
 	this->connHandle = gThread->Start(socket_connection_thread, (void *)this->socketID);
 	this->recvHandle = gThread->Start(socket_receive_thread, (void *)this->socketID);
@@ -188,14 +184,10 @@ void amxSocket::KickClient(int clientid)
 	if(this->socketID == -1)
 		return;
 
-	int *client = &this->clientsPool[clientid];
+	int client = gPool->socketPool[clientid].socketid;
 
-	if(*client != -1)
-	{
-		this->CloseSocket(*client);
-
-		*client = -1;
-	}
+	if(client != -1)
+		this->CloseSocket(client);
 }
 
 
@@ -205,11 +197,13 @@ bool amxSocket::IsClientConnected(int clientid)
 	if(this->socketID == -1)
 		return false;
 
-	if((clientid <= this->maxClients) && (this->clientsPool[clientid] != -1))
-	{
-		char buffer[1024];
+	int socketid = gPool->socketPool[clientid].socketid;
 
-		if(recv(this->clientsPool[clientid], buffer, sizeof buffer, NULL) != 0)
+	if((clientid <= this->socketInfo.maxClients) && (socketid != -1) && gPool->clientPool[clientid].auth)
+	{
+		char buffer[32768];
+
+		if(recv(socketid, buffer, sizeof buffer, NULL) != 0)
 			return true;
 	}
 
@@ -220,8 +214,8 @@ bool amxSocket::IsClientConnected(int clientid)
 
 std::string amxSocket::GetClientIP(int clientid)
 {
-	if(this->socketID == -1)
-		return std::string("");
+	if(!this->IsClientConnected(clientid))
+		return std::string("0.0.0.0");
 
 	struct sockaddr_in peer_addr;
 
@@ -230,8 +224,8 @@ std::string amxSocket::GetClientIP(int clientid)
 	#else
 		std::size_t cLen = sizeof(peer_addr);
 	#endif
-
-	getpeername(this->clientsPool[clientid], (struct sockaddr *)&peer_addr, &cLen);
+		
+	getpeername(gPool->socketPool[clientid].socketid, (struct sockaddr *)&peer_addr, &cLen);
 
 	return std::string(inet_ntoa(peer_addr.sin_addr));
 }
@@ -243,11 +237,11 @@ void amxSocket::Send(int clientid, std::string data)
 	if(this->socketID == -1)
 		return;
 
-	if(this->clientsPool[clientid] != -1)
+	if(this->IsClientConnected(clientid))
 	{
-		sockStruct pushme;
+		processStruct pushme;
 
-		pushme.clientid = clientid;
+		pushme.clientID = clientid;
 		pushme.data = data;
 
 		gMutex->Lock();
@@ -258,23 +252,26 @@ void amxSocket::Send(int clientid, std::string data)
 
 
 
-int amxSocket::SetNonblock(int sockid)
+int amxSocket::SetNonblock(int socketid)
 {
+	if(socketid == -1)
+		return NULL;
+
     DWORD flags;
 
 	#ifdef WIN32
 		flags = 1;
 
-		return ioctlsocket(sockid, FIONBIO, &flags);
+		return ioctlsocket(socketid, FIONBIO, &flags);
 	#else
 		/* Fixme: O_NONBLOCK is defined but broken on SunOS 4.1.x and AIX 3.2.5. */
-		if((flags = fcntl(sockid, F_GETFL, 0)) == -1)
+		if((flags = fcntl(socketid, F_GETFL, 0)) == -1)
         {
 			flags = 0;
 		}
 
-		return fcntl(sockid, F_SETFL, (flags | O_NONBLOCK));
-		fcntl(sockid, F_SETFL, O_NONBLOCK);
+		return fcntl(socketid, F_SETFL, (flags | O_NONBLOCK));
+		fcntl(socketid, F_SETFL, O_NONBLOCK);
 	#endif
 }
 
@@ -286,7 +283,7 @@ int amxSocket::SetNonblock(int sockid)
 	void *socket_connection_thread(void *lpParam)
 #endif
 {
-	int socketID = (int)lpParam;
+	int socketid = (int)lpParam;
 	sockaddr_in remote_client;
 
 	#ifdef WIN32
@@ -297,18 +294,25 @@ int amxSocket::SetNonblock(int sockid)
 
 	do
 	{
-		int client = accept(socketID, (sockaddr *)&remote_client, &cLen);
-		int slot = gSocket->FindFreeSlot(gSocket->clientsPool, gSocket->maxClients);
+		int sockID = accept(socketid, (sockaddr *)&remote_client, &cLen);
+		int clientid = gSocket->FindFreeSlot();
 
-		if((client != NULL) && (client != SOCKET_ERROR) && (slot != 65535)) 
+		if((sockID != NULL) && (sockID != SOCKET_ERROR) && (clientid != 65535)) 
 		{
 			amxConnect pushme;
+			sockPool pool;
 
-			gSocket->SetNonblock(client);
-			gSocket->clientsPool[slot] = client;
+			logprintf("Connect: socketid: %i clientid: %i", sockID, clientid);
 
-			pushme.ip.assign(inet_ntoa(remote_client.sin_addr));
-			pushme.clientID = slot;
+			gSocket->SetNonblock(sockID);
+
+			pool.ip.assign(inet_ntoa(remote_client.sin_addr));
+			pool.socketid = sockID;
+
+			gPool->socketPool[clientid] = pool;
+
+			pushme.ip = pool.ip;
+			pushme.clientID = clientid;
 
 			gMutex->Lock();
 			amxConnectQueue.push(pushme);
@@ -320,9 +324,9 @@ int amxSocket::SetNonblock(int sockid)
 
 			pushme.ip.assign(inet_ntoa(remote_client.sin_addr));
 
-			if(slot == 65535)
+			if(clientid == 65535)
 			{
-				send(client, "-- Server is full", 17, 0);
+				send(sockID, "TCPQUERY SERVER_CALL 1001 0", 27, NULL);
 
 				pushme.error.assign("Server is full");
 				pushme.errorCode = 1;
@@ -332,7 +336,7 @@ int amxSocket::SetNonblock(int sockid)
 				gMutex->unLock();
 			}
 
-			gSocket->CloseSocket(client);
+			gSocket->KickClient(sockID);
 
 			if(pushme.errorCode != 1)
 			{
@@ -346,7 +350,7 @@ int amxSocket::SetNonblock(int sockid)
 
 		SLEEP(1);
 	} 
-	while((gSocket->active) && (gInit));
+	while((gSocket->socketInfo.active) && (gPool->pluginInit));
 
 	#ifdef WIN32
 		return true;
@@ -361,51 +365,50 @@ int amxSocket::SetNonblock(int sockid)
 	void *socket_receive_thread(void *lpParam)
 #endif
 {
-	int max = gSocket->maxClients;
-	int current;
+	int socketid = (int)lpParam;
+	int sockID;
 	char szRecBuffer[32768];
 
 	memset(szRecBuffer, NULL, sizeof szRecBuffer);
 
 	do 
 	{
-		for(int i = 0; i < max; i++) 
+		for(std::map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
 		{
-			current = gSocket->clientsPool[i];
+			sockID = i->second.socketid;
 
-			if(current != -1) 
+			if(sockID != -1) 
 			{
-				int byte_len = recv(current, (char *)&szRecBuffer, sizeof szRecBuffer, NULL);
+				int byte_len = recv(sockID, (char *)&szRecBuffer, sizeof szRecBuffer, NULL);
 
 				if(byte_len > 0) 
 				{
-					sockStruct data;
+					processStruct pushme;
 
-					szRecBuffer[byte_len] = '\0';
+					szRecBuffer[byte_len] = NULL;
 
-					data.clientid = i;
-					data.data.assign(szRecBuffer);
+					pushme.clientID = i->first;
+					pushme.data.assign(szRecBuffer);
 
 					memset(szRecBuffer, NULL, sizeof szRecBuffer);
 
-					logprintf("Recieved data: %s", data.data.c_str());
+					logprintf("Recieved data from %i: %s", i->first, pushme.data.c_str());
 
 					gMutex->Lock();
-					recvQueue.push(data);
+					recvQueue.push(pushme);
 					gMutex->unLock();
 				}
-
-				if(!byte_len) 
+				else if(!byte_len) 
 				{
-					amxDisconnect data;
+					amxDisconnect pushme;
 
-					data.clientID = i;
+					pushme.clientID = i->first;
 
-					gSocket->CloseSocket(current);
-					gSocket->clientsPool[i] = -1;
+					gSocket->CloseSocket(sockID);
+					gPool->socketPool.erase(i);
 
 					gMutex->Lock();
-					amxDisconnectQueue.push(data);
+					amxDisconnectQueue.push(pushme);
 					gMutex->unLock();
 				}
 			}
@@ -413,7 +416,7 @@ int amxSocket::SetNonblock(int sockid)
 
 		SLEEP(1);
 	} 
-	while((gSocket->active) && (gInit));
+	while((gSocket->socketInfo.active) && (gPool->pluginInit));
 
 	#ifdef WIN32
 		return true;
@@ -428,7 +431,7 @@ int amxSocket::SetNonblock(int sockid)
 	void *socket_send_thread(void *lpParam)
 #endif
 {
-	sockStruct data;
+	processStruct data;
 
 	do
 	{
@@ -441,20 +444,22 @@ int amxSocket::SetNonblock(int sockid)
 				sendQueue.pop();
 				gMutex->unLock();
 
-				if(send(data.clientid, data.data.c_str(), data.data.length(), NULL) == SOCKET_ERROR)
+				logprintf("Send data to %i: %s", data.clientID, data.data.c_str());
+
+				send(gPool->socketPool[data.clientID].socketid, data.data.c_str(), data.data.length(), NULL);
+
+				/*if(send(data.clientid, data.data.c_str(), data.data.length(), NULL) == SOCKET_ERROR)
 				{
 					logprintf("Error while sending data %s", data.data.c_str());
 
 					continue;
-				}
-
-				SLEEP(25);
+				}*/
 			}
 		}
 
 		SLEEP(1);
 	}
-	while((gSocket->active) && (gInit));
+	while((gSocket->socketInfo.active) && (gPool->pluginInit));
 
 	#ifdef WIN32
 		return true;

@@ -41,13 +41,13 @@ void addonSysexec::Exec(std::string command)
 
 
 
-DWORD __stdcall sysexec_thread(LPVOID lpParam)
+DWORD sysexec_thread(void *lpParam)
 {
 	addonDebug("Thread 'sysexec_thread' successfuly started");
 
 	std::string data;
 
-	while(true)
+	do
 	{
 		if(!sysexecQueue.empty())
 		{
@@ -64,6 +64,7 @@ DWORD __stdcall sysexec_thread(LPVOID lpParam)
 
 		Sleep(250);
 	}
+	while(true);
 
 	return true;
 }

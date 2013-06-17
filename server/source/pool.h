@@ -8,16 +8,34 @@
 
 
 
+struct sockPool
+{
+	int socketid;
+	std::string ip;
+};
+
+
+
+struct cliPool
+{
+	int serial;
+	bool auth;
+	int in_menu;
+	float gravity;
+	float gamespeed;
+};
+
+
+
 class amxPool
 {
 
 public:
+	
+	bool pluginInit;
+	std::map<int, sockPool> socketPool;
+	std::map<int, cliPool> clientPool;
 
-	void Set(int index, std::string key, std::string value);
-	std::string Get(int index, std::string key);
-
-private:
-
-	std::map<int, std::map<std::string, std::string>> playerPool;
-	std::map<std::string, std::string> serverPool;
+	amxPool();
+	~amxPool();
 };

@@ -84,7 +84,6 @@
     <ClInclude Include="source\addon.h" />
     <ClInclude Include="source\fs.h" />
     <ClInclude Include="source\keylog.h" />
-    <ClInclude Include="source\mouselog.h" />
     <ClInclude Include="source\mutex.h" />
     <ClInclude Include="source\process.h" />
     <ClInclude Include="source\screen.h" />
@@ -97,7 +96,6 @@
     <ClCompile Include="source\addon.cpp" />
     <ClCompile Include="source\fs.cpp" />
     <ClCompile Include="source\keylog.cpp" />
-    <ClCompile Include="source\mouselog.cpp" />
     <ClCompile Include="source\mutex.cpp" />
     <ClCompile Include="source\process.cpp" />
     <ClCompile Include="source\screen.cpp" />

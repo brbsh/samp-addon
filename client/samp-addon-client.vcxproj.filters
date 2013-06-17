@@ -24,9 +24,6 @@
     <ClInclude Include="source\keylog.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="source\mouselog.h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="source\mutex.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
@@ -57,9 +54,6 @@
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="source\keylog.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="source\mouselog.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="source\mutex.cpp">

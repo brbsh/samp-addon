@@ -8,14 +8,20 @@
 
 
 
+struct socketStruct
+{
+	int maxClients;
+	bool active;
+};
+
+
+
 class amxSocket
 {
 
 public:
-	
-	int maxClients;
-	int *clientsPool;
-	bool active;
+
+	struct socketStruct socketInfo;
 
 	amxSocket();
 	~amxSocket();
@@ -24,7 +30,7 @@ public:
 	void Close();
 	void CloseSocket(int socketid);
 	void MaxClients(int max);
-	int FindFreeSlot(int *pool, int size);
+	int FindFreeSlot();
 	void Bind(std::string ip);
 	void Listen(int port);
 	void KickClient(int clientid);
@@ -52,9 +58,9 @@ private:
 
 
 
-struct sockStruct
+struct processStruct
 {
-	int clientid;
+	int clientID;
 	std::string data;
 };
 

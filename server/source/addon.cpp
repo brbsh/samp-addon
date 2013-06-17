@@ -9,17 +9,20 @@
 extern void *pAMXFunctions;
 
 extern amxMutex *gMutex;
+extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxThread *gThread;
 
 logprintf_t logprintf;
-bool gInit;
+
 
 std::list<AMX *> amxList;
+
 std::queue<amxConnect> amxConnectQueue;
 std::queue<amxConnectError> amxConnectErrorQueue;
 std::queue<amxDisconnect> amxDisconnectQueue;
 std::queue<amxKey> amxKeyQueue;
+std::queue<amxScreenshot> amxScreenshotQueue;
 
 
 
@@ -37,10 +40,8 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 
-	gInit = false;
-
 	gMutex = new amxMutex();
-
+	gPool = new amxPool();
 	gSocket = new amxSocket();
 	gSocket->Create();
 
@@ -57,7 +58,7 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	gMutex->~amxMutex();
 	gSocket->Close();
 
-	gInit = false;
+	gPool->pluginInit = false;
 
     logprintf(" samp-addon was unloaded");
 }
@@ -108,7 +109,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientConnect(client_id, client_ip[])
+				// public Addon_OnClientConnect(clientid, client_ip[])
 				if(!amx_FindPublic(*amx, "Addon_OnClientConnect", &amx_idx))
 				{
 					amx_PushString(*amx, &amxAddress, NULL, connectData.ip.c_str(), NULL, NULL);
@@ -135,12 +136,12 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientConnectError(ip[], error[], error_id)
+				// public Addon_OnClientConnectError(client_ip[], error[], error_id)
 				if(!amx_FindPublic(*amx, "Addon_OnClientConnectError", &amx_idx))
 				{
 					amx_Push(*amx, connectErrorData.errorCode);
 					amx_PushString(*amx, &amxAddress, NULL, connectErrorData.error.c_str(), NULL, NULL);
-					amx_PushString(*amx, &amxAddress, NULL, connectErrorData.ip.c_str(), NULL, NULL);
+					amx_PushString(*amx, NULL, NULL, connectErrorData.ip.c_str(), NULL, NULL);
 
 					amx_Exec(*amx, NULL, amx_idx);
 
@@ -163,7 +164,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientDisconnect(client_id)
+				// public Addon_OnClientDisconnect(clientid)
 				if(!amx_FindPublic(*amx, "Addon_OnClientDisconnect", &amx_idx))
 				{
 					amx_Push(*amx, disconnectData.clientID);
@@ -187,13 +188,43 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientPressedKey(client_id, key)
-				if(!amx_FindPublic(*amx, "Addon_OnClientPressedKey", &amx_idx))
+				// public Addon_OnClientKeyDataUpdate(clientid, keys[], keys_size)
+				if(!amx_FindPublic(*amx, "Addon_OnClientKeyDataUpdate", &amx_idx))
 				{
-					amx_Push(*amx, keyData.keyID);
+					amx_Push(*amx, keyData.numcells);
+					amx_PushArray(*amx, &amxAddress, NULL, keyData.arr, keyData.numcells);
 					amx_Push(*amx, keyData.clientID);
 
 					amx_Exec(*amx, NULL, amx_idx);
+
+					amx_Release(*amx, amxAddress);
+				}
+			}
+		}
+	}
+
+	if(!amxScreenshotQueue.empty())
+	{
+		amxScreenshot screenshotData;
+
+		for(unsigned int i = 0; i < amxScreenshotQueue.size(); i++)
+		{
+			gMutex->Lock();
+			screenshotData = amxScreenshotQueue.front();
+			amxScreenshotQueue.pop();
+			gMutex->unLock();
+
+			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
+			{
+				// public Addon_OnScreenshotTaken(clientid, remote_file[])
+				if(!amx_FindPublic(*amx, "Addon_OnScreenshotTaken", &amx_idx))
+				{
+					amx_PushString(*amx, &amxAddress, NULL, screenshotData.name.c_str(), NULL, NULL);
+					amx_Push(*amx, screenshotData.clientID);
+
+					amx_Exec(*amx, NULL, amx_idx);
+
+					amx_Release(*amx, amxAddress);
 				}
 			}
 		}

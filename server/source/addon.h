@@ -21,11 +21,15 @@
 #endif
 
 
+#include <algorithm>
+#include <fstream>
+#include <iostream>
 #include <list>
 #include <map>
-#include <string>
-#include <sstream>
 #include <queue>
+#include <sstream>
+#include <string>
+
 
 #include "..\includes\sdk\amx\amx.h"
 #include "..\includes\sdk\plugincommon.h"
@@ -84,5 +88,14 @@ struct amxDisconnect
 struct amxKey
 {
 	int clientID;
-	int keyID;
+	cell *arr;
+	int numcells;
+};
+
+
+
+struct amxScreenshot
+{
+	int clientID;
+	std::string name;
 };

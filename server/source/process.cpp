@@ -10,11 +10,12 @@ extern amxMutex *gMutex;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 
-extern bool gInit;
 extern logprintf_t logprintf;
 
+
 extern std::queue<amxKey> amxKeyQueue;
-extern std::queue<sockStruct> recvQueue;
+extern std::queue<amxScreenshot> amxScreenshotQueue;
+extern std::queue<processStruct> recvQueue;
 
 
 
@@ -26,100 +27,121 @@ extern std::queue<sockStruct> recvQueue;
 	void *process_thread(void *lpParam)
 #endif
 {
-	sockStruct data;
+	processStruct input;
 
-	char tcpquery[32];
-	char call[32];
-	char input[32768];
 	int call_index;
 
-	memset(tcpquery, NULL, sizeof tcpquery);
-	memset(call, NULL, sizeof call);
-	memset(input, NULL, sizeof input);
-
-	gSocket->MaxClients(atoi(gPool->Get(-1, "maxclients").c_str()));
-	gSocket->Bind(gPool->Get(-1, "ip"));
-	gSocket->Listen(atoi(gPool->Get(-1, "port").c_str()));
-
-	while(gInit)
+	do
 	{
 		if(!recvQueue.empty())
 		{
 			for(unsigned int i = 0; i < recvQueue.size(); i++)
 			{
 				gMutex->Lock();
-				data = recvQueue.front();
+				input = recvQueue.front();
 				recvQueue.pop();
 				gMutex->unLock();
 
-				memset(tcpquery, NULL, sizeof tcpquery);
-				memset(call, NULL, sizeof call);
-				memset(input, NULL, sizeof input);
+				sscanf_s(input.data.c_str(), "%*s %*s %d", &call_index);
 
-				sscanf_s(data.data.c_str(), "%s>%s>%d>%s", tcpquery, call, &call_index, input);
-
-				logprintf("Data: %s>%s>%i>%s", tcpquery, call, call_index, input);
-
-				if(strcmp(tcpquery, "TCPQUERY") || strcmp(call, "CLIENT_CALL"))
+				if(!gPool->clientPool[input.clientID].auth && (call_index != 1000))
 				{
-					logprintf("Invalid query sent from %i", data.clientid);
+					logprintf("Invalid query from %i", input.clientID);
+
+					gSocket->KickClient(input.clientID);
 
 					continue;
 				}
 
 				switch(call_index)
 				{
-				case 1000:
+					case 1000: // TCPQUERY CLIENT_CALL 1000 %i1 %i2 %s1 %i3 %i4   ---   Auth key from client | %i1 - Client's HDD serial, %i2 - HMAC of %i1, %s1 - Client name, %i3 - HMAC of %i4, %i4 - HDD flags
 					{
+						cliPool cPool;
+
 						int serial;
 						int serial_key;
 						int flags_key;
 						int flags;
 						char name[25];
 
-						sscanf_s(input, "%d>%d>%s>%d>%d", &serial, &serial_key, name, &flags_key, &flags);
+						sscanf_s(input.data.c_str(), "%*s %*s %*d %d %d %s %d %d", &serial, &serial_key, name, sizeof name, &flags_key, &flags);
 
 						if((serial_key != (serial + (flags ^ 0x2296666))) || (flags_key != ((serial | flags) & 0x28F39)))
 						{
-							logprintf("Invalid auth key sent from %i", data.clientid);
+							logprintf("Invalid auth key sent from %i", input.clientID);
 
 							continue;
 						}
 
 						serial += flags;
 
-						gPool->Set(data.clientid, "serial", formatString() << serial);
+						cPool = gPool->clientPool[input.clientID];
+						cPool.serial = serial;
+						cPool.auth = true;
+						gPool->clientPool[input.clientID] = cPool;
+
+						gSocket->Send(input.clientID, formatString() << "TCPQUERY" << " " << "SERVER_CALL" << " " << 1000 << " " << serial);
+
+						break;
 					}
-					break;
-				case 1001:
+
+					case 1001: // TCPQUERY CLIENT_CALL 1001 %i1 %i2 %i3   ---   Sends addon module detach info | %i1 - DLL address, %i2 - Detach reason, %i3 - Reserved var
 					{
 						int dll;
 						int reason;
 						int reserved;
 
-						sscanf_s(input, "%d_%d_%d", &dll, &reason, &reserved);
+						sscanf_s(input.data.c_str(), "%*s %*s %*d %d %d %d", &dll, &reason, &reserved);
 
-						logprintf("%i module %i unloaded (Reason: %i)", data.clientid, dll, reason);
+						logprintf("%i module %i unloaded (Reason: %i)", input.clientID, dll, reason);
+
+						break;
 					}
-					break;
-				case 1234:
+
+					case 1002: // TCPQUERY CLIENT_CALL 1002 %s1    ---   Sends async key data | %s1 - Keys array
 					{
 						amxKey amxKeyData;
 
-						amxKeyData.clientID = data.clientid;
-						amxKeyData.keyID = atoi(input);
+						input.data.erase(0, (input.data.find("1002 ") + 5));
 
+						amxKeyData.clientID = input.clientID;
+						amxKeyData.numcells = input.data.length();
+						amxKeyData.arr = (cell *)malloc(sizeof(cell) * (amxKeyData.numcells + 1));
+
+						memcpy(amxKeyData.arr, input.data.data(), amxKeyData.numcells);
+						
 						gMutex->Lock();
 						amxKeyQueue.push(amxKeyData);
 						gMutex->unLock();
+
+						delete[] amxKeyData.arr;
+
+						break;
 					}
-					break;
+
+					case 1003: // TCPQUERY CLIENT_CALL 1003 %s1   ---   Screenshot was taken | %s1 - Screenshot name
+					{
+						amxScreenshot amxScreenshotData;
+
+						input.data.erase(0, (input.data.find("1003 ") + 5));
+
+						amxScreenshotData.clientID = input.clientID;
+						amxScreenshotData.name = input.data;
+
+						gMutex->Lock();
+						amxScreenshotQueue.push(amxScreenshotData);
+						gMutex->unLock();
+
+						break;
+					}
 				}
 			}
 		}
 
 		SLEEP(1);
 	}
+	while((gSocket->socketInfo.active) && (gPool->pluginInit));
 
 	#ifdef WIN32
 		return true;

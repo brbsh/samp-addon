@@ -11,7 +11,7 @@ addonThread::addonThread()
 	addonDebug("Thread constructor called");
 	addonDebug("Starting thread 'main_thread'");
 
-	this->threadHandle = this->Start((LPTHREAD_START_ROUTINE)main_thread, (LPVOID)GetTickCount());
+	this->threadHandle = this->Start((LPTHREAD_START_ROUTINE)main_thread, (void *)GetTickCount());
 }
 
 
@@ -25,7 +25,7 @@ addonThread::~addonThread()
 
 
 
-HANDLE addonThread::Start(LPTHREAD_START_ROUTINE function, LPVOID param)
+HANDLE addonThread::Start(LPTHREAD_START_ROUTINE function, void *param)
 {
 	HANDLE threadH = CreateThread(NULL, NULL, function, param, NULL, NULL);
 

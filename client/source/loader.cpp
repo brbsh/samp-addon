@@ -17,14 +17,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		addonDebug("Called asi attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
 
-		if(!GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll"))
+		if(!GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll") || !GetModuleHandleW(L"VorbisHooked.dll"))
 		{
 			addonDebug("Loader attached from unknown process, terminating");
 
-			return TRUE;
+			return false;
 		}
 
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (LPVOID)hinstDLL, NULL, NULL);
+		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (void *)hinstDLL, NULL, NULL);
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
@@ -34,62 +34,71 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		addonDebug("\tDebugging stopped");
 	}
 
-	return TRUE;
+	return true;
 }
 
 
 
-DWORD __stdcall addon_load_thread(LPVOID lpParam)
+DWORD addon_load_thread(void *lpParam)
 {
-	Sleep(1000);
+	int parentDLL = (int)lpParam;
+	unsigned long int tick = 0;
 
-	if(!GetModuleHandleW(L"samp.dll"))
+	while(!GetModuleHandleW(L"samp.dll"))
 	{
-		addonDebug("Singleplayer loaded, terminating");
+		if(++tick > 4294967293)
+		{
+			addonDebug("Singleplayer loaded, terminating");
 
-		return 0;
+			return false;
+		}
+
+		Sleep(1);
 	}
 
-	SetDllDirectoryW(L"SAMP\\addon");
+	HMODULE addon;
+	HMODULE audio;
 
-	HMODULE addon = LoadLibraryW(L"addon.dll");
+	SetDllDirectoryW(L"SAMP\\addon");
+	addon = LoadLibraryW(L"addon.dll");
 
 	if(!addon)
 	{
 		addonDebug("Cannot launch SAMP\\addon\\addon.dll");
 
-		return 0;
+		return false;
 	}
 
 	addonLoader addonLoad = (addonLoader)GetProcAddress(addon, "addon_start");
 
 	if(!addonLoad)
 	{
-		addonDebug("Cannot exec main loader function");
+		addonDebug("Cannot export main loader function");
 
-		return 0;
+		return false;
 	}
 
 	addonLoad();
 
-	Sleep(4500);
+	Sleep(5000);
+
+
 
 	if(GetModuleHandleW(L"audio.dll"))
 	{
 		addonDebug("Audio plugin already loaded");
 
-		return 0;
+		return false;
 	}
 
 	SetDllDirectoryW(L"SAMP\\addon\\audio");
-
-	HMODULE audio = LoadLibraryW(L"audio.dll");
+	audio = LoadLibraryW(L"audio.dll");
 
 	if(!audio)
 	{
 		addonDebug("Audio plugin wasn't found, processing without it...");
 
-		return 0;
+		return false;
 	}
 
 	addonLoader audioLoad = (addonLoader)GetProcAddress(audio, "startPlugin");
@@ -98,7 +107,7 @@ DWORD __stdcall addon_load_thread(LPVOID lpParam)
 	{
 		addonDebug("Invalid audio plugin (v0.5 R2 needed)");
 
-		return 0;
+		return false;
 	}
 
 	/*
@@ -113,7 +122,7 @@ DWORD __stdcall addon_load_thread(LPVOID lpParam)
 
 	audioLoad();
 
-	return 1;
+	return true;
 }
 
 
@@ -138,7 +147,7 @@ void addonDebug(char *text, ...)
 	length = vsnprintf(chars, length, text, args);
 	std::string buffer(chars);
 
-	delete chars;
+	delete[] chars;
 
 	va_end(args);
 

