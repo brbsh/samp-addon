@@ -18,4 +18,5 @@ amxPool::amxPool()
 
 	this->socketPool.clear();
 	this->clientPool.clear();
+	this->transferPool.clear();
 }

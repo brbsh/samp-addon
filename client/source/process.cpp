@@ -12,6 +12,7 @@ addonProcess *gProcess;
 
 
 extern addonThread *gThread;
+extern addonTransfer *gTransfer;
 extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 extern addonScreen *gScreen;
@@ -50,6 +51,13 @@ DWORD addonProcess::Thread(void *lpParam)
 
 	do
 	{
+		if(gSocket->Transfer.is)
+		{
+			Sleep(100);
+
+			continue;
+		}
+
 		if(!rec_from.empty())
 		{
 			for(unsigned int i = 0; i < rec_from.size(); i++)
@@ -118,11 +126,61 @@ DWORD addonProcess::Thread(void *lpParam)
 
 						break;
 					}
+
+					case 2000: // TCPQUERY SERVER_CALL 2000 %s1 %i1   ---   Remote file transfer | %s1 - File name, %i1 - file length
+					{
+						int length;
+						char file_name[256];
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %s %d", file_name, sizeof file_name, &length);
+
+						if((!strcmp(file_name, "END") || !strcmp(file_name, "READY")) && !length)
+						{
+							addonDebug("Unexpected data passed!");
+
+							break;
+						}
+
+						gMutex->Lock();
+						gSocket->Transfer.file.assign(file_name);
+						gSocket->Transfer.file_length = length;
+						gSocket->Transfer.send = false;
+						gSocket->Transfer.is = true;
+						gMutex->unLock();
+
+						gThread->Start(addonTransfer::ReceiveThread, (void *)gSocket->GetInstance());
+
+						break;
+					}
+
+					case 2001: // TCPQUERY SERVER_CALL 2001 %s1   ---   Local file transfer | %s1 - File name
+					{
+						char file_name[256];
+
+						sscanf_s(data.c_str(), "%*s %*s %*d %s", file_name, sizeof file_name);
+
+						if(!strcmp(file_name, "END") || !strcmp(file_name, "READY"))
+						{
+							addonDebug("Unexpected data passed!");
+
+							break;
+						}
+
+						gMutex->Lock();
+						gSocket->Transfer.file.assign(file_name);
+						gSocket->Transfer.send = true;
+						gSocket->Transfer.is = true;
+						gMutex->unLock();
+
+						gThread->Start(addonTransfer::SendThread, (void *)gSocket->GetInstance());
+
+						break;
+					}
 				}
 			}
 		}
 
-		Sleep(1);
+		Sleep(10);
 	}
 	while(true);
 

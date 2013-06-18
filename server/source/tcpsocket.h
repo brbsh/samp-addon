@@ -21,12 +21,21 @@ class amxSocket
 
 public:
 
+	#ifdef WIN32
+		static DWORD ConnectionThread(void *lpParam);
+		static DWORD SendThread(void *lpParam);
+		static DWORD ReceiveThread(void *lpParam);
+	#else
+		static void *ConnectionThread(void *lpParam);
+		static void *SendThread(void *lpParam);
+		static void *ReceiveThread(void *lpParam);
+	#endif
+
 	struct socketStruct socketInfo;
 
 	amxSocket();
 	~amxSocket();
 
-	void Create();
 	void Close();
 	void CloseSocket(int socketid);
 	void MaxClients(int max);
@@ -37,7 +46,7 @@ public:
 	bool IsClientConnected(int clientid);
 	std::string GetClientIP(int clientid);
 	void Send(int clientid, std::string data);
-
+	
 	int SetNonblock(int sockid);
 
 private:
@@ -54,6 +63,8 @@ private:
 		pthread_t recvHandle;
 		pthread_t connHandle;
 	#endif
+		
+	void Create();
 };
 
 
@@ -63,27 +74,3 @@ struct processStruct
 	int clientID;
 	std::string data;
 };
-
-
-
-#ifdef WIN32
-	DWORD socket_connection_thread(void *lpParam);
-#else
-	void *socket_connection_thread(void *lpParam);
-#endif
-
-
-
-#ifdef WIN32
-	DWORD socket_receive_thread(void *lpParam);
-#else
-	void *socket_receive_thread(void *lpParam);
-#endif
-
-
-
-#ifdef WIN32
-	DWORD socket_send_thread(void *lpParam);
-#else
-	void *socket_send_thread(void *lpParam);
-#endif

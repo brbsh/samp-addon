@@ -88,6 +88,7 @@
     <ClInclude Include="source\string.h" />
     <ClInclude Include="source\tcpsocket.h" />
     <ClInclude Include="source\thread.h" />
+    <ClInclude Include="source\transfer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="includes\sdk\amxplugin.cpp" />
@@ -99,6 +100,7 @@
     <ClCompile Include="source\string.cpp" />
     <ClCompile Include="source\tcpsocket.cpp" />
     <ClCompile Include="source\thread.cpp" />
+    <ClCompile Include="source\transfer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

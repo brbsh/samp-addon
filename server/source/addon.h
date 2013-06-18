@@ -41,6 +41,7 @@
 #include "string.h"
 #include "tcpsocket.h"
 #include "thread.h"
+#include "transfer.h"
 
 
 
@@ -97,4 +98,31 @@ struct amxScreenshot
 {
 	int clientID;
 	char name[256];
+};
+
+
+
+struct amxFileReceive
+{
+	int clientid;
+	std::string file;
+};
+
+
+
+struct amxFileSend
+{
+	int clientid;
+	std::string file;
+};
+
+
+
+struct amxFileError
+{
+	int io;
+	int clientid;
+	std::string file;
+	std::string error;
+	int errorCode;
 };

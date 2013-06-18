@@ -32,6 +32,7 @@
 #include "string.h"
 #include "tcpsocket.h"
 #include "thread.h"
+#include "transfer.h"
 
 
 

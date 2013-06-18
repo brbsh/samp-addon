@@ -23,3 +23,6 @@ cell AMX_NATIVE_CALL n_addon_kick_client(AMX *amx, cell *params);
 
 cell AMX_NATIVE_CALL n_addon_get_serial(AMX *amx, cell *params);
 cell AMX_NATIVE_CALL n_addon_get_screenshot(AMX *amx, cell *params);
+
+cell AMX_NATIVE_CALL n_addon_send_file(AMX *amx, cell *params);
+cell AMX_NATIVE_CALL n_addon_get_file(AMX *amx, cell *params);

@@ -25,14 +25,14 @@ addonSocket::addonSocket()
 {
 	addonDebug("WSA constructor called");
 
-	WORD wVersionRequested;
 	WSADATA wsaData;
-	wVersionRequested = MAKEWORD(2, 2);
-	WSAStartup(wVersionRequested, &wsaData);
 
 	this->threadActive = false;
+	this->Transfer.is = false;
 	this->socketHandle = -1;
-	
+
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+
 	if(LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
 	{
 		addonDebug("Error while initializing WSA (%i)", WSAGetLastError());
@@ -147,7 +147,7 @@ void addonSocket::Connect(std::string address, int port)
 	addonDebug("Connected to %s:%i trough TCP", address.c_str(), port);
 
 	this->threadActive = true;
-	this->Nonblock();
+	//this->Nonblock();
 
 	this->sendHandle = gThread->Start(addonSocket::SendThread, (void *)this->socketHandle);
 	this->receiveHandle = gThread->Start(addonSocket::ReceiveThread, (void *)this->socketHandle);
@@ -170,6 +170,13 @@ void addonSocket::Send(std::string data)
 
 
 
+int addonSocket::GetInstance()
+{
+	return this->socketHandle;
+}
+
+
+
 DWORD addonSocket::SendThread(void *lpParam)
 {
 	int socketHandle = (int)lpParam;
@@ -178,6 +185,18 @@ DWORD addonSocket::SendThread(void *lpParam)
 
 	do
 	{
+		gMutex->Lock();
+
+		if(gSocket->Transfer.is)
+		{
+			gMutex->unLock();
+			Sleep(100);
+
+			continue;
+		}
+
+		gMutex->unLock();
+
 		if(!send_to.empty())
 		{
 			std::string getme;
@@ -197,7 +216,7 @@ DWORD addonSocket::SendThread(void *lpParam)
 			}
 		}
 
-		Sleep(1);
+		Sleep(100);
 	}
 	while(gSocket->threadActive);
 
@@ -216,6 +235,18 @@ DWORD addonSocket::ReceiveThread(void *lpParam)
 
 	do
 	{
+		gMutex->Lock();
+
+		if(gSocket->Transfer.is)
+		{
+			gMutex->unLock();
+			Sleep(100);
+
+			continue;
+		}
+
+		gMutex->unLock();
+
 		bytes = recv(socketHandle, (char *)&buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
@@ -229,7 +260,7 @@ DWORD addonSocket::ReceiveThread(void *lpParam)
 			memset(buffer, NULL, sizeof buffer);
 		}
 
-		Sleep(1);
+		Sleep(100);
 	}
 	while(gSocket->threadActive);
 

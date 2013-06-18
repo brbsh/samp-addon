@@ -6,12 +6,13 @@
 
 
 
+extern amxMutex *gMutex;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
 extern amxThread *gThread;
 extern logprintf_t logprintf;
-extern bool gInit;
+extern std::queue<amxConnectError> amxConnectErrorQueue;
 
 
 
@@ -25,6 +26,9 @@ AMX_NATIVE_INFO addonNatives[] =
 
 	{"GetClientSerial", n_addon_get_serial},
 	{"GetClientScreenshot", n_addon_get_screenshot},
+
+	{"TransferLocalFile", n_addon_send_file},
+	{"TransferRemoteFile", n_addon_get_file},
 	{NULL, NULL}
 };
 
@@ -72,13 +76,15 @@ cell AMX_NATIVE_CALL n_addon_init(AMX *amx, cell *params)
 
 	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), (params[2] + 1), params[3]);
 
+	gMutex->Lock();
 	gPool->pluginInit = true;
+	gMutex->unLock();
 
 	gSocket->MaxClients(params[3]);
 	gSocket->Bind(ip);
 	gSocket->Listen((params[2] + 1));
 
-	gThread->Start(process_thread, NULL);
+	gThread->Start(amxProcess::Thread, (void *)amx);
 	
 	return 1;
 }
@@ -130,7 +136,13 @@ cell AMX_NATIVE_CALL n_addon_get_serial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(params[1]))
 		return NULL;
 
-	return gPool->clientPool[params[1]].serial;
+	int ret;
+
+	gMutex->Lock();
+	ret = gPool->clientPool[params[1]].serial;
+	gMutex->unLock();
+
+	return ret;
 }
 
 
@@ -157,7 +169,67 @@ cell AMX_NATIVE_CALL n_addon_get_screenshot(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	gSocket->Send(params[1], formatString() << "TCPQUERY" << " " << "SERVER_CALL" << " " << 1003 << " " << filename);
+	gSocket->Send(params[1], formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
+
+	return 1;
+}
+
+
+
+// native TransferLocalFile(file[], toclient, remote_name[]);
+cell AMX_NATIVE_CALL n_addon_send_file(AMX *amx, cell *params)
+{
+	if(!arguments(3))
+		return NULL;
+
+	if(!gSocket->IsClientConnected(params[2]))
+		return NULL;
+
+	transPool pool;
+	sockPool sPool;
+
+	pool.send = true;
+	pool.file = gString->Get(amx, params[1]);
+	pool.remote_file = gString->Get(amx, params[3]);
+
+	gMutex->Lock();
+	sPool = gPool->socketPool[params[2]];
+	gMutex->unLock();
+
+	sPool.transfer = true;
+
+	gMutex->Lock();
+	gPool->transferPool[params[2]] = pool;
+	gPool->socketPool[params[2]] = sPool;
+	gMutex->unLock();
+
+	gThread->Start(amxTransfer::SendThread, (void *)params[2]);
+
+	return 1;
+}
+
+
+
+// native TransferRemoteFile(remote_file[], fromclient, file[]);
+cell AMX_NATIVE_CALL n_addon_get_file(AMX *amx, cell *params)
+{
+	if(!arguments(3))
+		return NULL;
+
+	if(!gSocket->IsClientConnected(params[2]))
+		return NULL;
+
+	transPool pool;
+
+	pool.send = false;
+	pool.file = gString->Get(amx, params[3]);
+	pool.remote_file = gString->Get(amx, params[1]);
+
+	gMutex->Lock();
+	gPool->transferPool[params[2]] = pool;
+	gMutex->unLock();
+
+	gSocket->Send(params[2], formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << pool.remote_file);
 
 	return 1;
 }

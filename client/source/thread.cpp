@@ -17,7 +17,7 @@ addonThread *gThread;
 addonThread::addonThread()
 {
 	addonDebug("Thread constructor called");
-	addonDebug("Starting thread 'main_thread'");
+	addonDebug("Starting thread addonThread::Thread");
 
 	this->threadHandle = this->Start(addonThread::Thread, (void *)GetTickCount());
 }

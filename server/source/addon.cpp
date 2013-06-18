@@ -23,6 +23,9 @@ std::queue<amxConnectError> amxConnectErrorQueue;
 std::queue<amxDisconnect> amxDisconnectQueue;
 std::queue<amxKey> amxKeyQueue;
 std::queue<amxScreenshot> amxScreenshotQueue;
+std::queue<amxFileReceive> amxFileReceiveQueue;
+std::queue<amxFileSend> amxFileSendQueue;
+std::queue<amxFileError> amxFileErrorQueue;
 
 
 
@@ -43,7 +46,6 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	gMutex = new amxMutex();
 	gPool = new amxPool();
 	gSocket = new amxSocket();
-	gSocket->Create();
 
     logprintf(" samp-addon was loaded");
 
@@ -220,6 +222,90 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 				{
 					amx_PushString(*amx, &amxAddress, NULL, screenshotData.name, NULL, NULL);
 					amx_Push(*amx, screenshotData.clientID);
+
+					amx_Exec(*amx, NULL, amx_idx);
+
+					amx_Release(*amx, amxAddress);
+				}
+			}
+		}
+	}
+
+	if(!amxFileReceiveQueue.empty())
+	{
+		amxFileReceive fileData;
+
+		for(unsigned int i = 0; i < amxFileReceiveQueue.size(); i++)
+		{
+			gMutex->Lock();
+			fileData = amxFileReceiveQueue.front();
+			amxFileReceiveQueue.pop();
+			gMutex->unLock();
+
+			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
+			{
+				// public Addon_OnClientFileReceived(clientid, file[])
+				if(!amx_FindPublic(*amx, "Addon_OnClientFileReceived", &amx_idx))
+				{
+					amx_PushString(*amx, &amxAddress, NULL, fileData.file.c_str(), NULL, NULL);
+					amx_Push(*amx, fileData.clientid);
+
+					amx_Exec(*amx, NULL, amx_idx);
+
+					amx_Release(*amx, amxAddress);
+				}
+			}
+		}
+	}
+
+	if(!amxFileSendQueue.empty())
+	{
+		amxFileSend fileData;
+
+		for(unsigned int i = 0; i < amxFileSendQueue.size(); i++)
+		{
+			gMutex->Lock();
+			fileData = amxFileSendQueue.front();
+			amxFileSendQueue.pop();
+			gMutex->unLock();
+
+			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
+			{
+				// public Addon_OnClientFileSended(clientid, file[])
+				if(!amx_FindPublic(*amx, "Addon_OnClientFileSended", &amx_idx))
+				{
+					amx_PushString(*amx, &amxAddress, NULL, fileData.file.c_str(), NULL, NULL);
+					amx_Push(*amx, fileData.clientid);
+
+					amx_Exec(*amx, NULL, amx_idx);
+
+					amx_Release(*amx, amxAddress);
+				}
+			}
+		}
+	}
+
+	if(!amxFileErrorQueue.empty())
+	{
+		amxFileError fileError;
+
+		for(unsigned int i = 0; i < amxFileErrorQueue.size(); i++)
+		{
+			gMutex->Lock();
+			fileError = amxFileErrorQueue.front();
+			amxFileErrorQueue.pop();
+			gMutex->unLock();
+
+			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
+			{
+				// public Addon_OnFileTransferError(io_mode, clientid, file[], error[], error_code)
+				if(!amx_FindPublic(*amx, "Addon_OnFileTransferError", &amx_idx))
+				{
+					amx_Push(*amx, fileError.errorCode);
+					amx_PushString(*amx, &amxAddress, NULL, fileError.error.c_str(), NULL, NULL);
+					amx_PushString(*amx, NULL, NULL, fileError.file.c_str(), NULL, NULL);
+					amx_Push(*amx, fileError.clientid);
+					amx_Push(*amx, fileError.io);
 
 					amx_Exec(*amx, NULL, amx_idx);
 
