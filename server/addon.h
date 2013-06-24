@@ -30,9 +30,7 @@
 #include <sstream>
 #include <string>
 
-
-#include "..\includes\sdk\amx\amx.h"
-#include "..\includes\sdk\plugincommon.h"
+#include "SDK/plugin.h"
 
 #include "mutex.h"
 #include "natives.h"
@@ -58,7 +56,7 @@
 
 
 
-typedef void (*logprintf_t)(char* format, ...);
+typedef void (*logprintf_t)(char *format, ...);
 
 
 

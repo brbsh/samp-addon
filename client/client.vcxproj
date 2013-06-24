@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{CB027062-4D8A-4C82-B448-799A44CD97B4}</ProjectGuid>
+    <ProjectGuid>{9DC01201-4416-47AC-AAD1-4938E41EBCB5}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>sampaddonclient</RootNamespace>
+    <RootNamespace>client</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -26,7 +26,6 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <UseOfAtl>false</UseOfAtl>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -43,7 +42,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)compiled\SAMP\addon\</OutDir>
+    <OutDir>$(SolutionDir)compiled\client\SAMP\addon\</OutDir>
     <TargetName>addon</TargetName>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
@@ -53,7 +52,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;SAMPADDONCLIENT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;CLIENT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -68,7 +67,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SAMPADDONCLIENT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;CLIENT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
@@ -77,32 +76,32 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ModuleDefinitionFile>source\addon.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>addon.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="source\addon.h" />
-    <ClInclude Include="source\fs.h" />
-    <ClInclude Include="source\keylog.h" />
-    <ClInclude Include="source\mutex.h" />
-    <ClInclude Include="source\process.h" />
-    <ClInclude Include="source\screen.h" />
-    <ClInclude Include="source\string.h" />
-    <ClInclude Include="source\tcpsocket.h" />
-    <ClInclude Include="source\thread.h" />
-    <ClInclude Include="source\transfer.h" />
+    <ClInclude Include="addon.h" />
+    <ClInclude Include="fs.h" />
+    <ClInclude Include="keylog.h" />
+    <ClInclude Include="mutex.h" />
+    <ClInclude Include="process.h" />
+    <ClInclude Include="screen.h" />
+    <ClInclude Include="string.h" />
+    <ClInclude Include="tcpsocket.h" />
+    <ClInclude Include="thread.h" />
+    <ClInclude Include="transfer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\addon.cpp" />
-    <ClCompile Include="source\fs.cpp" />
-    <ClCompile Include="source\keylog.cpp" />
-    <ClCompile Include="source\mutex.cpp" />
-    <ClCompile Include="source\process.cpp" />
-    <ClCompile Include="source\screen.cpp" />
-    <ClCompile Include="source\string.cpp" />
-    <ClCompile Include="source\tcpsocket.cpp" />
-    <ClCompile Include="source\thread.cpp" />
-    <ClCompile Include="source\transfer.cpp" />
+    <ClCompile Include="addon.cpp" />
+    <ClCompile Include="fs.cpp" />
+    <ClCompile Include="keylog.cpp" />
+    <ClCompile Include="mutex.cpp" />
+    <ClCompile Include="process.cpp" />
+    <ClCompile Include="screen.cpp" />
+    <ClCompile Include="string.cpp" />
+    <ClCompile Include="tcpsocket.cpp" />
+    <ClCompile Include="thread.cpp" />
+    <ClCompile Include="transfer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

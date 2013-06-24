@@ -1,4 +1,2 @@
-LIBRARY	"addon"
-
 EXPORTS
 	addon_start
