@@ -10,18 +10,16 @@
 
 addonTransfer *gTransfer;
 
-extern addonMutex *gMutex;
+//extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 
 
 
 
 
-DWORD addonTransfer::SendThread(void *lpParam)
+void addonTransfer::SendThread(int socketid)
 {
-	Sleep(2500);
-
-	int socketid = (int)lpParam;
+	boost::this_thread::sleep(boost::posix_time::seconds(3));
 
 	addonDebug("Thread addonTransfer::SendThread(%i) started", socketid);
 
@@ -43,7 +41,9 @@ DWORD addonTransfer::SendThread(void *lpParam)
 	{
 		addonDebug("Error!");
 
-		goto Error;
+		fclose(io);
+
+		return;
 	}
 
 	fseek(io, NULL, SEEK_SET);
@@ -53,7 +53,7 @@ DWORD addonTransfer::SendThread(void *lpParam)
 		length = fread(buffer, 1, sizeof buffer, io);
 		send(socketid, buffer, length, NULL);
 
-		Sleep(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 
 	send(socketid, "TCPQUERY CLIENT_CALL 2001 END", 29, NULL);
@@ -63,26 +63,25 @@ DWORD addonTransfer::SendThread(void *lpParam)
 	if(strcmp(buffer, "TCPQUERY SERVER_CALL 2001 END"))
 	{
 		addonDebug("Error");
-	}
 
-Error:
+		fclose(io);
+
+		return;
+	}
 
 	fclose(io);
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gSocket->Mutex);
 	gSocket->Transfer.is = false;
-	gMutex->unLock();
-
-	return true;
+	lock.unlock();
 }
 
 
 
-DWORD addonTransfer::ReceiveThread(void *lpParam)
+void addonTransfer::ReceiveThread(int socketid)
 {
-	Sleep(2500);
+	boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-	int socketid = (int)lpParam;
 	char buffer[256];
 
 	addonDebug("Thread addonTransfer::ReceiveThread(%i) started", socketid);
@@ -102,7 +101,7 @@ DWORD addonTransfer::ReceiveThread(void *lpParam)
 		if(ftell(io) >= gSocket->Transfer.file_length)
 			break;
 
-		Sleep(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 
 	fclose(io);
@@ -112,13 +111,13 @@ DWORD addonTransfer::ReceiveThread(void *lpParam)
 	if(strcmp(buffer, "TCPQUERY SERVER_CALL 2000 END"))
 	{
 		addonDebug("No end header");
+
+		return;
 	}
 
 	send(socketid, "TCPQUERY CLIENT_CALL 2000 END", 29, NULL);
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gSocket->Mutex);
 	gSocket->Transfer.is = false;
-	gMutex->unLock();
-
-	return true;
+	lock.unlock();
 }

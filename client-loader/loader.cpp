@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include "loader.h"
 
 
@@ -24,7 +26,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			return false;
 		}
 
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)addon_load_thread, (void *)hinstDLL, NULL, NULL);
+		boost::thread load(&addon_load_thread);
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
@@ -39,21 +41,20 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 
 
-DWORD addon_load_thread(void *lpParam)
+void addon_load_thread()
 {
-	int parentDLL = (int)lpParam;
-	int tick = 0;
+	int processTicks = NULL;
 
 	while(!GetModuleHandleW(L"samp.dll"))
 	{
-		if(++tick >= 120) // 30 seconds
+		if(++processTicks >= 120) // 30 seconds
 		{
 			addonDebug("Singleplayer loaded, terminating");
 
-			return false;
+			return;
 		}
 
-		Sleep(250);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(250));
 	}
 
 	HMODULE addon;
@@ -66,7 +67,7 @@ DWORD addon_load_thread(void *lpParam)
 	{
 		addonDebug("Cannot launch SAMP\\addon\\addon.dll");
 
-		return false;
+		return;
 	}
 
 	addonLoader addonLoad = (addonLoader)GetProcAddress(addon, "addon_start");
@@ -75,12 +76,12 @@ DWORD addon_load_thread(void *lpParam)
 	{
 		addonDebug("Cannot export main loader function");
 
-		return false;
+		return;
 	}
 
 	addonLoad();
 
-	Sleep(5000);
+	boost::this_thread::sleep(boost::posix_time::seconds(5));
 
 
 
@@ -88,7 +89,7 @@ DWORD addon_load_thread(void *lpParam)
 	{
 		addonDebug("Audio plugin already loaded");
 
-		return false;
+		return;
 	}
 
 	SetDllDirectoryW(L"SAMP\\addon\\audio");
@@ -98,7 +99,7 @@ DWORD addon_load_thread(void *lpParam)
 	{
 		addonDebug("Audio plugin wasn't found, processing without it...");
 
-		return false;
+		return;
 	}
 
 	addonLoader audioLoad = (addonLoader)GetProcAddress(audio, "startPlugin");
@@ -107,7 +108,7 @@ DWORD addon_load_thread(void *lpParam)
 	{
 		addonDebug("Invalid audio plugin (v0.5 R2 needed)");
 
-		return false;
+		return;
 	}
 
 	/*
@@ -121,8 +122,6 @@ DWORD addon_load_thread(void *lpParam)
 	*/
 
 	audioLoad();
-
-	return true;
 }
 
 
@@ -142,17 +141,17 @@ void addonDebug(char *text, ...)
 	va_start(args, text);
 
 	int length = vsnprintf(NULL, NULL, text, args);
-	char *chars = new char[++length];
+	char *chars = (char *)malloc(++length);
 
-	length = vsnprintf(chars, length, text, args);
+	vsnprintf(chars, length, text, args);
 	std::string buffer(chars);
 
-	delete[] chars;
+	free(chars);
 
 	va_end(args);
 
-	logfile.open("SAMP\\addon\\addon.log", std::fstream::out | std::fstream::app);
-	logfile << '[' << timeform << ']' << ' ' << buffer << '\n';
+	logfile.open("SAMP\\addon\\addon.log", (std::fstream::out | std::fstream::app));
+	logfile << '[' << timeform << ']' << ' ' << buffer << std::endl;
 	logfile.flush();
 	logfile.close();
 }

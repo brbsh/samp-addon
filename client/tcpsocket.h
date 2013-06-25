@@ -24,8 +24,10 @@ class addonSocket
 
 public:
 
-	static DWORD SendThread(void *lpParam);
-	static DWORD ReceiveThread(void *lpParam);
+	boost::mutex Mutex;
+
+	static void SendThread(int socketid);
+	static void ReceiveThread(int socketid);
 
 	struct fileTransfer Transfer;
 	
@@ -42,9 +44,6 @@ public:
 	int GetInstance();
 
 private:
-
-	HANDLE sendHandle;
-	HANDLE receiveHandle;
 
 	int socketHandle;
 

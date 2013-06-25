@@ -13,11 +13,8 @@ class amxTransfer
 
 public:
 
-	#ifdef WIN32
-		static DWORD SendThread(void *lpParam);
-		static DWORD ReceiveThread(void *lpParam);
-	#else
-		static void *SendThread(void *lpParam);
-		static void *ReceiveThread(void *lpParam);
-	#endif
+	boost::mutex Mutex;
+
+	static void SendThread(int clientid);
+	static void ReceiveThread(int clientid);
 };

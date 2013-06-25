@@ -13,12 +13,11 @@ class addonProcess
 
 public:
 
-	static DWORD Thread(void *lpParam);
+	boost::mutex Mutex;
+
+	static void Thread();
+	bool threadActive;
 
 	addonProcess();
 	~addonProcess();
-
-private:
-
-	HANDLE processHandle;
 };

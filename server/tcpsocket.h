@@ -21,15 +21,11 @@ class amxSocket
 
 public:
 
-	#ifdef WIN32
-		static DWORD ConnectionThread(void *lpParam);
-		static DWORD SendThread(void *lpParam);
-		static DWORD ReceiveThread(void *lpParam);
-	#else
-		static void *ConnectionThread(void *lpParam);
-		static void *SendThread(void *lpParam);
-		static void *ReceiveThread(void *lpParam);
-	#endif
+	boost::mutex Mutex;
+
+	static void ConnectionThread(int socketid);
+	static void SendThread(int socketid);
+	static void ReceiveThread(int socketid);
 
 	struct socketStruct socketInfo;
 

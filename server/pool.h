@@ -45,9 +45,11 @@ public:
 	
 	bool pluginInit;
 
-	std::map<int, sockPool> socketPool;
-	std::map<int, cliPool> clientPool;
-	std::map<int, transPool> transferPool;
+	boost::mutex Mutex;
+
+	boost::unordered_map<int, sockPool> socketPool;
+	boost::unordered_map<int, cliPool> clientPool;
+	boost::unordered_map<int, transPool> transferPool;
 
 	amxPool();
 	~amxPool();

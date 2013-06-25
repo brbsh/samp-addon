@@ -81,25 +81,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addon.h" />
-    <ClInclude Include="mutex.h" />
     <ClInclude Include="natives.h" />
     <ClInclude Include="pool.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="tcpsocket.h" />
-    <ClInclude Include="thread.h" />
     <ClInclude Include="transfer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addon.cpp" />
-    <ClCompile Include="mutex.cpp" />
     <ClCompile Include="natives.cpp" />
     <ClCompile Include="pool.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="SDK\amxplugin.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
-    <ClCompile Include="thread.cpp" />
     <ClCompile Include="transfer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

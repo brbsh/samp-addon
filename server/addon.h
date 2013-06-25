@@ -5,7 +5,7 @@
 #ifdef WIN32
 	#define WIN32_LEAN_AND_MEAN
 
-	#include <Windows.h>
+	#include <windows.h>
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
 
@@ -30,27 +30,28 @@
 #include <sstream>
 #include <string>
 
+//#include <boost/asio.hpp>
+#include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/unordered_map.hpp>
+
+#define HAVE_STDINT_H
+
 #include "SDK/plugin.h"
 
-#include "mutex.h"
+//#include "mutex.h"
 #include "natives.h"
 #include "pool.h"
 #include "process.h"
 #include "string.h"
 #include "tcpsocket.h"
-#include "thread.h"
+//#include "thread.h"
 #include "transfer.h"
 
 
 
-#ifdef WIN32
-	#define SLEEP(x) { Sleep(x); }
-#else
-	#define SLEEP(x) { usleep(x * 1000); }
-
-	typedef unsigned long DWORD;
-	typedef unsigned int UINT;
-#endif
+#define arguments(a) \
+	!(params[0] != (a << 2))
 
 
 

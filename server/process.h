@@ -13,9 +13,7 @@ class amxProcess
 
 public:
 
-	#ifdef WIN32
-		static DWORD Thread(void *lpParam);
-	#else
-		static void *Thread(void *lpParam);
-	#endif
+	boost::mutex Mutex;
+
+	static void Thread(AMX *amx);
 };

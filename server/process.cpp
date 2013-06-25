@@ -6,13 +6,17 @@
 
 
 
-extern amxMutex *gMutex;
+
+
+amxProcess *gProcess;
+
+
+//extern amxMutex *gMutex;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
-extern amxThread *gThread;
+//extern amxThread *gThread;
 
 extern logprintf_t logprintf;
-
 
 extern std::queue<amxDisconnect> amxDisconnectQueue;
 extern std::queue<amxKey> amxKeyQueue;
@@ -23,15 +27,11 @@ extern std::queue<processStruct> recvQueue;
 
 
 
-#ifdef WIN32
-	DWORD amxProcess::Thread(void *lpParam)
-#else
-	void *amxProcess::Thread(void *lpParam)
-#endif
+void amxProcess::Thread(AMX *amx)
 {
-	processStruct input;
-
 	int call_index;
+
+	processStruct input;
 
 	do
 	{
@@ -39,10 +39,10 @@ extern std::queue<processStruct> recvQueue;
 		{
 			for(unsigned int i = 0; i < recvQueue.size(); i++)
 			{
-				gMutex->Lock();
+				boost::mutex::scoped_lock lock(gProcess->Mutex);
 				input = recvQueue.front();
 				recvQueue.pop();
-				gMutex->unLock();
+				lock.unlock();
 
 				sscanf_s(input.data.c_str(), "%*s %*s %d", &call_index);
 
@@ -78,22 +78,18 @@ extern std::queue<processStruct> recvQueue;
 
 						serial += flags;
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gPool->Mutex);
 						cPool = gPool->clientPool[input.clientID];
-						gMutex->unLock();
 
 						cPool.serial = serial;
 						cPool.auth = true;
 
-						gMutex->Lock();
 						gPool->clientPool[input.clientID] = cPool;
-						gMutex->unLock();
+						lock.unlock();
 
 						gSocket->Send(input.clientID, formatString() << "TCPQUERY" << " " << "SERVER_CALL" << " " << 1000 << " " << serial);
-
-						break;
 					}
-
+					break;
 					case 1001: // TCPQUERY CLIENT_CALL 1001 %i1   ---   Sends addon module detach info | %i1 - Reason
 					{
 						amxDisconnect pushme;
@@ -103,13 +99,11 @@ extern std::queue<processStruct> recvQueue;
 						sscanf_s(input.data.c_str(), "%*s %*s %*d %d", &reason);
 						pushme.clientID = input.clientID;
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gProcess->Mutex);
 						amxDisconnectQueue.push(pushme);
-						gMutex->unLock();
-
-						break;
+						lock.unlock();
 					}
-
+					break;
 					case 1002: // TCPQUERY CLIENT_CALL 1002 %s1    ---   Sends async key data | %s1 - Keys array
 					{
 						amxKey amxKeyData;
@@ -117,13 +111,11 @@ extern std::queue<processStruct> recvQueue;
 						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxKeyData.keys, sizeof amxKeyData.keys);
 						amxKeyData.clientID = input.clientID;
 						
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gProcess->Mutex);
 						amxKeyQueue.push(amxKeyData);
-						gMutex->unLock();
-
-						break;
+						lock.unlock();
 					}
-
+					break;
 					case 1003: // TCPQUERY CLIENT_CALL 1003 %s1   ---   Screenshot was taken | %s1 - Screenshot name
 					{
 						amxScreenshot amxScreenshotData;
@@ -131,13 +123,11 @@ extern std::queue<processStruct> recvQueue;
 						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxScreenshotData.name, sizeof amxScreenshotData.name);
 						amxScreenshotData.clientID = input.clientID;
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gProcess->Mutex);
 						amxScreenshotQueue.push(amxScreenshotData);
-						gMutex->unLock();
-
-						break;
+						lock.unlock();
 					}
-
+					break;
 					case 2001: // TCPQUERY CLIENT_CALL 2001 %s1 %i1   ---   Transfer file data | %s1 - Remote file name, %i1 - Remote file length
 					{
 						char check[10];
@@ -149,38 +139,31 @@ extern std::queue<processStruct> recvQueue;
 						{
 							logprintf("Unexpected value passed!");
 
-							break;
+							continue;
 						}
 
 						transPool pool;
-
-						gMutex->Lock();
-						pool = gPool->transferPool[input.clientID];
-						pool.file_length = length;
-						gPool->transferPool[input.clientID] = pool;
-						gMutex->unLock();
-
 						sockPool sPool;
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gPool->Mutex);
+						pool = gPool->transferPool[input.clientID];
 						sPool = gPool->socketPool[input.clientID];
+
+						pool.file_length = length;
 						sPool.transfer = true;
+
+						gPool->transferPool[input.clientID] = pool;
 						gPool->socketPool[input.clientID] = sPool;
-						gMutex->unLock();
+						lock.unlock();
 
-						gThread->Start(amxTransfer::ReceiveThread, (void *)input.clientID);
-
-						break;
+						boost::thread receive(boost::bind(&amxTransfer::ReceiveThread, input.clientID));
 					}
+					break;
 				}
 			}
 		}
 
-		SLEEP(10);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(5));
 	}
 	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-
-	#ifdef WIN32
-		return true;
-	#endif
 }

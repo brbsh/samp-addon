@@ -6,9 +6,9 @@
 
 
 
-extern amxMutex *gMutex;
+//extern amxMutex *gMutex;
 extern amxPool *gPool;
-extern amxThread *gThread;
+//extern amxThread *gThread;
 
 extern logprintf_t logprintf;
 
@@ -52,10 +52,6 @@ amxSocket::amxSocket()
 
 amxSocket::~amxSocket()
 {
-	gThread->Stop(this->connHandle);
-	gThread->Stop(this->recvHandle);
-	gThread->Stop(this->sendHandle);
-
 	#ifdef WIN32
 		WSACleanup();
 	#endif
@@ -79,7 +75,7 @@ void amxSocket::Create()
 
 void amxSocket::Close()
 {
-	for(std::map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
+	for(boost::unordered_map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
 	{
 		if(i->second.socketid != -1) 
 		{
@@ -174,9 +170,9 @@ void amxSocket::Listen(int port)
 
 	this->socketInfo.active = true;
 
-	this->connHandle = gThread->Start(amxSocket::ConnectionThread, (void *)this->socketID);
-	this->recvHandle = gThread->Start(amxSocket::ReceiveThread, (void *)this->socketID);
-	this->sendHandle = gThread->Start(amxSocket::SendThread, (void *)this->socketID);
+	boost::thread connection(boost::bind(&amxSocket::ConnectionThread, this->socketID));
+	boost::thread receive(boost::bind(&amxSocket::ReceiveThread, this->socketID));
+	boost::thread send(boost::bind(&amxSocket::SendThread, this->socketID));
 }
 
 
@@ -194,11 +190,14 @@ void amxSocket::KickClient(int clientid)
 
 		pushme.clientID = clientid;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(this->Mutex);
 		amxDisconnectQueue.push(pushme);
+		lock.unlock();
+
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
 		gPool->socketPool.erase(clientid);
 		gPool->clientPool.erase(clientid);
-		gMutex->unLock();
+		pool_lock.unlock();
 
 		this->CloseSocket(socketid);
 	}
@@ -233,9 +232,9 @@ std::string amxSocket::GetClientIP(int clientid)
 
 	std::string ret;
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gPool->Mutex);
 	ret = gPool->socketPool[clientid].ip;
-	gMutex->unLock();
+	lock.unlock();
 
 	return ret;
 }
@@ -254,9 +253,9 @@ void amxSocket::Send(int clientid, std::string data)
 		pushme.clientID = clientid;
 		pushme.data = data;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(this->Mutex);
 		sendQueue.push(pushme);
-		gMutex->unLock();
+		lock.unlock();
 	}
 }
 
@@ -287,13 +286,8 @@ int amxSocket::SetNonblock(int socketid)
 
 
 
-#ifdef WIN32
-	DWORD amxSocket::ConnectionThread(void *lpParam)
-#else
-	void *amxSocket::ConnectionThread(void *lpParam)
-#endif
+void amxSocket::ConnectionThread(int socketid)
 {
-	int socketid = (int)lpParam;
 	sockaddr_in remote_client;
 
 	#ifdef WIN32
@@ -318,16 +312,16 @@ int amxSocket::SetNonblock(int socketid)
 			pool.socketid = sockID;
 			pool.transfer = false;
 
-			gMutex->Lock();
+			boost::mutex::scoped_lock pool_lock(gPool->Mutex);
 			gPool->socketPool[clientid] = pool;
-			gMutex->unLock();
+			pool_lock.unlock();
 
 			pushme.ip = pool.ip;
 			pushme.clientID = clientid;
 
-			gMutex->Lock();
+			boost::mutex::scoped_lock lock(gSocket->Mutex);
 			amxConnectQueue.push(pushme);
-			gMutex->unLock();
+			lock.unlock();
 		} 
 		else 
 		{
@@ -351,29 +345,20 @@ int amxSocket::SetNonblock(int socketid)
 
 			gSocket->KickClient(sockID);
 
-			gMutex->Lock();
+			boost::mutex::scoped_lock lock(gSocket->Mutex);
 			amxConnectErrorQueue.push(pushme);
-			gMutex->unLock();
+			lock.unlock();
 		}
 
-		SLEEP(10);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	} 
 	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-
-	#ifdef WIN32
-		return true;
-	#endif
 }
 
 
 
-#ifdef WIN32
-	DWORD amxSocket::ReceiveThread(void *lpParam)
-#else
-	void *amxSocket::ReceiveThread(void *lpParam)
-#endif
+void amxSocket::ReceiveThread(int socketid)
 {
-	int socketid = (int)lpParam;
 	int sockID;
 	int byte_len;
 	char buffer[65536];
@@ -382,7 +367,7 @@ int amxSocket::SetNonblock(int socketid)
 
 	do 
 	{
-		for(std::map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
+		for(boost::unordered_map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
 		{
 			if(i->second.transfer)
 				continue;
@@ -403,30 +388,22 @@ int amxSocket::SetNonblock(int socketid)
 
 				logprintf("Received data from %i: %s", i->first, pushme.data.c_str());
 
-				gMutex->Lock();
+				boost::mutex::scoped_lock lock(gSocket->Mutex);
 				recvQueue.push(pushme);
-				gMutex->unLock();
+				lock.unlock();
 			}
-			else if(byte_len == 0)
+			else if(!byte_len)
 				gSocket->KickClient(i->first);
 		}
 
-		SLEEP(10);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	} 
 	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-
-	#ifdef WIN32
-		return true;
-	#endif
 }
 
 
 
-#ifdef WIN32
-	DWORD amxSocket::SendThread(void *lpParam)
-#else
-	void *amxSocket::SendThread(void *lpParam)
-#endif
+void amxSocket::SendThread(int socketid)
 {
 	processStruct getme;
 
@@ -436,19 +413,13 @@ int amxSocket::SetNonblock(int socketid)
 		{
 			for(unsigned int i = 0; i < sendQueue.size(); i++)
 			{
-				gMutex->Lock();
+				boost::mutex::scoped_lock lock(gSocket->Mutex);
 				getme = sendQueue.front();
+				sendQueue.pop();
+				lock.unlock();
 
 				if(gPool->socketPool[getme.clientID].transfer)
-				{
-					gMutex->unLock();
-					SLEEP(1);
-					
 					continue;
-				}
-
-				sendQueue.pop();
-				gMutex->unLock();
 
 				logprintf("Send data to %i: %s", getme.clientID, getme.data.c_str());
 
@@ -456,11 +427,7 @@ int amxSocket::SetNonblock(int socketid)
 			}
 		}
 
-		SLEEP(10);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
 	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-
-	#ifdef WIN32
-		return true;
-	#endif
 }

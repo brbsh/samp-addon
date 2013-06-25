@@ -13,6 +13,6 @@ class addonTransfer
 
 public:
 
-	static DWORD SendThread(void *lpParam);
-	static DWORD ReceiveThread(void *lpParam);
+	static void SendThread(int socketid);
+	static void ReceiveThread(int socketid);
 };

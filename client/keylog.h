@@ -11,13 +11,9 @@ class addonKeylog
 
 public:
 
-	static DWORD Thread(void *lpParam);
+	static void Thread();
 	bool threadActive;
 
 	addonKeylog();
 	~addonKeylog();
-
-private:
-
-	HANDLE threadHandle;
 };

@@ -83,24 +83,20 @@
     <ClInclude Include="addon.h" />
     <ClInclude Include="fs.h" />
     <ClInclude Include="keylog.h" />
-    <ClInclude Include="mutex.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="tcpsocket.h" />
-    <ClInclude Include="thread.h" />
     <ClInclude Include="transfer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addon.cpp" />
     <ClCompile Include="fs.cpp" />
     <ClCompile Include="keylog.cpp" />
-    <ClCompile Include="mutex.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="screen.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
-    <ClCompile Include="thread.cpp" />
     <ClCompile Include="transfer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

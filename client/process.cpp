@@ -11,9 +11,9 @@
 addonProcess *gProcess;
 
 
-extern addonThread *gThread;
+//extern addonThread *gThread;
 extern addonTransfer *gTransfer;
-extern addonMutex *gMutex;
+//extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 extern addonScreen *gScreen;
 extern addonFS *gFS;
@@ -28,7 +28,8 @@ addonProcess::addonProcess()
 {
 	addonDebug("Process constructor called");
 
-	this->processHandle = gThread->Start(addonProcess::Thread, (void *)GetTickCount());
+	this->threadActive = true;
+	boost::thread process(&addonProcess::Thread);
 }
 
 
@@ -37,14 +38,16 @@ addonProcess::~addonProcess()
 {
 	addonDebug("Process deconstructor called");
 
-	gThread->Stop(this->processHandle);
+	boost::mutex::scoped_lock lock(this->Mutex);
+	this->threadActive = false;
+	lock.unlock();
 }
 
 
 
-DWORD addonProcess::Thread(void *lpParam)
+void addonProcess::Thread()
 {
-	addonDebug("Thread addonProcess::Thread(%i) successfuly started", (int)lpParam);
+	addonDebug("Thread addonProcess::Thread() successfuly started");
 
 	int call_index;
 	std::string data;
@@ -53,7 +56,7 @@ DWORD addonProcess::Thread(void *lpParam)
 	{
 		if(gSocket->Transfer.is)
 		{
-			Sleep(100);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
 			continue;
 		}
@@ -62,10 +65,10 @@ DWORD addonProcess::Thread(void *lpParam)
 		{
 			for(unsigned int i = 0; i < rec_from.size(); i++)
 			{
-				gMutex->Lock();
+				boost::mutex::scoped_lock lock(gProcess->Mutex);
 				data = rec_from.front();
 				rec_from.pop();
-				gMutex->unLock();
+				lock.unlock();
 
 				sscanf_s(data.c_str(), "%*s %*s %d", &call_index);
 
@@ -90,10 +93,8 @@ DWORD addonProcess::Thread(void *lpParam)
 
 							gSocket->Close();
 						}
-
-						break;
 					}
-
+					break;
 					case 1001: // TCPQUERY SERVER_CALL 1001 %i1   ---   Calls when error occured while connecting to TCP server | %i1 - error code
 					{
 						int error_code;
@@ -103,13 +104,12 @@ DWORD addonProcess::Thread(void *lpParam)
 						if(!error_code)
 						{
 							addonDebug("TCP server is full");
+
+							gSocket->Close();
 						}
-
-						break;
 					}
-
+					break;
 					//case 1002:
-
 					case 1003: // TCPQUERY SERVER_CALL 1003 %s1   ---   Screenshot take request from server | %s1 - local file name
 					{
 						char file_name[256];
@@ -123,10 +123,8 @@ DWORD addonProcess::Thread(void *lpParam)
 
 						gScreen->Get(std::string(file_name));
 						gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1003 << " " << file_name);
-
-						break;
 					}
-
+					break;
 					case 2000: // TCPQUERY SERVER_CALL 2000 %s1 %i1   ---   Remote file transfer | %s1 - File name, %i1 - file length
 					{
 						int length;
@@ -141,18 +139,16 @@ DWORD addonProcess::Thread(void *lpParam)
 							break;
 						}
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gSocket->Mutex);
 						gSocket->Transfer.file.assign(file_name);
 						gSocket->Transfer.file_length = length;
 						gSocket->Transfer.send = false;
 						gSocket->Transfer.is = true;
-						gMutex->unLock();
+						lock.unlock();
 
-						gThread->Start(addonTransfer::ReceiveThread, (void *)gSocket->GetInstance());
-
-						break;
+						boost::thread receive(boost::bind(&addonTransfer::ReceiveThread, gSocket->GetInstance()));
 					}
-
+					break;
 					case 2001: // TCPQUERY SERVER_CALL 2001 %s1   ---   Local file transfer | %s1 - File name
 					{
 						char file_name[256];
@@ -166,23 +162,21 @@ DWORD addonProcess::Thread(void *lpParam)
 							break;
 						}
 
-						gMutex->Lock();
+						boost::mutex::scoped_lock lock(gSocket->Mutex);
 						gSocket->Transfer.file.assign(file_name);
 						gSocket->Transfer.send = true;
 						gSocket->Transfer.is = true;
-						gMutex->unLock();
+						lock.unlock();
 
-						gThread->Start(addonTransfer::SendThread, (void *)gSocket->GetInstance());
 
-						break;
+						boost::thread send(boost::bind(&addonTransfer::SendThread, gSocket->GetInstance()));
 					}
+					break;
 				}
 			}
 		}
 
-		Sleep(10);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(true);
-
-	return true;
 }

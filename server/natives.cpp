@@ -6,36 +6,36 @@
 
 
 
-extern amxMutex *gMutex;
+//extern amxMutex *gMutex;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
-extern amxThread *gThread;
+//extern amxThread *gThread;
 extern logprintf_t logprintf;
+
 extern std::queue<amxConnectError> amxConnectErrorQueue;
 
 
 
 
 
-AMX_NATIVE_INFO addonNatives[] =
+const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 {
-	{"InitAddon", n_addon_init},
-	{"IsClientConnected", n_addon_is_client_connected},
-	{"KickClient", n_addon_kick_client},
+	{"InitAddon", amxNatives::Init},
+	{"IsClientConnected", amxNatives::IsClientConnected},
+	{"KickClient", amxNatives::KickClient},
+	{"GetClientSerial", amxNatives::GetClientSerial},
+	{"GetClientScreenshot", amxNatives::GetClientScreenshot},
+	{"TransferLocalFile", amxNatives::TransferLocalFile},
+	{"TransferRemoteFile", amxNatives::TransferRemoteFile},
 
-	{"GetClientSerial", n_addon_get_serial},
-	{"GetClientScreenshot", n_addon_get_screenshot},
-
-	{"TransferLocalFile", n_addon_send_file},
-	{"TransferRemoteFile", n_addon_get_file},
 	{NULL, NULL}
 };
 
 
 
 // native InitAddon(ip[], port, maxplayers);
-cell AMX_NATIVE_CALL n_addon_init(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 	{
@@ -76,15 +76,15 @@ cell AMX_NATIVE_CALL n_addon_init(AMX *amx, cell *params)
 
 	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), (params[2] + 1), params[3]);
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gPool->Mutex);
 	gPool->pluginInit = true;
-	gMutex->unLock();
+	lock.unlock();
 
 	gSocket->MaxClients(params[3]);
 	gSocket->Bind(ip);
 	gSocket->Listen((params[2] + 1));
 
-	gThread->Start(amxProcess::Thread, (void *)amx);
+	boost::thread process(boost::bind(&amxProcess::Thread, amx));
 	
 	return 1;
 }
@@ -92,7 +92,7 @@ cell AMX_NATIVE_CALL n_addon_init(AMX *amx, cell *params)
 
 
 // native IsClientConnected(clientid)
-cell AMX_NATIVE_CALL n_addon_is_client_connected(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
@@ -107,7 +107,7 @@ cell AMX_NATIVE_CALL n_addon_is_client_connected(AMX *amx, cell *params)
 
 
 // native KickClient(clientid)
-cell AMX_NATIVE_CALL n_addon_kick_client(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
@@ -124,7 +124,7 @@ cell AMX_NATIVE_CALL n_addon_kick_client(AMX *amx, cell *params)
 
 
 // native GetClientSerial(clientid);
-cell AMX_NATIVE_CALL n_addon_get_serial(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
@@ -136,11 +136,7 @@ cell AMX_NATIVE_CALL n_addon_get_serial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(params[1]))
 		return NULL;
 
-	int ret;
-
-	gMutex->Lock();
-	ret = gPool->clientPool[params[1]].serial;
-	gMutex->unLock();
+	int ret = gPool->clientPool[params[1]].serial;
 
 	return ret;
 }
@@ -148,7 +144,7 @@ cell AMX_NATIVE_CALL n_addon_get_serial(AMX *amx, cell *params)
 
 
 // native GetClientScreenshot(clientid, remote_filename[]);
-cell AMX_NATIVE_CALL n_addon_get_screenshot(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 {
 	if(!arguments(2))
 	{
@@ -177,7 +173,7 @@ cell AMX_NATIVE_CALL n_addon_get_screenshot(AMX *amx, cell *params)
 
 
 // native TransferLocalFile(file[], toclient, remote_name[]);
-cell AMX_NATIVE_CALL n_addon_send_file(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 		return NULL;
@@ -192,18 +188,16 @@ cell AMX_NATIVE_CALL n_addon_send_file(AMX *amx, cell *params)
 	pool.file = gString->Get(amx, params[1]);
 	pool.remote_file = gString->Get(amx, params[3]);
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gPool->Mutex);
 	sPool = gPool->socketPool[params[2]];
-	gMutex->unLock();
 
 	sPool.transfer = true;
 
-	gMutex->Lock();
 	gPool->transferPool[params[2]] = pool;
 	gPool->socketPool[params[2]] = sPool;
-	gMutex->unLock();
+	lock.unlock();
 
-	gThread->Start(amxTransfer::SendThread, (void *)params[2]);
+	boost::thread send(boost::bind(&amxTransfer::SendThread, (int)params[2]));
 
 	return 1;
 }
@@ -211,7 +205,7 @@ cell AMX_NATIVE_CALL n_addon_send_file(AMX *amx, cell *params)
 
 
 // native TransferRemoteFile(remote_file[], fromclient, file[]);
-cell AMX_NATIVE_CALL n_addon_get_file(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 		return NULL;
@@ -225,9 +219,9 @@ cell AMX_NATIVE_CALL n_addon_get_file(AMX *amx, cell *params)
 	pool.file = gString->Get(amx, params[3]);
 	pool.remote_file = gString->Get(amx, params[1]);
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gPool->Mutex);
 	gPool->transferPool[params[2]] = pool;
-	gMutex->unLock();
+	lock.unlock();
 
 	gSocket->Send(params[2], formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << pool.remote_file);
 

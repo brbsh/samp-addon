@@ -13,7 +13,7 @@ amxTransfer *gTransfer;
 
 extern logprintf_t logprintf;
 
-extern amxMutex *gMutex;
+//extern amxMutex *gMutex;
 extern amxPool *gPool;
 
 extern std::queue<amxFileReceive> amxFileReceiveQueue;
@@ -24,15 +24,10 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 
 
 
-#ifdef WIN32
-	DWORD amxTransfer::SendThread(void *lpParam)
-#else
-	void *amxTransfer::SendThread(void *lpParam)
-#endif
+void amxTransfer::SendThread(int clientid)
 {
-	SLEEP(2500);
+	boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-	int clientid = (int)lpParam;
 	int socketid;
 
 	logprintf("Thread amxTransfer::SendThread(%i) started", clientid);
@@ -44,7 +39,6 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 	std::stringstream format;
 	
 	sockPool pool;
-	amxFileSend pushme;
 	amxFileError pushError;
 
 	socketid = gPool->socketPool[clientid].socketid;
@@ -59,11 +53,20 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 		pushError.error.assign("Cannot read from file");
 		pushError.errorCode = 1;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(gTransfer->Mutex);
 		amxFileErrorQueue.push(pushError);
-		gMutex->unLock();
+		lock.unlock();
 
-		goto Error;
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
+		gPool->transferPool.erase(clientid);
+		pool = gPool->socketPool[clientid];
+
+		pool.transfer = false;
+
+		gPool->socketPool[clientid] = pool;
+		pool_lock.unlock();
+
+		return;
 	}
 
 	fseek(io, NULL, SEEK_END);
@@ -81,11 +84,22 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 		pushError.error.assign("Client isn't ready for file transfering");
 		pushError.errorCode = 2;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(gTransfer->Mutex);
 		amxFileErrorQueue.push(pushError);
-		gMutex->unLock();
+		lock.unlock();
 
-		goto Error;
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
+		gPool->transferPool.erase(clientid);
+		pool = gPool->socketPool[clientid];
+
+		pool.transfer = false;
+
+		gPool->socketPool[clientid] = pool;
+		pool_lock.unlock();
+
+		fclose(io);
+
+		return;
 	}
 
 	fseek(io, NULL, SEEK_SET);
@@ -95,7 +109,7 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 		length = fread(buffer, 1, sizeof buffer, io);
 		send(socketid, buffer, length, NULL);
 
-		SLEEP(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 
 	send(socketid, "TCPQUERY SERVER_CALL 2000 END", 29, NULL);
@@ -110,53 +124,43 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 		pushError.error.assign("Invalid final response from client");
 		pushError.errorCode = 3;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(gTransfer->Mutex);
 		amxFileErrorQueue.push(pushError);
-		gMutex->unLock();
+		lock.unlock();
 
-		goto Error;
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
+		gPool->transferPool.erase(clientid);
+		pool = gPool->socketPool[clientid];
+
+		pool.transfer = false;
+
+		gPool->socketPool[clientid] = pool;
+		pool_lock.unlock();
+
+		fclose(io);
+
+		return;
 	}
+
+	amxFileSend pushme;
 
 	pushme.clientid = clientid;
 	pushme.file = gPool->transferPool[clientid].remote_file;
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gTransfer->Mutex);
 	amxFileSendQueue.push(pushme);
-	gMutex->unLock();
-
-Error:
-	
-	gMutex->Lock();
-	gPool->transferPool.erase(clientid);
-	pool = gPool->socketPool[clientid];
-	gMutex->unLock();
-
-	pool.transfer = false;
-
-	gMutex->Lock();
-	gPool->socketPool[clientid] = pool;
-	gMutex->unLock();
+	lock.unlock();
 
 	fclose(io);
-
-	#ifdef WIN32
-		return true;
-	#endif
 }
 
 
 
-#ifdef WIN32
-	DWORD amxTransfer::ReceiveThread(void *lpParam)
-#else
-	void *amxTransfer::ReceiveThread(void *lpParam)
-#endif
+void amxTransfer::ReceiveThread(int clientid)
 {
-	SLEEP(2500);
+	boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-	int clientid = (int)lpParam;
 	int socketid;
-
 	char buffer[256];
 
 	logprintf("Thread amxTransfer::ReceiveThread(%i) started", clientid);
@@ -165,7 +169,6 @@ Error:
 	long length;
 
 	sockPool pool;
-	amxFileReceive pushme;
 	amxFileError pushError;
 
 	socketid = gPool->socketPool[clientid].socketid;
@@ -180,11 +183,20 @@ Error:
 		pushError.error.assign("Cannot write/append to file");
 		pushError.errorCode = 1;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(gTransfer->Mutex);
 		amxFileErrorQueue.push(pushError);
-		gMutex->unLock();
+		lock.unlock();
 
-		goto Error;
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
+		pool = gPool->socketPool[clientid];
+		gPool->transferPool.erase(clientid);
+
+		pool.transfer = false;
+
+		gPool->socketPool[clientid] = pool;
+		lock.unlock();
+
+		return;
 	}
 
 	send(socketid, "TCPQUERY SERVER_CALL 2001 READY", 31, NULL);
@@ -197,7 +209,7 @@ Error:
 		if(ftell(io) >= gPool->transferPool[clientid].file_length)
 			break;
 
-		SLEEP(100);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 
 	fclose(io);
@@ -212,36 +224,39 @@ Error:
 		pushError.error.assign("Invalid end flag from client");
 		pushError.errorCode = 2;
 
-		gMutex->Lock();
+		boost::mutex::scoped_lock lock(gTransfer->Mutex);
 		amxFileErrorQueue.push(pushError);
-		gMutex->unLock();
+		lock.unlock();
 
-		goto Error;
+		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
+		pool = gPool->socketPool[clientid];
+		gPool->transferPool.erase(clientid);
+
+		pool.transfer = false;
+
+		gPool->socketPool[clientid] = pool;
+		lock.unlock();
+
+		return;
 	}
 
 	send(socketid, "TCPQUERY SERVER_CALL 2001 END", 29, NULL);
 
+	amxFileReceive pushme;
+
 	pushme.clientid = clientid;
 	pushme.file = gPool->transferPool[clientid].file;
 
-	gMutex->Lock();
+	boost::mutex::scoped_lock lock(gTransfer->Mutex);
 	amxFileReceiveQueue.push(pushme);
-	gMutex->unLock();
+	lock.unlock();
 
-Error:
-
-	gMutex->Lock();
+	boost::mutex::scoped_lock pool_lock(gPool->Mutex);
 	pool = gPool->socketPool[clientid];
 	gPool->transferPool.erase(clientid);
-	gMutex->unLock();
 
 	pool.transfer = false;
 
-	gMutex->Lock();
 	gPool->socketPool[clientid] = pool;
-	gMutex->unLock();
-	
-	#ifdef WIN32
-		return true;
-	#endif
+	lock.unlock();
 }
