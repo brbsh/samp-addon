@@ -8,10 +8,8 @@
 
 extern void *pAMXFunctions;
 
-//extern amxMutex *gMutex;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
-//extern amxThread *gThread;
 
 logprintf_t logprintf;
 
@@ -44,7 +42,6 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 
-	//gMutex = new amxMutex();
 	gPool = new amxPool();
 	gSocket = new amxSocket();
 
@@ -57,8 +54,8 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 
 PLUGIN_EXPORT void PLUGIN_CALL Unload()
 {
-	//delete gMutex;
-	gSocket->Close();
+	delete gPool;
+	delete gSocket;
 
 	boost::mutex::scoped_lock lock(gPool->Mutex);
 	gPool->pluginInit = false;

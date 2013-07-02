@@ -8,45 +8,20 @@
 
 
 
-struct fileTransfer
-{
-	bool is;
-	bool send;
-	std::string file;
-	long file_length;
-	std::string remote_file;
-};
-
-
-
 class addonSocket
 {
 
 public:
 
 	boost::mutex Mutex;
+	boost::shared_ptr<boost::asio::ip::tcp::socket> Socket;
 
-	static void SendThread(int socketid);
-	static void ReceiveThread(int socketid);
-
-	struct fileTransfer Transfer;
+	static void Thread();
 	
 	bool threadActive;
-	bool transfer;
 
 	addonSocket();
 	~addonSocket();
 
-	void Connect(std::string address, int port);
 	void Send(std::string data);
-	void Close();
-
-	int GetInstance();
-
-private:
-
-	int socketHandle;
-
-	int Create();
-	int Nonblock();
 };

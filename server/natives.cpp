@@ -6,11 +6,12 @@
 
 
 
-//extern amxMutex *gMutex;
+
+
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
-//extern amxThread *gThread;
+
 extern logprintf_t logprintf;
 
 extern std::queue<amxConnectError> amxConnectErrorQueue;
@@ -80,9 +81,7 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 	gPool->pluginInit = true;
 	lock.unlock();
 
-	gSocket->MaxClients(params[3]);
-	gSocket->Bind(ip);
-	gSocket->Listen((params[2] + 1));
+	gSocket = new amxSocket((params[2] + 1), params[3]);
 
 	boost::thread process(boost::bind(&amxProcess::Thread, amx));
 	
@@ -101,7 +100,9 @@ cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	return (gSocket->IsClientConnected(params[1])) ? 1 : 0;
+	int clientid = params[1];
+
+	return (gSocket->Socket.count(clientid)) ? 1 : 0;
 }
 
 
@@ -116,7 +117,7 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	gSocket->KickClient(params[1]);
+	//gSocket->KickClient(params[1]);
 
 	return 1;
 }
@@ -133,10 +134,12 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	if(!gSocket->IsClientConnected(params[1]))
+	int clientid = params[1];
+
+	if(!gSocket->Socket.count(clientid))
 		return NULL;
 
-	int ret = gPool->clientPool[params[1]].serial;
+	int ret = gPool->clientPool[clientid].serial;
 
 	return ret;
 }
@@ -153,7 +156,9 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	if(!gSocket->IsClientConnected(params[1]))
+	int clientid = params[1];
+
+	if(!gSocket->Socket.count(clientid))
 		return NULL;
 
 	std::string filename = gString->Get(amx, params[2]);
@@ -165,7 +170,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	gSocket->Send(params[1], formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
+	//gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
 
 	return 1;
 }
@@ -178,7 +183,9 @@ cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 	if(!arguments(3))
 		return NULL;
 
-	if(!gSocket->IsClientConnected(params[2]))
+	int clientid = params[2];
+
+	if(!gSocket->Socket.count(clientid))
 		return NULL;
 
 	transPool pool;
@@ -197,7 +204,7 @@ cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 	gPool->socketPool[params[2]] = sPool;
 	lock.unlock();
 
-	boost::thread send(boost::bind(&amxTransfer::SendThread, (int)params[2]));
+	boost::thread send(boost::bind(&amxTransfer::SendThread, clientid));
 
 	return 1;
 }
@@ -210,7 +217,9 @@ cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 	if(!arguments(3))
 		return NULL;
 
-	if(!gSocket->IsClientConnected(params[2]))
+	int clientid = params[2];
+
+	if(!gSocket->Socket.count(clientid))
 		return NULL;
 
 	transPool pool;
@@ -223,7 +232,7 @@ cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 	gPool->transferPool[params[2]] = pool;
 	lock.unlock();
 
-	gSocket->Send(params[2], formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << pool.remote_file);
+	//gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << pool.remote_file);
 
 	return 1;
 }

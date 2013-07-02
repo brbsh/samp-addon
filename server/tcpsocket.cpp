@@ -6,9 +6,9 @@
 
 
 
-//extern amxMutex *gMutex;
+
+
 extern amxPool *gPool;
-//extern amxThread *gThread;
 
 extern logprintf_t logprintf;
 
@@ -27,407 +27,87 @@ std::queue<processStruct> recvQueue;
 
 
 
-amxSocket::amxSocket()
+amxSocket::amxSocket(int port, int maxclients)
 {
-	this->socketID = -1;
-	this->socketInfo.maxClients = -1;
+	logprintf("Addon: Socket constructor called");
 
-	#ifdef WIN32
-		WSADATA wsaData;
+	boost::mutex::scoped_lock lock(this->Mutex);
+	this->Active = true;
+	lock.unlock();
 
-		int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	this->Port = port;
+	this->MaxClients = maxclients;
 
-		if(err || LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
-		{
-			logprintf("samp-addon: Winsock failed to initialize (error code: %i)", WSAGetLastError());
-
-			this->Close();
-		}
-	#endif
-
-	this->Create();
+	boost::thread accept(&amxSocket::Thread);
 }
 
 
 
 amxSocket::~amxSocket()
 {
-	#ifdef WIN32
-		WSACleanup();
-	#endif
-}
+	logprintf("Addon: Socket deconstructor called");
 
-
-
-void amxSocket::Create()
-{
-	this->socketID = socket(AF_INET, SOCK_STREAM, NULL);
-
-	if(this->socketID == -1)
-	{
-		logprintf("samp-addon: socket creation failed (function 'socket' returned -1)");
-
-		return;
-	}
-}
-
-
-
-void amxSocket::Close()
-{
-	for(boost::unordered_map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
-	{
-		if(i->second.socketid != -1) 
-		{
-			this->CloseSocket(i->second.socketid);
-		}
-	}
-
-	this->CloseSocket(this->socketID);
-
-	this->~amxSocket();
-}
-
-
-
-void amxSocket::CloseSocket(int socketid)
-{
-	#ifdef WIN32
-		shutdown(socketid, SD_BOTH);
-		closesocket(socketid);
-	#else
-		close(socketid);
-	#endif
-}
-
-
-
-void amxSocket::MaxClients(int max)
-{
-	if(this->socketID == -1)
-		return;
-
-	this->socketInfo.maxClients = max;
-}
-
-
-
-int amxSocket::FindFreeSlot()
-{
-	for(unsigned int i = 0; i != this->socketInfo.maxClients; i++)
-	{
-		if(!gPool->socketPool.count(i))
-			return i;
-	}
-
-	return 65535;
-}
-
-
-
-void amxSocket::Bind(std::string ip)
-{
-	if(this->socketID == -1)
-		return;
-
-	this->bind_ip = ip;
-}
-
-
-
-void amxSocket::Listen(int port)
-{
-	if(this->socketID == -1)
-		return;
-
-	struct sockaddr_in addr;
-
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-
-	memset(&(addr.sin_zero), NULL, 8);
-
-	if(!this->bind_ip.length()) 
-		addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	else 
-		addr.sin_addr.s_addr = inet_addr(this->bind_ip.c_str());
-
-	if(bind(this->socketID, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) 
-	{
-		logprintf("samp-addon: socket has failed to bind on port %i", port);
-
-		return;
-	}
-
-	if(listen(this->socketID, SOMAXCONN) == SOCKET_ERROR) 
-	{
-		logprintf("samp-addon: socket has failed to listen on port %i", port);
-
-		return;
-	}
-
-	logprintf("\nsamp-addon: started TCP server on port %i\n", port);
-
-	this->socketInfo.active = true;
-
-	boost::thread connection(boost::bind(&amxSocket::ConnectionThread, this->socketID));
-	boost::thread receive(boost::bind(&amxSocket::ReceiveThread, this->socketID));
-	boost::thread send(boost::bind(&amxSocket::SendThread, this->socketID));
-}
-
-
-
-void amxSocket::KickClient(int clientid)
-{
-	if(this->socketID == -1)
-		return;
-
-	int socketid = gPool->socketPool[clientid].socketid;
-
-	if(socketid != -1)
-	{
-		amxDisconnect pushme;
-
-		pushme.clientID = clientid;
-
-		boost::mutex::scoped_lock lock(this->Mutex);
-		amxDisconnectQueue.push(pushme);
-		lock.unlock();
-
-		boost::mutex::scoped_lock pool_lock(gPool->Mutex);
-		gPool->socketPool.erase(clientid);
-		gPool->clientPool.erase(clientid);
-		pool_lock.unlock();
-
-		this->CloseSocket(socketid);
-	}
-}
-
-
-
-bool amxSocket::IsClientConnected(int clientid)
-{
-	if(this->socketID == -1)
-		return false;
-
-	int socketid = gPool->socketPool[clientid].socketid;
-
-	if((clientid <= this->socketInfo.maxClients) && socketid && gPool->clientPool[clientid].auth)
-	{
-		char buffer[65536];
-
-		if(recv(socketid, buffer, sizeof buffer, NULL) != 0)
-			return true;
-	}
-
-	return false;
-}
-
-
-
-std::string amxSocket::GetClientIP(int clientid)
-{
-	if(!this->IsClientConnected(clientid))
-		return std::string("0.0.0.0");
-
-	std::string ret;
-
-	boost::mutex::scoped_lock lock(gPool->Mutex);
-	ret = gPool->socketPool[clientid].ip;
+	boost::mutex::scoped_lock lock(this->Mutex);
+	this->Active = false;
 	lock.unlock();
-
-	return ret;
 }
 
 
 
-void amxSocket::Send(int clientid, std::string data)
+void amxSocket::Thread()
 {
-	if(this->socketID == -1)
-		return;
+	boost::asio::io_service io;
+	boost::system::error_code error;
 
-	if(this->IsClientConnected(clientid))
-	{
-		processStruct pushme;
+	boost::asio::ip::tcp::acceptor acceptor(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), gSocket->Port));
 
-		pushme.clientID = clientid;
-		pushme.data = data;
-
-		boost::mutex::scoped_lock lock(this->Mutex);
-		sendQueue.push(pushme);
-		lock.unlock();
-	}
-}
-
-
-
-int amxSocket::SetNonblock(int socketid)
-{
-	if(socketid == -1)
-		return NULL;
-
-    DWORD flags;
-
-	#ifdef WIN32
-		flags = 1;
-
-		return ioctlsocket(socketid, FIONBIO, &flags);
-	#else
-		/* Fixme: O_NONBLOCK is defined but broken on SunOS 4.1.x and AIX 3.2.5. */
-		if((flags = fcntl(socketid, F_GETFL, 0)) == -1)
-        {
-			flags = 0;
-		}
-
-		return fcntl(socketid, F_SETFL, (flags | O_NONBLOCK));
-		fcntl(socketid, F_SETFL, O_NONBLOCK);
-	#endif
-}
-
-
-
-void amxSocket::ConnectionThread(int socketid)
-{
-	sockaddr_in remote_client;
-
-	#ifdef WIN32
-		int cLen = sizeof(remote_client);
-	#else
-		size_t cLen = sizeof(remote_client);
-	#endif
+	int sockid = NULL;
 
 	do
 	{
-		int sockID = accept(socketid, (sockaddr *)&remote_client, &cLen);
-		int clientid = gSocket->FindFreeSlot();
-
-		if((sockID != SOCKET_ERROR) && (clientid != 65535)) 
+		if(sockid >= gSocket->MaxConnections)
 		{
-			amxConnect pushme;
-			sockPool pool;
+			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 
-			//gSocket->SetNonblock(sockID);
-
-			pool.ip.assign(inet_ntoa(remote_client.sin_addr));
-			pool.socketid = sockID;
-			pool.transfer = false;
-
-			boost::mutex::scoped_lock pool_lock(gPool->Mutex);
-			gPool->socketPool[clientid] = pool;
-			pool_lock.unlock();
-
-			pushme.ip = pool.ip;
-			pushme.clientID = clientid;
-
-			boost::mutex::scoped_lock lock(gSocket->Mutex);
-			amxConnectQueue.push(pushme);
-			lock.unlock();
-		} 
-		else 
-		{
-			amxConnectError pushme;
-
-			pushme.ip.assign(inet_ntoa(remote_client.sin_addr));
-
-			if(sockID == SOCKET_ERROR)
-			{
-				pushme.error.assign("Cannot accept new client (\"accept\" returned -1)");
-				pushme.errorCode = NULL;
-			}
-
-			if(clientid == 65535)
-			{
-				send(sockID, "TCPQUERY SERVER_CALL 1001 1", 27, NULL);
-
-				pushme.error.assign("Server is full");
-				pushme.errorCode = 1;
-			}
-
-			gSocket->KickClient(sockID);
-
-			boost::mutex::scoped_lock lock(gSocket->Mutex);
-			amxConnectErrorQueue.push(pushme);
-			lock.unlock();
+			continue;
 		}
 
-		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-	} 
-	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-}
+		// sockid = find_free_slot
 
+		gSocket->Socket[sockid] = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(io));
+		acceptor.accept(*gSocket->Socket[sockid]);
 
-
-void amxSocket::ReceiveThread(int socketid)
-{
-	int sockID;
-	int byte_len;
-	char buffer[65536];
-
-	memset(buffer, NULL, sizeof buffer);
-
-	do 
-	{
-		for(boost::unordered_map<int, sockPool>::iterator i = gPool->socketPool.begin(); i != gPool->socketPool.end(); i++) 
-		{
-			if(i->second.transfer)
-				continue;
-
-			sockID = i->second.socketid;
-			byte_len = recv(sockID, (char *)&buffer, sizeof buffer, NULL);
-
-			if(byte_len > 0) 
-			{
-				processStruct pushme;
-
-				buffer[byte_len] = NULL;
-
-				pushme.clientID = i->first;
-				pushme.data.assign(buffer);
-
-				memset(buffer, NULL, sizeof buffer);
-
-				logprintf("Received data from %i: %s", i->first, pushme.data.c_str());
-
-				boost::mutex::scoped_lock lock(gSocket->Mutex);
-				recvQueue.push(pushme);
-				lock.unlock();
-			}
-			else if(!byte_len)
-				gSocket->KickClient(i->first);
-		}
-
-		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-	} 
-	while((gSocket->socketInfo.active) && (gPool->pluginInit));
-}
-
-
-
-void amxSocket::SendThread(int socketid)
-{
-	processStruct getme;
-
-	do
-	{
-		if(!sendQueue.empty())
-		{
-			for(unsigned int i = 0; i < sendQueue.size(); i++)
-			{
-				boost::mutex::scoped_lock lock(gSocket->Mutex);
-				getme = sendQueue.front();
-				sendQueue.pop();
-				lock.unlock();
-
-				if(gPool->socketPool[getme.clientID].transfer)
-					continue;
-
-				logprintf("Send data to %i: %s", getme.clientID, getme.data.c_str());
-
-				send(gPool->socketPool[getme.clientID].socketid, getme.data.c_str(), getme.data.length(), NULL);
-			}
-		}
+		boost::thread client(boost::bind(&amxSocket::ClientThread, sockid));
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
-	while((gSocket->socketInfo.active) && (gPool->pluginInit));
+	while(gSocket->Active);
+
+	acceptor.close();
+}
+
+
+
+void amxSocket::ClientThread(int clientid)
+{
+	boost::system::error_code error;
+
+	char buffer[65535];
+	int length;
+
+	do
+	{
+		length = gSocket->Socket[clientid]->read_some(boost::asio::buffer(buffer, 65535), error);
+
+		if(length > 0)
+		{
+			//
+
+			continue;
+		}
+	}
+	while(!error || (error != boost::asio::error::eof));
+
+	gSocket->Socket[clientid]->close();
+	gSocket->Socket.quick_erase(gSocket->Socket.find(clientid));
 }

@@ -79,6 +79,8 @@ void addon_load_thread()
 		return;
 	}
 
+	addonDebug("Addon launching from loader...");
+
 	addonLoad();
 
 	boost::this_thread::sleep(boost::posix_time::seconds(5));
@@ -121,6 +123,8 @@ void addon_load_thread()
 	}
 	*/
 
+	addonDebug("Audio plugin launching from loader...");
+
 	audioLoad();
 }
 
@@ -128,11 +132,12 @@ void addon_load_thread()
 
 void addonDebug(char *text, ...)
 {
-	va_list args;
-	std::fstream logfile;
 	char timeform[16];
+	struct tm *timeinfo;
+	va_list args;
 	time_t rawtime;
-	struct tm * timeinfo;
+
+	std::fstream logfile;
 
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
@@ -141,17 +146,14 @@ void addonDebug(char *text, ...)
 	va_start(args, text);
 
 	int length = vsnprintf(NULL, NULL, text, args);
-	char *chars = (char *)malloc(++length);
+	char *buffer = (char *)malloc(++length);
 
-	vsnprintf(chars, length, text, args);
-	std::string buffer(chars);
-
-	free(chars);
-
+	vsnprintf(buffer, length, text, args);
 	va_end(args);
 
 	logfile.open("SAMP\\addon\\addon.log", (std::fstream::out | std::fstream::app));
 	logfile << '[' << timeform << ']' << ' ' << buffer << std::endl;
-	logfile.flush();
 	logfile.close();
+
+	free(buffer);
 }

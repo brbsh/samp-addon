@@ -11,9 +11,8 @@
 addonProcess *gProcess;
 
 
-//extern addonThread *gThread;
+extern addonData *gData;
 extern addonTransfer *gTransfer;
-//extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 extern addonScreen *gScreen;
 extern addonFS *gFS;
@@ -28,7 +27,10 @@ addonProcess::addonProcess()
 {
 	addonDebug("Process constructor called");
 
+	boost::mutex::scoped_lock lock(this->Mutex);
 	this->threadActive = true;
+	lock.unlock();
+
 	boost::thread process(&addonProcess::Thread);
 }
 
@@ -54,7 +56,7 @@ void addonProcess::Thread()
 
 	do
 	{
-		if(gSocket->Transfer.is)
+		if(gData->Transfer.Active)
 		{
 			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
@@ -70,7 +72,7 @@ void addonProcess::Thread()
 				rec_from.pop();
 				lock.unlock();
 
-				sscanf_s(data.c_str(), "%*s %*s %d", &call_index);
+				sscanf_s(data.c_str(), "%*s %*s %i", &call_index);
 
 				switch(call_index)
 				{
@@ -78,12 +80,19 @@ void addonProcess::Thread()
 					{
 						int rec_serial;
 
-						sscanf_s(data.c_str(), "%*s %*s %*d %d", &rec_serial);
+						sscanf_s(data.c_str(), "%*s %*s %*i %i", &rec_serial);
 
-						DWORD serial;
-						DWORD flags;
+						char sysdrive[5];
+						WCHAR wsysdrive[5];
 
-						GetVolumeInformationW(L"C:\\", NULL, NULL, &serial, NULL, &flags, NULL, NULL);
+						DWORD serial = NULL;
+						DWORD flags = NULL;
+
+						strcpy_s(sysdrive, getenv("SystemDrive"));
+						strcat_s(sysdrive, "\\");
+
+						MultiByteToWideChar(NULL, NULL, sysdrive, sizeof sysdrive, wsysdrive, sizeof wsysdrive);
+						GetVolumeInformationW(wsysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 
 						serial += flags;
 
@@ -91,7 +100,9 @@ void addonProcess::Thread()
 						{
 							addonDebug("Invalid server answer, terminating");
 
-							gSocket->Close();
+							boost::mutex::scoped_lock lock(gSocket->Mutex);
+							delete gData;
+							lock.unlock();
 						}
 					}
 					break;
@@ -99,13 +110,15 @@ void addonProcess::Thread()
 					{
 						int error_code;
 
-						sscanf_s(data.c_str(), "%*s %*s %*d %d", &error_code);
+						sscanf_s(data.c_str(), "%*s %*s %*i %i", &error_code);
 
 						if(!error_code)
 						{
 							addonDebug("TCP server is full");
 
-							gSocket->Close();
+							boost::mutex::scoped_lock lock(gSocket->Mutex);
+							delete gData;
+							lock.unlock();
 						}
 					}
 					break;
@@ -114,23 +127,23 @@ void addonProcess::Thread()
 					{
 						char file_name[256];
 
-						sscanf_s(data.c_str(), "%*s %*s %*d %s", file_name, sizeof file_name);
+						sscanf_s(data.c_str(), "%*s %*s %*i %s", file_name, sizeof file_name);
 
 						if(!strlen(file_name))
 						{
 							addonDebug("NULL screenshot name");
 						}
 
-						gScreen->Get(std::string(file_name));
-						gSocket->Send(formatString() << "TCPQUERY" << " " << "CLIENT_CALL" << " " << 1003 << " " << file_name);
+						gScreen->Get(file_name);
+						gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1003 << " " << file_name);
 					}
 					break;
 					case 2000: // TCPQUERY SERVER_CALL 2000 %s1 %i1   ---   Remote file transfer | %s1 - File name, %i1 - file length
 					{
-						int length;
 						char file_name[256];
+						long int length;
 
-						sscanf_s(data.c_str(), "%*s %*s %*d %s %d", file_name, sizeof file_name, &length);
+						sscanf_s(data.c_str(), "%*s %*s %*i %s %i", file_name, sizeof file_name, &length);
 
 						if((!strcmp(file_name, "END") || !strcmp(file_name, "READY")) && !length)
 						{
@@ -140,20 +153,18 @@ void addonProcess::Thread()
 						}
 
 						boost::mutex::scoped_lock lock(gSocket->Mutex);
-						gSocket->Transfer.file.assign(file_name);
-						gSocket->Transfer.file_length = length;
-						gSocket->Transfer.send = false;
-						gSocket->Transfer.is = true;
+						gData->Transfer.Sending = false;
+						gData->Transfer.Active = true;
 						lock.unlock();
 
-						boost::thread receive(boost::bind(&addonTransfer::ReceiveThread, gSocket->GetInstance()));
+						boost::thread receive(boost::bind(&addonTransfer::ReceiveThread, std::string(file_name), length));
 					}
 					break;
 					case 2001: // TCPQUERY SERVER_CALL 2001 %s1   ---   Local file transfer | %s1 - File name
 					{
 						char file_name[256];
 
-						sscanf_s(data.c_str(), "%*s %*s %*d %s", file_name, sizeof file_name);
+						sscanf_s(data.c_str(), "%*s %*s %*i %s", file_name, sizeof file_name);
 
 						if(!strcmp(file_name, "END") || !strcmp(file_name, "READY"))
 						{
@@ -163,13 +174,11 @@ void addonProcess::Thread()
 						}
 
 						boost::mutex::scoped_lock lock(gSocket->Mutex);
-						gSocket->Transfer.file.assign(file_name);
-						gSocket->Transfer.send = true;
-						gSocket->Transfer.is = true;
+						gData->Transfer.Sending = true;
+						gData->Transfer.Active = true;
 						lock.unlock();
 
-
-						boost::thread send(boost::bind(&addonTransfer::SendThread, gSocket->GetInstance()));
+						boost::thread send(boost::bind(&addonTransfer::SendThread, std::string(file_name)));
 					}
 					break;
 				}
@@ -178,5 +187,5 @@ void addonProcess::Thread()
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
-	while(true);
+	while(gProcess->threadActive);
 }

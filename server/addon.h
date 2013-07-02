@@ -30,7 +30,10 @@
 #include <sstream>
 #include <string>
 
-//#include <boost/asio.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/unordered_map.hpp>
@@ -39,13 +42,11 @@
 
 #include "SDK/plugin.h"
 
-//#include "mutex.h"
 #include "natives.h"
 #include "pool.h"
 #include "process.h"
 #include "string.h"
 #include "tcpsocket.h"
-//#include "thread.h"
 #include "transfer.h"
 
 

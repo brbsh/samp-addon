@@ -8,59 +8,23 @@
 
 
 
-struct socketStruct
-{
-	int maxClients;
-	bool active;
-};
-
-
-
 class amxSocket
 {
 
 public:
 
 	boost::mutex Mutex;
+	boost::unordered_map<int, boost::shared_ptr<boost::asio::ip::tcp::socket> > Socket;
 
-	static void ConnectionThread(int socketid);
-	static void SendThread(int socketid);
-	static void ReceiveThread(int socketid);
+	bool Active;
+	int Port;
+	int MaxConnections;
 
-	struct socketStruct socketInfo;
+	static void Thread();
+	static void ClientThread(int clientid);
 
-	amxSocket();
+	amxSocket(int port, int maxclients);
 	~amxSocket();
-
-	void Close();
-	void CloseSocket(int socketid);
-	void MaxClients(int max);
-	int FindFreeSlot();
-	void Bind(std::string ip);
-	void Listen(int port);
-	void KickClient(int clientid);
-	bool IsClientConnected(int clientid);
-	std::string GetClientIP(int clientid);
-	void Send(int clientid, std::string data);
-	
-	int SetNonblock(int sockid);
-
-private:
-
-	int socketID;
-	std::string bind_ip;
-
-	#ifdef WIN32
-		HANDLE sendHandle;
-		HANDLE recvHandle;
-		HANDLE connHandle;
-	#else
-		pthread_t sendHandle;
-		pthread_t recvHandle;
-		pthread_t connHandle;
-	#endif
-		
-	void Create();
 };
 
 

@@ -10,32 +10,31 @@
 
 addonTransfer *gTransfer;
 
-//extern addonMutex *gMutex;
+extern addonData *gData;
 extern addonSocket *gSocket;
 
 
 
 
 
-void addonTransfer::SendThread(int socketid)
+void addonTransfer::SendThread(std::string file_name)
 {
-	boost::this_thread::sleep(boost::posix_time::seconds(3));
+	boost::this_thread::sleep(boost::posix_time::seconds(1));
 
-	addonDebug("Thread addonTransfer::SendThread(%i) started", socketid);
+	addonDebug("Thread addonTransfer::SendThread() started");
 
-	char buffer[256];
+	char buffer[1024];
 
 	FILE *io;
-	long length;
 	std::stringstream format;
 
-	fopen_s(&io, gSocket->Transfer.file.c_str(), "rb");
+	fopen_s(&io, file_name.c_str(), "rb");
 	fseek(io, NULL, SEEK_END);
 
-	format << "TCPQUERY CLIENT_CALL" << " " << 2001 << " " << gSocket->Transfer.file << " " << ftell(io);
-	send(socketid, format.str().c_str(), format.str().length(), NULL);
+	format << "TCPQUERY CLIENT_CALL " << 2001 << " " << file_name << " " << ftell(io);
 
-	recv(socketid, buffer, sizeof buffer, NULL);
+	gSocket->Socket->write_some(boost::asio::buffer(format.str(), format.str().length()));
+	gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer));
 
 	if(strcmp(buffer, "TCPQUERY SERVER_CALL 2001 READY"))
 	{
@@ -50,15 +49,14 @@ void addonTransfer::SendThread(int socketid)
 
 	while(!feof(io))
 	{
-		length = fread(buffer, 1, sizeof buffer, io);
-		send(socketid, buffer, length, NULL);
+		gData->Transfer.Length = fread(buffer, 1, sizeof buffer, io);
+		gSocket->Socket->write_some(boost::asio::buffer(buffer, gData->Transfer.Length));
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 
-	send(socketid, "TCPQUERY CLIENT_CALL 2001 END", 29, NULL);
-
-	recv(socketid, buffer, sizeof buffer, NULL);
+	gSocket->Socket->write_some(boost::asio::buffer("TCPQUERY CLIENT_CALL 2001 END", 29));
+	gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer));
 
 	if(strcmp(buffer, "TCPQUERY SERVER_CALL 2001 END"))
 	{
@@ -72,33 +70,31 @@ void addonTransfer::SendThread(int socketid)
 	fclose(io);
 
 	boost::mutex::scoped_lock lock(gSocket->Mutex);
-	gSocket->Transfer.is = false;
+	gData->Transfer.Active = false;
 	lock.unlock();
 }
 
 
 
-void addonTransfer::ReceiveThread(int socketid)
+void addonTransfer::ReceiveThread(std::string file_name, long int file_length)
 {
-	boost::this_thread::sleep(boost::posix_time::seconds(3));
+	boost::this_thread::sleep(boost::posix_time::seconds(1));
 
-	char buffer[256];
+	char buffer[1024];
 
-	addonDebug("Thread addonTransfer::ReceiveThread(%i) started", socketid);
+	addonDebug("Thread addonTransfer::ReceiveThread() started");
 
 	FILE *io;
-	long length;
+	fopen_s(&io, file_name.c_str(), "ab");
 
-	fopen_s(&io, gSocket->Transfer.file.c_str(), "ab");
-
-	send(socketid, "TCPQUERY CLIENT_CALL 2000 READY", 31, NULL);
+	gSocket->Socket->write_some(boost::asio::buffer("TCPQUERY CLIENT_CALL 2000 READY", 31));
 
 	while(true)
 	{
-		length = recv(socketid, buffer, sizeof buffer, NULL);
-		fwrite(buffer, 1, length, io);
+		gData->Transfer.Length = gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer));
+		fwrite(buffer, 1, gData->Transfer.Length, io);
 
-		if(ftell(io) >= gSocket->Transfer.file_length)
+		if(ftell(io) >= file_length)
 			break;
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -106,7 +102,7 @@ void addonTransfer::ReceiveThread(int socketid)
 
 	fclose(io);
 
-	recv(socketid, buffer, sizeof buffer, NULL);
+	gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer));
 
 	if(strcmp(buffer, "TCPQUERY SERVER_CALL 2000 END"))
 	{
@@ -115,9 +111,9 @@ void addonTransfer::ReceiveThread(int socketid)
 		return;
 	}
 
-	send(socketid, "TCPQUERY CLIENT_CALL 2000 END", 29, NULL);
+	gSocket->Socket->write_some(boost::asio::buffer("TCPQUERY CLIENT_CALL 2000 END", 29));
 
 	boost::mutex::scoped_lock lock(gSocket->Mutex);
-	gSocket->Transfer.is = false;
+	gData->Transfer.Active = false;
 	lock.unlock();
 }

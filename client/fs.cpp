@@ -14,6 +14,20 @@ addonFS *gFS;
 
 
 
+addonFS::addonFS()
+{
+	addonDebug("FS constructor called");
+}
+
+
+
+addonFS::~addonFS()
+{
+	addonDebug("FS deconstructor called");
+}
+
+
+
 void addonFS::RemoveFile(std::string file)
 {
 	remove(file.c_str());

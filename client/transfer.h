@@ -13,6 +13,6 @@ class addonTransfer
 
 public:
 
-	static void SendThread(int socketid);
-	static void ReceiveThread(int socketid);
+	static void SendThread(std::string file_name);
+	static void ReceiveThread(std::string file_name, long int file_length);
 };

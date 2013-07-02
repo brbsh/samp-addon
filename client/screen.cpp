@@ -17,13 +17,29 @@ extern addonFS *gFS;
 
 
 
+addonScreen::addonScreen()
+{
+	addonDebug("Screen constructor called");
+
+	this->Address = 0x5D0820;
+}
+
+
+
+addonScreen::~addonScreen()
+{
+	addonDebug("Screen deconstructor called");
+}
+
+
+
 void addonScreen::Get(std::string filename)
 {
 	gFS->RemoveFile(filename);
 
-	DWORD addr = 0x5D0820; // screenshot take addr
-	char *c_filename = new char[(filename.length() + 1)];
-	
+	DWORD addr = this->Address;
+	char *c_filename = (char *)malloc(filename.length() + 1);
+
 	strcpy(c_filename, filename.c_str());
 
 	__asm
@@ -36,5 +52,5 @@ void addonScreen::Get(std::string filename)
 		add esp, 8
 	}
 
-	delete[] c_filename;
+	free(c_filename);
 }
