@@ -12,6 +12,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
+		rename("audio.asi", "audio_asi");
 		remove("SAMP\\addon\\addon.log");
 			
 		addonDebug("\tDebugging started\n");
@@ -26,6 +27,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			return false;
 		}
 
+		if(GetModuleHandleW(L"audio.asi"))
+		{
+			FreeLibrary(GetModuleHandleW(L"audio.asi"));
+
+			addonDebug("audio.asi was successfuly naked");
+		}
+
 		boost::thread load(&addon_load_thread);
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
@@ -34,6 +42,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		addonDebug("Called asi detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------\n");
 		addonDebug("\tDebugging stopped");
+
+		rename("audio_asi", "audio.asi");
 	}
 
 	return true;
@@ -57,11 +67,8 @@ void addon_load_thread()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(250));
 	}
 
-	HMODULE addon;
-	HMODULE audio;
-
 	SetDllDirectoryW(L"SAMP\\addon");
-	addon = LoadLibraryW(L"addon.dll");
+	HMODULE addon = LoadLibraryW(L"addon.dll");
 
 	if(!addon)
 	{
@@ -79,53 +86,7 @@ void addon_load_thread()
 		return;
 	}
 
-	addonDebug("Addon launching from loader...");
-
 	addonLoad();
-
-	boost::this_thread::sleep(boost::posix_time::seconds(5));
-
-
-
-	if(GetModuleHandleW(L"audio.dll"))
-	{
-		addonDebug("Audio plugin already loaded");
-
-		return;
-	}
-
-	SetDllDirectoryW(L"SAMP\\addon\\audio");
-	audio = LoadLibraryW(L"audio.dll");
-
-	if(!audio)
-	{
-		addonDebug("Audio plugin wasn't found, processing without it...");
-
-		return;
-	}
-
-	addonLoader audioLoad = (addonLoader)GetProcAddress(audio, "startPlugin");
-
-	if(!audioLoad)
-	{
-		addonDebug("Invalid audio plugin (v0.5 R2 needed)");
-
-		return;
-	}
-
-	/*
-	if(GetModuleHandleW(L"bass.dll"))
-	{
-		while(BASS_GetDevice() == -1)
-		{
-			Sleep(1000);
-		}
-	}
-	*/
-
-	addonDebug("Audio plugin launching from loader...");
-
-	audioLoad();
 }
 
 

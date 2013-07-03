@@ -16,7 +16,7 @@ addonFS *gFS;
 
 addonFS::addonFS()
 {
-	addonDebug("FS constructor called");
+	addonDebug("FS constructor called\n");
 }
 
 
@@ -24,6 +24,13 @@ addonFS::addonFS()
 addonFS::~addonFS()
 {
 	addonDebug("FS deconstructor called");
+}
+
+
+
+void addonFS::RenameFile(std::string oldname, std::string newname)
+{
+	rename(oldname.c_str(), newname.c_str());
 }
 
 
@@ -44,7 +51,12 @@ std::vector<std::string> addonFS::ListDirectory(std::string folder)
 	if(this->directory != NULL)
 	{
 		while(this->entry = readdir(this->directory))
+		{
+			if(!strcmp(this->entry->d_name, ".") || !strcmp(this->entry->d_name, ".."))
+				continue;
+
 			ret.push_back(this->entry->d_name);
+		}
 
 		closedir(this->directory);
 

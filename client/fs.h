@@ -17,6 +17,7 @@ public:
 	addonFS();
 	~addonFS();
 
+	void RenameFile(std::string oldname, std::string newname);
 	void RemoveFile(std::string file);
 	std::vector<std::string> ListDirectory(std::string folder);
 

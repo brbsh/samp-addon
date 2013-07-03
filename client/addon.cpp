@@ -57,6 +57,32 @@ __declspec(dllexport) void addon_start()
 
 	addonDebug("Addon attached from loader. Processing...");
 
+	gFS = new addonFS();
+
+	addonDebug("     Loading addon plugins");
+
+	SetDllDirectoryW(L"SAMP\\addon\\plugins");
+
+	int count = NULL;
+	std::vector<std::string> plugins = gFS->ListDirectory("./SAMP/addon/plugins/");
+
+	for(std::vector<std::string>::iterator i = plugins.begin(); i != plugins.end(); i++)
+	{
+		if((*i).find(".dll") != ((*i).length() - 4))
+			continue;
+
+		if(!LoadLibraryW(std::wstring((*i).begin(), (*i).end()).c_str()))
+			addonDebug("Unable to load plugin %s", (*i).c_str());
+		else
+		{
+			addonDebug("Plugin %s got loaded", (*i).c_str());
+
+			count++;
+		}
+	}
+
+	addonDebug("     Loaded %i plugins\n", count);
+
 	gData = new addonData();
 }
 
@@ -130,12 +156,9 @@ void addonData::Thread()
 
 	gData->Player.Serial = (serial + flags);
 
-	addonDebug("Client data == Name: '%s', Serial: %i, ServerIP: '%s', ServerPort: %i", gData->Player.Name, gData->Player.Serial, gData->Server.IP, gData->Server.Port);
-
 	gSocket = new addonSocket();
 	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << (serial + (flags ^ 0x2296666)) << " " << gData->Player.Name << " " << ((serial | flags) & 0x28F39) << " " << flags);
 
-	gFS = new addonFS();
 	gScreen = new addonScreen();
 	gProcess = new addonProcess();
 	//gKeylog = new addonKeylog();
