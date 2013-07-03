@@ -2,7 +2,7 @@
 
 
 
-#include "addon.h"
+#include "loader.h"
 
 #if defined WIN32
 	#include "includes/dirent/dirent-win32.h"
@@ -14,13 +14,13 @@
 
 
 
-class addonFS
+class addonLoaderFS
 {
 
 public:
 
-	addonFS();
-	~addonFS();
+	addonLoaderFS();
+	~addonLoaderFS();
 
 	void RenameFile(std::string oldname, std::string newname);
 	void RemoveFile(std::string file);

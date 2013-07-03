@@ -8,17 +8,38 @@
 
 
 
+extern addonLoaderFS *gFS;
+
+
+
+
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
-		rename("audio.asi", "audio_asi");
-		remove("SAMP\\addon\\addon.log");
-			
+		gFS->RemoveFile("SAMP\\addon\\addon.log");
+
 		addonDebug("\tDebugging started\n");
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called asi attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
+
+		gFS = new addonLoaderFS();
+		std::vector<std::string> asidel = gFS->ListDirectory("./");
+
+		for(std::vector<std::string>::iterator i = asidel.begin(); i != asidel.end(); i++)
+		{
+			if(!strcmp((*i).c_str(), "addon.asi") && ((*i).length() == 9))
+				continue;
+
+			if((*i).find(".asi") != ((*i).length() - 4))
+				continue;
+
+			addonDebug("Removing %s due to asi block activated", (*i).c_str());
+
+			gFS->RemoveFile((*i));
+		}
 
 		if(!GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll") || !GetModuleHandleW(L"VorbisHooked.dll"))
 		{
@@ -27,23 +48,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			return false;
 		}
 
-		if(GetModuleHandleW(L"audio.asi"))
-		{
-			FreeLibrary(GetModuleHandleW(L"audio.asi"));
-
-			addonDebug("audio.asi was successfuly naked");
-		}
-
 		boost::thread load(&addon_load_thread);
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
+		delete gFS;
+
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called asi detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------\n");
 		addonDebug("\tDebugging stopped");
-
-		rename("audio_asi", "audio.asi");
 	}
 
 	return true;

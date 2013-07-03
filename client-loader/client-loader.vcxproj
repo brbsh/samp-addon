@@ -80,9 +80,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="fs.h" />
     <ClInclude Include="loader.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="fs.cpp" />
     <ClCompile Include="loader.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

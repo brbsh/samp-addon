@@ -8,9 +8,12 @@
 #include <fstream>
 #include <string>
 #include <time.h>
+#include <vector>
 #include <windows.h>
 
 #include <boost/thread.hpp>
+
+#include "fs.h"
 
 
 
