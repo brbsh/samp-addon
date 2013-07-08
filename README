@@ -2,9 +2,42 @@ SAMP-Addon by BJIADOKC
 
 ====================
 
-This is client-side game-loadable module that communicates with another TCP server.
+This is client-side game-loadable module that communicates with another TCP server (transfering data/game extensibility/etc).
 
 
+
+
+
+====================
+CLIENT
+====================
+
+WARNING:
+  ALL .ASI FILES FROM GTA:SA DIRECTORY WILL BE REMOVED DUE TO SECURITY MEASURES
+  IF YOU WANT TO LOAD YOUR CUSTOM .asi WITH THIS ADDON, YOU MUST RENAME %yourfile%.asi TO %yourfile%.dll AND PLACE IT IN DIRECTORY "%GTASAPATH%\SAMP\addon\plugins"
+  ALL FILES THAT CAME WITH YOUR CUSTOM .asi SHOULD STAY IN GTA:SA FOLDER!
+  
+
+Client plugins included:
+  - Audio plugin loader v0.5 R2 by Incognito
+  - Stream Memory Fix by Alexander (from GTAForums)
+  - SA crash fix library by Whitetigerswt
+
+
+
+
+
+====================
+SERVER
+====================
+
+Not ready yet...
+
+
+
+
+
+Russian topics:
 
 http://pawno.ru/showthread.php?97252
 http://pawno-info.ru/threads/162573
