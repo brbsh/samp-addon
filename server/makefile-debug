@@ -1,0 +1,13 @@
+GPP = g++
+GCC = gcc
+
+OUTFILE = "../compiled/server/addon-debug.so"
+
+COMPILE_FLAGS = -c -g -O -fPIC -w -DLINUX -Wall -I./SDK/amx/
+
+all:
+	$(GCC) $(COMPILE_FLAGS) ./SDK/amx/*.c
+	$(GPP) $(COMPILE_FLAGS) ./SDK/*.cpp
+	$(GPP) $(COMPILE_FLAGS) *.cpp
+	$(GPP) -g -O -fshort-wchar -shared -o $(OUTFILE) *.o ./lib/boost/libboost_thread.a
+	rm -f *.o
