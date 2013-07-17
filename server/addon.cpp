@@ -10,13 +10,15 @@ extern void *pAMXFunctions;
 
 extern amxPool *gPool;
 extern amxSocket *gSocket;
+extern amxString *gString;
+
 
 logprintf_t logprintf;
 
-
 boost::mutex gMutex;
-std::list<AMX *> amxList;
 
+std::list<AMX *> amxList;
+std::queue<std::string> logQueue;
 std::queue<amxConnect> amxConnectQueue;
 std::queue<amxConnectError> amxConnectErrorQueue;
 std::queue<amxDisconnect> amxDisconnectQueue;
@@ -42,10 +44,18 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 
-	gPool = new amxPool();
-	gSocket = new amxSocket();
+	remove("addon.log");
 
-    logprintf(" samp-addon was loaded");
+	boost::thread debug(boost::bind(&amxData::DebugThread));
+
+	addonDebug("\tDebugging started\n");
+	addonDebug("-----------------------------------------------------------------");
+	addonDebug("Called plugin load | amx data: 0x%x | logprintf address: 0x%x", ppData[PLUGIN_DATA_AMX_EXPORTS], ppData[PLUGIN_DATA_LOGPRINTF]);
+	addonDebug("-----------------------------------------------------------------");
+
+	gPool = new amxPool();
+
+	logprintf(" samp-addon was loaded");
 
     return true;
 }
@@ -57,9 +67,14 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	delete gPool;
 	delete gSocket;
 
-	boost::mutex::scoped_lock lock(gPool->Mutex);
+	boost::mutex::scoped_lock lock(gMutex);
 	gPool->pluginInit = false;
 	lock.unlock();
+
+	addonDebug("-----------------------------------------------------------------");
+	addonDebug("Called plugin unload | amx data: 0x%x | logprintf address: 0x%x", pAMXFunctions, logprintf);
+	addonDebug("-----------------------------------------------------------------");
+	addonDebug("\tDebugging stopped");
 
     logprintf(" samp-addon was unloaded");
 }
@@ -335,4 +350,59 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			}
 		}
 	}
+}
+
+
+
+void amxData::DebugThread()
+{
+	char timeform[16];
+	struct tm *timeinfo;
+	time_t rawtime;
+
+	boost::mutex dMutex;
+	std::string data;
+	std::fstream logfile;
+
+	do
+	{
+		if(!logQueue.empty())
+		{
+			for(unsigned int i = 0; i < logQueue.size(); i++)
+			{
+				boost::mutex::scoped_lock lock(dMutex);
+				data = logQueue.front();
+				logQueue.pop();
+				lock.unlock();
+
+				time(&rawtime);
+				timeinfo = localtime(&rawtime);
+				strftime(timeform, sizeof timeform, "%X", timeinfo);
+
+				logfile.open("addon.log", (std::fstream::out | std::fstream::app));
+				logfile << "[" << timeform << "] " << data << std::endl;
+				logfile.close();
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+			}
+		}
+
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+	}
+	while(true);
+}
+
+
+
+void addonDebug(char *text, ...)
+{
+	va_list args;
+
+	va_start(args, text);
+
+	boost::mutex::scoped_lock lock(gMutex);
+	logQueue.push(gString->vprintf(text, args));
+	lock.unlock();
+
+	va_end(args);
 }

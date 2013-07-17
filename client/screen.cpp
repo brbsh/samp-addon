@@ -38,7 +38,7 @@ void addonScreen::Get(std::string filename)
 	gFS->RemoveFile(filename);
 
 	DWORD addr = this->Address;
-	char *c_filename = (char *)malloc(filename.length() + 1);
+	char *c_filename = new char[(filename.length() + 1)];
 
 	strcpy(c_filename, filename.c_str());
 
@@ -52,5 +52,5 @@ void addonScreen::Get(std::string filename)
 		add esp, 8
 	}
 
-	free(c_filename);
+	delete[] c_filename;
 }

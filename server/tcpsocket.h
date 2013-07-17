@@ -13,18 +13,25 @@ class amxSocket
 
 public:
 
-	boost::mutex Mutex;
-	boost::unordered_map<int, boost::shared_ptr<boost::asio::ip::tcp::socket> > Socket;
+	static void Thread();
+	static void SendThread();
+	static void ReceiveThread();
+
+	amxSocket(std::string ip, int port, int maxclients);
+	~amxSocket();
+
+	bool IsClientConnected(int clientid);
+	void KickClient(int clientid);
+	void Send(int clientid, std::string data);
 
 	bool Active;
 	int Port;
-	int MaxConnections;
+	int MaxClients;
 
-	static void Thread();
-	static void ClientThread(int clientid);
+	std::string IP;
+	boost::mutex Mutex;
 
-	amxSocket(int port, int maxclients);
-	~amxSocket();
+	boost::unordered_map<int, boost::shared_ptr<boost::asio::ip::tcp::socket> > Socket;
 };
 
 
@@ -32,5 +39,6 @@ public:
 struct processStruct
 {
 	int clientID;
+
 	std::string data;
 };

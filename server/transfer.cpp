@@ -13,7 +13,6 @@ amxTransfer *gTransfer;
 
 extern logprintf_t logprintf;
 
-//extern amxMutex *gMutex;
 extern amxPool *gPool;
 
 extern std::queue<amxFileReceive> amxFileReceiveQueue;
@@ -26,6 +25,8 @@ extern std::queue<amxFileError> amxFileErrorQueue;
 
 void amxTransfer::SendThread(int clientid)
 {
+	/*boost::mutex tMutex;
+
 	boost::this_thread::sleep(boost::posix_time::seconds(3));
 
 	int socketid;
@@ -151,14 +152,14 @@ void amxTransfer::SendThread(int clientid)
 	amxFileSendQueue.push(pushme);
 	lock.unlock();
 
-	fclose(io);
+	fclose(io);*/
 }
 
 
 
 void amxTransfer::ReceiveThread(int clientid)
 {
-	boost::this_thread::sleep(boost::posix_time::seconds(3));
+	/*boost::this_thread::sleep(boost::posix_time::seconds(3));
 
 	int socketid;
 	char buffer[256];
@@ -258,5 +259,5 @@ void amxTransfer::ReceiveThread(int clientid)
 	pool.transfer = false;
 
 	gPool->socketPool[clientid] = pool;
-	lock.unlock();
+	lock.unlock();*/
 }

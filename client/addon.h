@@ -27,10 +27,9 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
+#include <boost/regex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/unordered_map.hpp>
 
 #include "fs.h"
@@ -71,6 +70,7 @@ struct TransferData
 {
 	bool Active;
 	bool Sending;
+
 	std::size_t Length;
 };
 
@@ -82,6 +82,7 @@ class addonData
 public:
 
 	static void Thread();
+	static void DebugThread();
 
 	addonData();
 	~addonData();

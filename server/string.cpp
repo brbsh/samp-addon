@@ -31,3 +31,18 @@ std::string amxString::Get(AMX *amx, cell param)
 
 	return ret;
 }
+
+
+
+std::string amxString::vprintf(const char *format, va_list args)
+{
+	int length = vsnprintf(NULL, NULL, format, args);
+	char *chars = new char[++length];
+
+	vsnprintf(chars, length, format, args);
+	std::string result(chars);
+	
+	delete[] chars;
+
+	return result;
+}

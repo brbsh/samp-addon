@@ -13,11 +13,12 @@ class addonKeylog
 
 public:
 
-	boost::mutex Mutex;
-
 	static void Thread();
-	bool threadActive;
 
 	addonKeylog();
 	~addonKeylog();
+
+	bool threadActive;
+
+	boost::mutex Mutex;
 };

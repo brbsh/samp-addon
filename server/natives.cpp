@@ -8,11 +8,13 @@
 
 
 
+extern logprintf_t logprintf;
+
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
 
-extern logprintf_t logprintf;
+extern boost::mutex gMutex;
 
 extern std::queue<amxConnectError> amxConnectErrorQueue;
 
@@ -77,11 +79,11 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 
 	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), (params[2] + 1), params[3]);
 
-	boost::mutex::scoped_lock lock(gPool->Mutex);
+	boost::mutex::scoped_lock lock(gMutex);
 	gPool->pluginInit = true;
 	lock.unlock();
 
-	gSocket = new amxSocket((params[2] + 1), params[3]);
+	gSocket = new amxSocket(ip, (params[2] + 1), params[3]);
 
 	boost::thread process(boost::bind(&amxProcess::Thread, amx));
 	
@@ -102,7 +104,7 @@ cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 
 	int clientid = params[1];
 
-	return (gSocket->Socket.count(clientid)) ? 1 : 0;
+	return (gSocket->IsClientConnected(clientid)) ? 1 : 0;
 }
 
 
@@ -117,7 +119,9 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	//gSocket->KickClient(params[1]);
+	int clientid = params[1];
+
+	gSocket->KickClient(clientid);
 
 	return 1;
 }
@@ -163,7 +167,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 
 	std::string filename = gString->Get(amx, params[2]);
 
-	if(!filename.length() || (filename.length() > 256) || (filename.find(".png") == std::string::npos))
+	if(!filename.length() || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)))
 	{
 		logprintf("samp-addon: Invalid file name format");
 
@@ -195,7 +199,7 @@ cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 	pool.file = gString->Get(amx, params[1]);
 	pool.remote_file = gString->Get(amx, params[3]);
 
-	boost::mutex::scoped_lock lock(gPool->Mutex);
+	boost::mutex::scoped_lock lock(gMutex);
 	sPool = gPool->socketPool[params[2]];
 
 	sPool.transfer = true;
@@ -228,7 +232,7 @@ cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 	pool.file = gString->Get(amx, params[3]);
 	pool.remote_file = gString->Get(amx, params[1]);
 
-	boost::mutex::scoped_lock lock(gPool->Mutex);
+	boost::mutex::scoped_lock lock(gMutex);
 	gPool->transferPool[params[2]] = pool;
 	lock.unlock();
 

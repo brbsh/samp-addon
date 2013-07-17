@@ -11,14 +11,16 @@
 struct sockPool
 {
 	int socketid;
-	std::string ip;
 	bool transfer;
+
+	std::string ip;
 };
 
 
 
 struct cliPool
 {
+	bool Active;
 	int serial;
 	bool auth;
 	int in_menu;
@@ -31,9 +33,10 @@ struct cliPool
 struct transPool
 {
 	bool send;
+	long file_length;
+	
 	std::string file;
 	std::string remote_file;
-	long file_length;
 };
 
 
@@ -42,15 +45,13 @@ class amxPool
 {
 
 public:
-	
-	bool pluginInit;
 
-	boost::mutex Mutex;
+	amxPool();
+	~amxPool();
+
+	bool pluginInit;
 
 	boost::unordered_map<int, sockPool> socketPool;
 	boost::unordered_map<int, cliPool> clientPool;
 	boost::unordered_map<int, transPool> transferPool;
-
-	amxPool();
-	~amxPool();
 };

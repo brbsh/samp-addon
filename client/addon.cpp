@@ -10,6 +10,10 @@
 
 addonData *gData;
 
+boost::mutex gMutex;
+std::queue<std::string> logQueue;
+
+
 extern addonSocket *gSocket;
 extern addonProcess *gProcess;
 extern addonKeylog *gKeylog;
@@ -27,8 +31,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
+		boost::thread debug(boost::bind(&addonData::DebugThread));
+
 		addonDebug("-----------------------------------------------------------------");
-		addonDebug("Called dll attach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
+		addonDebug("Called dll attach | dll base address: 0x%x | attach reason: %i | reserved: %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
@@ -37,7 +43,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			delete gData;
 
 		addonDebug("-----------------------------------------------------------------");
-		addonDebug("Called dll detach | hinstDLL 0x%x | fdwReason %i | lpvReserved %i", hinstDLL, fdwReason, lpvReserved);
+		addonDebug("Called dll detach | dll base address: 0x%x | attach reason: %i | reserved: %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
 	}
 
@@ -48,9 +54,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 __declspec(dllexport) void addon_start()
 {
-	if(!GetModuleHandleW(L"addon.asi") || !GetModuleHandleW(L"samp.dll") || !GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"VorbisFile.dll"))
+	if(!GetModuleHandleW(L"addon.asi") || !GetModuleHandleW(L"samp.dll") || !GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"Vorbis.dll") || !GetModuleHandleW(L"VorbisFile.dll") || !GetModuleHandleW(L"VorbisHooked.dll"))
 	{
-		addonDebug("Addon attached from unknown module, treminating");
+		addonDebug("Addon attached from unknown module, terminating");
 
 		return;
 	}
@@ -72,10 +78,11 @@ __declspec(dllexport) void addon_start()
 			continue;
 
 		if(!LoadLibraryW(std::wstring((*i).begin(), (*i).end()).c_str()))
-			addonDebug("Unable to load plugin %s", (*i).c_str());
+			addonDebug("Unable to load plugin '%s'", (*i).c_str());
 		else
 		{
-			addonDebug("Plugin %s got loaded", (*i).c_str());
+			addonDebug("Plugin '%s' got loaded", (*i).c_str());
+			addonDebug("'%s' base address: 0x%x", (*i).c_str(), GetModuleHandleW(std::wstring((*i).begin(), (*i).end()).c_str()));
 
 			count++;
 		}
@@ -101,7 +108,7 @@ addonData::addonData()
 
 	this->Transfer.Active = false;
 
-	boost::thread main(&addonData::Thread);
+	boost::thread main(boost::bind(&addonData::Thread));
 }
 
 
@@ -166,30 +173,55 @@ void addonData::Thread()
 
 
 
-void addonDebug(char *text, ...)
+void addonData::DebugThread()
 {
 	char timeform[16];
 	struct tm *timeinfo;
-	va_list args;
 	time_t rawtime;
 
+	boost::mutex dMutex;
+	std::string data;
 	std::fstream logfile;
 
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-	strftime(timeform, sizeof timeform, "%X", timeinfo);
+	do
+	{
+		if(!logQueue.empty())
+		{
+			for(unsigned int i = 0; i < logQueue.size(); i++)
+			{
+				boost::mutex::scoped_lock lock(dMutex);
+				data = logQueue.front();
+				logQueue.pop();
+				lock.unlock();
+
+				time(&rawtime);
+				timeinfo = localtime(&rawtime);
+				strftime(timeform, sizeof timeform, "%X", timeinfo);
+
+				logfile.open("SAMP\\addon\\addon.log", (std::fstream::out | std::fstream::app));
+				logfile << "[" << timeform << "] " << data << std::endl;
+				logfile.close();
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+			}
+		}
+
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+	}
+	while(true);
+}
+
+
+
+void addonDebug(char *text, ...)
+{
+	va_list args;
 
 	va_start(args, text);
 
-	int length = vsnprintf(NULL, NULL, text, args);
-	char *buffer = (char *)malloc(++length);
-
-	vsnprintf(buffer, length, text, args);
+	boost::mutex::scoped_lock lock(gMutex);
+	logQueue.push(gString->vprintf(text, args));
+	lock.unlock();
+	
 	va_end(args);
-
-	logfile.open("SAMP\\addon\\addon.log", (std::fstream::out | std::fstream::app));
-	logfile << '[' << timeform << ']' << ' ' << buffer << std::endl;
-	logfile.close();
-
-	free(buffer);
 }

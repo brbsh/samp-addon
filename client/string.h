@@ -14,12 +14,14 @@ class addonString
 public:
 
 	std::string wstring_to_string(const std::wstring &input);
+	std::string vprintf(const char *format, va_list args);
 };
 
 
 
 class formatString 
 {
+
 public:
 
     template<class T>

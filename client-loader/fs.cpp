@@ -42,6 +42,20 @@ void addonLoaderFS::RemoveFile(std::string file)
 
 
 
+bool addonLoaderFS::FileExist(std::string file)
+{
+	std::fstream io;
+	bool result = false;
+
+	io.open(file.c_str(), std::fstream::in);
+	result = io.good();
+	io.close();
+
+	return result;
+}
+
+
+
 std::vector<std::string> addonLoaderFS::ListDirectory(std::string folder)
 {
 	std::vector<std::string> ret;

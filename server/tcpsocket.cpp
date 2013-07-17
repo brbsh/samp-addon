@@ -8,44 +8,46 @@
 
 
 
-extern amxPool *gPool;
-
-extern logprintf_t logprintf;
-
-
-extern std::queue<amxConnect> amxConnectQueue;
-extern std::queue<amxConnectError> amxConnectErrorQueue;
-extern std::queue<amxDisconnect> amxDisconnectQueue;
-
-
 amxSocket *gSocket;
 
 std::queue<processStruct> sendQueue;
 std::queue<processStruct> recvQueue;
 
 
+extern logprintf_t logprintf;
+
+extern amxPool *gPool;
+
+extern std::queue<amxConnect> amxConnectQueue;
+extern std::queue<amxConnectError> amxConnectErrorQueue;
+extern std::queue<amxDisconnect> amxDisconnectQueue;
 
 
 
-amxSocket::amxSocket(int port, int maxclients)
+
+
+amxSocket::amxSocket(std::string ip, int port, int maxclients)
 {
-	logprintf("Addon: Socket constructor called");
+	addonDebug("Socket constructor called");
 
 	boost::mutex::scoped_lock lock(this->Mutex);
 	this->Active = true;
 	lock.unlock();
 
+	this->IP = ip;
 	this->Port = port;
 	this->MaxClients = maxclients;
 
-	boost::thread accept(&amxSocket::Thread);
+	boost::thread accept(boost::bind(&amxSocket::Thread));
+	boost::thread send(boost::bind(&amxSocket::SendThread));
+	boost::thread receive(boost::bind(&amxSocket::ReceiveThread));
 }
 
 
 
 amxSocket::~amxSocket()
 {
-	logprintf("Addon: Socket deconstructor called");
+	addonDebug("Socket deconstructor called");
 
 	boost::mutex::scoped_lock lock(this->Mutex);
 	this->Active = false;
@@ -54,18 +56,59 @@ amxSocket::~amxSocket()
 
 
 
+bool amxSocket::IsClientConnected(int clientid)
+{
+	return (gSocket->Socket.count(clientid)) ? true : false;
+}
+
+
+
+void amxSocket::KickClient(int clientid)
+{
+	if(!this->IsClientConnected(clientid))
+		return;
+
+	cliPool client = gPool->clientPool[clientid];
+	client.Active = false;
+	
+	boost::mutex::scoped_lock lock(this->Mutex);
+	gPool->clientPool[clientid] = client;
+	lock.unlock();
+}
+
+
+
+void amxSocket::Send(int clientid, std::string data)
+{
+	if(!this->IsClientConnected(clientid))
+		return;
+
+	processStruct pushme;
+
+	pushme.clientID = clientid;
+	pushme.data = data;
+
+	boost::mutex::scoped_lock lock(this->Mutex);
+	sendQueue.push(pushme);
+	lock.unlock();
+}
+
+
+
 void amxSocket::Thread()
 {
+	addonDebug("Thread amxSocket::Thread() successfuly started");
+
 	boost::asio::io_service io;
 	boost::system::error_code error;
 
-	boost::asio::ip::tcp::acceptor acceptor(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), gSocket->Port));
+	boost::asio::ip::tcp::acceptor acceptor(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(gSocket->IP), gSocket->Port));
 
 	int sockid = NULL;
 
 	do
 	{
-		if(sockid >= gSocket->MaxConnections)
+		if(sockid >= gSocket->MaxClients)
 		{
 			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 
@@ -75,9 +118,12 @@ void amxSocket::Thread()
 		// sockid = find_free_slot
 
 		gSocket->Socket[sockid] = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(io));
-		acceptor.accept(*gSocket->Socket[sockid]);
+		acceptor.accept((*gSocket->Socket[sockid]));
 
-		boost::thread client(boost::bind(&amxSocket::ClientThread, sockid));
+		addonDebug("Incoming connection from %s", gSocket->Socket[sockid]->remote_endpoint().address().to_string().c_str());
+		addonDebug("IP %s got clientid %i", gSocket->Socket[sockid]->remote_endpoint().address().to_string().c_str(), sockid);
+
+		sockid++;
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
@@ -88,26 +134,90 @@ void amxSocket::Thread()
 
 
 
-void amxSocket::ClientThread(int clientid)
+void amxSocket::SendThread()
 {
-	boost::system::error_code error;
+	addonDebug("Thread amxSocket::SendThread() successfuly started");
 
-	char buffer[65535];
-	int length;
+	processStruct data;
+
+	boost::mutex sMutex;
+	std::size_t length;
 
 	do
 	{
-		length = gSocket->Socket[clientid]->read_some(boost::asio::buffer(buffer, 65535), error);
-
-		if(length > 0)
+		if(!sendQueue.empty())
 		{
-			//
+			for(unsigned int i = 0; i < sendQueue.size(); i++)
+			{
+				boost::mutex::scoped_lock lock(sMutex);
+				data = sendQueue.front();
+				sendQueue.pop();
+				lock.unlock();
 
-			continue;
+				if(!gSocket->IsClientConnected(data.clientID))
+					continue;
+
+				addonDebug("Sending to %i: '%s'", data.clientID, data.data.c_str());
+
+				length = gSocket->Socket[data.clientID]->write_some(boost::asio::buffer(data.data));
+
+				addonDebug("Sent %i bytes to %i", length, data.clientID);
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+			}
 		}
-	}
-	while(!error || (error != boost::asio::error::eof));
 
-	gSocket->Socket[clientid]->close();
-	gSocket->Socket.quick_erase(gSocket->Socket.find(clientid));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+	}
+	while(gSocket->Active);
+}
+
+
+
+void amxSocket::ReceiveThread()
+{
+	addonDebug("Thread amxSocket::ReceiveThread() successfuly started");
+
+	char buffer[8192];
+
+	processStruct data;
+
+	boost::mutex rMutex;
+	boost::system::error_code error;
+	std::size_t length;
+
+	do
+	{
+		for(boost::unordered_map<int, boost::shared_ptr<boost::asio::ip::tcp::socket> >::iterator i = gSocket->Socket.begin(); i != gSocket->Socket.end(); i++)
+		{
+			memset(buffer, NULL, sizeof buffer);
+			length = i->second->read_some(boost::asio::buffer(buffer, sizeof buffer), error);
+
+			if(error == boost::asio::error::eof)
+			{
+				//disconnected
+				addonDebug("Closed connection");
+
+				continue;
+			}
+
+			if(length > 0)
+			{
+				addonDebug("Received %i bytes from %i", length, i->first);
+
+				data.clientID = i->first;
+				data.data.assign(buffer, length);
+
+				addonDebug("Received from %i: '%s'", i->first, data.data.c_str());
+
+				boost::mutex::scoped_lock lock(rMutex);
+				recvQueue.push(data);
+				lock.unlock();
+			}
+			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+		}
+
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+	}
+	while(gSocket->Active);
 }

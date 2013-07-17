@@ -11,12 +11,10 @@
 amxProcess *gProcess;
 
 
-//extern amxMutex *gMutex;
+extern logprintf_t logprintf;
+
 extern amxPool *gPool;
 extern amxSocket *gSocket;
-//extern amxThread *gThread;
-
-extern logprintf_t logprintf;
 
 extern std::queue<amxDisconnect> amxDisconnectQueue;
 extern std::queue<amxKey> amxKeyQueue;
@@ -29,8 +27,11 @@ extern std::queue<processStruct> recvQueue;
 
 void amxProcess::Thread(AMX *amx)
 {
-	int call_index;
+	addonDebug("Thread amxProcess::Thread(%i) successfuly started", (int)amx);
 
+	boost::mutex pMutex;
+
+	int call_index;
 	processStruct input;
 
 	do
@@ -39,12 +40,16 @@ void amxProcess::Thread(AMX *amx)
 		{
 			for(unsigned int i = 0; i < recvQueue.size(); i++)
 			{
-				boost::mutex::scoped_lock lock(gProcess->Mutex);
+				boost::mutex::scoped_lock lock(pMutex);
 				input = recvQueue.front();
 				recvQueue.pop();
 				lock.unlock();
 
-				sscanf_s(input.data.c_str(), "%*s %*s %d", &call_index);
+				#if defined WIN32
+					sscanf_s(input.data.c_str(), "%*s %*s %i", &call_index);
+				#else
+					sscanf(input.data.c_str(), "%*s %*s %i", &call_index);
+				#endif
 
 				if(!gPool->clientPool[input.clientID].auth && (call_index != 1000))
 				{
@@ -67,7 +72,11 @@ void amxProcess::Thread(AMX *amx)
 						int flags;
 						char name[25];
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %d %d %s %d %d", &serial, &serial_key, name, sizeof name, &flags_key, &flags);
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %i %i %s %i %i", &serial, &serial_key, name, sizeof name, &flags_key, &flags);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %i %i %s %i %i", &serial, &serial_key, name, &flags_key, &flags);
+						#endif
 
 						if((serial_key != (serial + (flags ^ 0x2296666))) || (flags_key != ((serial | flags) & 0x28F39)))
 						{
@@ -78,7 +87,7 @@ void amxProcess::Thread(AMX *amx)
 
 						serial += flags;
 
-						boost::mutex::scoped_lock lock(gPool->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						cPool = gPool->clientPool[input.clientID];
 
 						cPool.serial = serial;
@@ -96,10 +105,15 @@ void amxProcess::Thread(AMX *amx)
 
 						int reason;
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %d", &reason);
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %i", &reason);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %i", &reason);
+						#endif
+
 						pushme.clientID = input.clientID;
 
-						boost::mutex::scoped_lock lock(gProcess->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						amxDisconnectQueue.push(pushme);
 						lock.unlock();
 					}
@@ -108,10 +122,15 @@ void amxProcess::Thread(AMX *amx)
 					{
 						amxKey amxKeyData;
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxKeyData.keys, sizeof amxKeyData.keys);
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %s", amxKeyData.keys, sizeof amxKeyData.keys);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %s", amxKeyData.keys);
+						#endif
+
 						amxKeyData.clientID = input.clientID;
 						
-						boost::mutex::scoped_lock lock(gProcess->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						amxKeyQueue.push(amxKeyData);
 						lock.unlock();
 					}
@@ -120,10 +139,15 @@ void amxProcess::Thread(AMX *amx)
 					{
 						amxScreenshot amxScreenshotData;
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %s", amxScreenshotData.name, sizeof amxScreenshotData.name);
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %s", amxScreenshotData.name, sizeof amxScreenshotData.name);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %s", amxScreenshotData.name);
+						#endif
+
 						amxScreenshotData.clientID = input.clientID;
 
-						boost::mutex::scoped_lock lock(gProcess->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						amxScreenshotQueue.push(amxScreenshotData);
 						lock.unlock();
 					}
@@ -133,7 +157,11 @@ void amxProcess::Thread(AMX *amx)
 						char check[10];
 						int length;
 
-						sscanf_s(input.data.c_str(), "%*s %*s %*d %s %d", check, sizeof check, &length);
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %s %i", check, sizeof check, &length);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %s %i", check, &length);
+						#endif
 
 						if(!strcmp(check, "END") || !strcmp(check, "READY"))
 						{
@@ -145,7 +173,7 @@ void amxProcess::Thread(AMX *amx)
 						transPool pool;
 						sockPool sPool;
 
-						boost::mutex::scoped_lock lock(gPool->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						pool = gPool->transferPool[input.clientID];
 						sPool = gPool->socketPool[input.clientID];
 
@@ -160,10 +188,12 @@ void amxProcess::Thread(AMX *amx)
 					}
 					break;
 				}
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 			}
 		}
 
-		boost::this_thread::sleep(boost::posix_time::milliseconds(5));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
-	while((gSocket->socketInfo.active) && (gPool->pluginInit));
+	while(/*(gSocket->socketInfo.active) && */(gPool->pluginInit));
 }

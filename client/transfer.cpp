@@ -10,6 +10,7 @@
 
 addonTransfer *gTransfer;
 
+
 extern addonData *gData;
 extern addonSocket *gSocket;
 

@@ -16,12 +16,14 @@ public:
 
 	void Set(AMX *amx, cell param, std::string data);
 	std::string Get(AMX *amx, cell param);
+	std::string vprintf(const char *format, va_list args);
 };
 
 
 
 class formatString 
 {
+
 public:
 
     template<class T>

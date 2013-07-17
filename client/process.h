@@ -13,11 +13,12 @@ class addonProcess
 
 public:
 
-	boost::mutex Mutex;
-
 	static void Thread();
-	bool threadActive;
 
 	addonProcess();
 	~addonProcess();
+
+	bool threadActive;
+
+	boost::mutex Mutex;
 };

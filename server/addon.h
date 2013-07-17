@@ -1,4 +1,5 @@
 #pragma once
+#pragma warning(disable:4996)
 
 
 
@@ -22,6 +23,7 @@
 
 
 #include <algorithm>
+#include <cstdarg>
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -32,10 +34,8 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/unordered_map.hpp>
 
 #define HAVE_STDINT_H
@@ -59,6 +59,17 @@
 
 
 typedef void (*logprintf_t)(char *format, ...);
+
+void addonDebug(char *text, ...);
+
+
+
+
+
+namespace amxData
+{
+	static void DebugThread();
+};
 
 
 

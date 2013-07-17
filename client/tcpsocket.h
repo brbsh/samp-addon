@@ -13,15 +13,17 @@ class addonSocket
 
 public:
 
-	boost::mutex Mutex;
-	boost::shared_ptr<boost::asio::ip::tcp::socket> Socket;
-
 	static void Thread();
-	
-	bool threadActive;
+	static void SendThread();
+	static void ReceiveThread();
 
 	addonSocket();
 	~addonSocket();
 
 	void Send(std::string data);
+
+	bool threadActive;
+
+	boost::mutex Mutex;
+	boost::shared_ptr<boost::asio::ip::tcp::socket> Socket;
 };

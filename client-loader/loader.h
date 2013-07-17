@@ -11,6 +11,7 @@
 #include <vector>
 #include <windows.h>
 
+#include <boost/bind.hpp>
 #include <boost/thread.hpp>
 
 #include "fs.h"

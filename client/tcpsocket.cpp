@@ -13,6 +13,7 @@ addonSocket *gSocket;
 std::queue<std::string> send_to;
 std::queue<std::string> rec_from;
 
+
 extern addonData *gData;
 
 
@@ -29,7 +30,7 @@ addonSocket::addonSocket()
 	this->threadActive = true;
 	lock.unlock();
 
-	boost::thread socket(&addonSocket::Thread);
+	boost::thread socket(boost::bind(&addonSocket::Thread));
 }
 
 
@@ -64,32 +65,18 @@ void addonSocket::Thread()
 	addonDebug("Thread addonSocket::Thread() successfuly started");
 	addonDebug("Connecting to %s:%i", gData->Server.IP, gData->Server.Port);
 
+	boost::mutex tMutex;
 	boost::asio::io_service io;
 	boost::system::error_code error;
 
-	boost::asio::ip::tcp::resolver resolver(io);
-	boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), std::string(gData->Server.IP), formatString() << gData->Server.Port);
-	boost::asio::ip::tcp::resolver::iterator iterator = resolver.resolve(query, error);
-
-	if(error)
-	{
-		addonDebug("Cannot resolve host %s", gData->Server.IP);
-
-		boost::mutex::scoped_lock lock(gSocket->Mutex);
-		delete gData;
-		lock.unlock();
-
-		return;
-	}
-
 	gSocket->Socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(io));
-	boost::asio::connect(*gSocket->Socket, iterator, error);
+	gSocket->Socket->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(gData->Server.IP), gData->Server.Port), error);
 
 	if(error)
 	{
 		addonDebug("Cannot connect to %s:%i", gData->Server.IP, gData->Server.Port);
 
-		boost::mutex::scoped_lock lock(gSocket->Mutex);
+		boost::mutex::scoped_lock lock(tMutex);
 		delete gData;
 		lock.unlock();
 
@@ -98,46 +85,76 @@ void addonSocket::Thread()
 
 	addonDebug("Connected to %s:%i", gData->Server.IP, gData->Server.Port);
 
-	char buffer[4096];
-	int length;
+	boost::thread send(boost::bind(&addonSocket::SendThread));
+	boost::thread receive(boost::bind(&addonSocket::ReceiveThread));
+
+	while(gSocket->threadActive)
+	{
+		boost::this_thread::sleep(boost::posix_time::seconds(1));
+	}
+
+	gSocket->Socket->close();
+}
+
+
+
+void addonSocket::SendThread()
+{
+	addonDebug("Thread addonSocket::SendThread() successfuly started");
+
+	boost::mutex sMutex;
+	std::string data;
+	std::size_t length;
 
 	do
 	{
-		if(gData->Transfer.Active)
-		{
-			addonDebug("File transfer in process, network thread sleeping...");
-
-			boost::this_thread::sleep(boost::posix_time::seconds(1));
-
-			continue;
-		}
-
 		if(!send_to.empty())
 		{
 			for(unsigned int i = 0; i < send_to.size(); i++)
 			{
-				boost::mutex::scoped_lock lock(gSocket->Mutex);
-				std::string send = send_to.front();
+				boost::mutex::scoped_lock lock(sMutex);
+				data = send_to.front();
 				send_to.pop();
 				lock.unlock();
 
-				addonDebug("Sending data: '%s'", send.c_str());
+				addonDebug("Sending to server: '%s'", data.c_str());
 
-				gSocket->Socket->write_some(boost::asio::buffer(send, send.length()));
-				boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+				length = gSocket->Socket->write_some(boost::asio::buffer(data));
+
+				addonDebug("Sent %i bytes", length);
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 			}
-
-			continue;
 		}
 
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+	}
+	while(gSocket->threadActive);
+}
+
+
+
+void addonSocket::ReceiveThread()
+{
+	addonDebug("Thread addonSocket::ReceiveThread() successfuly started");
+
+	char buffer[8192];
+
+	boost::mutex rMutex;
+	boost::system::error_code error;
+	std::size_t length;
+
+	do
+	{
 		memset(buffer, NULL, sizeof buffer);
+
 		length = gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer), error);
 
 		if(error == boost::asio::error::eof)
 		{
 			addonDebug("Server dropped connection, terminating...");
 
-			boost::mutex::scoped_lock lock(gSocket->Mutex);
+			boost::mutex::scoped_lock lock(rMutex);
 			delete gData;
 			lock.unlock();
 
@@ -146,14 +163,20 @@ void addonSocket::Thread()
 
 		if(length > 0)
 		{
-			addonDebug("Received from server: '%s'", buffer);
+			std::string data;
 
-			boost::mutex::scoped_lock lock(gSocket->Mutex);
-			rec_from.push(buffer);
+			addonDebug("Received %i bytes", length);
+
+			data.assign(buffer, length);
+
+			addonDebug("Received from server: '%s'", data.c_str());
+
+			boost::mutex::scoped_lock lock(rMutex);
+			rec_from.push(data);
 			lock.unlock();
 		}
 
-		boost::this_thread::sleep(boost::posix_time::milliseconds(5));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
 	while(gSocket->threadActive);
 }

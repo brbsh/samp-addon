@@ -31,7 +31,7 @@ addonProcess::addonProcess()
 	this->threadActive = true;
 	lock.unlock();
 
-	boost::thread process(&addonProcess::Thread);
+	boost::thread process(boost::bind(&addonProcess::Thread));
 }
 
 
@@ -52,13 +52,15 @@ void addonProcess::Thread()
 	addonDebug("Thread addonProcess::Thread() successfuly started");
 
 	int call_index;
+
+	boost::mutex pMutex;
 	std::string data;
 
 	do
 	{
 		if(gData->Transfer.Active)
 		{
-			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 
 			continue;
 		}
@@ -67,7 +69,7 @@ void addonProcess::Thread()
 		{
 			for(unsigned int i = 0; i < rec_from.size(); i++)
 			{
-				boost::mutex::scoped_lock lock(gProcess->Mutex);
+				boost::mutex::scoped_lock lock(pMutex);
 				data = rec_from.front();
 				rec_from.pop();
 				lock.unlock();
@@ -100,7 +102,7 @@ void addonProcess::Thread()
 						{
 							addonDebug("Invalid server answer, terminating");
 
-							boost::mutex::scoped_lock lock(gSocket->Mutex);
+							boost::mutex::scoped_lock lock(pMutex);
 							delete gData;
 							lock.unlock();
 						}
@@ -116,7 +118,7 @@ void addonProcess::Thread()
 						{
 							addonDebug("TCP server is full");
 
-							boost::mutex::scoped_lock lock(gSocket->Mutex);
+							boost::mutex::scoped_lock lock(pMutex);
 							delete gData;
 							lock.unlock();
 						}
@@ -152,7 +154,7 @@ void addonProcess::Thread()
 							break;
 						}
 
-						boost::mutex::scoped_lock lock(gSocket->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						gData->Transfer.Sending = false;
 						gData->Transfer.Active = true;
 						lock.unlock();
@@ -173,7 +175,7 @@ void addonProcess::Thread()
 							break;
 						}
 
-						boost::mutex::scoped_lock lock(gSocket->Mutex);
+						boost::mutex::scoped_lock lock(pMutex);
 						gData->Transfer.Sending = true;
 						gData->Transfer.Active = true;
 						lock.unlock();
@@ -182,10 +184,12 @@ void addonProcess::Thread()
 					}
 					break;
 				}
+
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 			}
 		}
 
-		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 	}
 	while(gProcess->threadActive);
 }
