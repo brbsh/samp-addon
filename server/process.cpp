@@ -13,6 +13,7 @@ amxProcess *gProcess;
 
 extern logprintf_t logprintf;
 
+extern amxHash *gHash;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 
@@ -25,14 +26,15 @@ extern std::queue<processStruct> recvQueue;
 
 
 
-void amxProcess::Thread(AMX *amx)
+void amxProcess::Thread()
 {
-	addonDebug("Thread amxProcess::Thread(%i) successfuly started", (int)amx);
+	int call_index;
+
+	processStruct input;
 
 	boost::mutex pMutex;
 
-	int call_index;
-	processStruct input;
+	addonDebug("Thread amxProcess::Thread() successfuly started");
 
 	do
 	{
@@ -51,7 +53,7 @@ void amxProcess::Thread(AMX *amx)
 					sscanf(input.data.c_str(), "%*s %*s %i", &call_index);
 				#endif
 
-				if(!gPool->clientPool[input.clientID].auth && (call_index != 1000))
+				if((call_index < 1000) || (!gPool->clientPool.find(input.clientID)->second.Client.Auth && (call_index != 1000)))
 				{
 					logprintf("samp-addon: Invalid query from %i", input.clientID);
 
@@ -66,21 +68,22 @@ void amxProcess::Thread(AMX *amx)
 					{
 						cliPool cPool;
 
-						int serial;
-						int serial_key;
-						int flags_key;
-						int flags;
-						char name[25];
+						int serial = NULL;
+						int flags = NULL;
+						int name_hash = NULL;
+						int key = NULL;
 
 						#if defined WIN32
-							sscanf_s(input.data.c_str(), "%*s %*s %*i %i %i %s %i %i", &serial, &serial_key, name, sizeof name, &flags_key, &flags);
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %i %i %i %i", &serial, &flags, &name_hash, &key);
 						#else
-							sscanf(input.data.c_str(), "%*s %*s %*i %i %i %s %i %i", &serial, &serial_key, name, &flags_key, &flags);
+							sscanf(input.data.c_str(), "%*s %*s %*i %i %i %i %i", &serial, &flags, &name_hash, &key);
 						#endif
 
-						if((serial_key != (serial + (flags ^ 0x2296666))) || (flags_key != ((serial | flags) & 0x28F39)))
+						if(!serial || !flags || !name_hash || (key != (serial ^ flags | name_hash ^ gSocket->Port)))
 						{
 							logprintf("samp-addon: Invalid auth key sent from %i", input.clientID);
+
+							gSocket->KickClient(input.clientID);
 
 							continue;
 						}
@@ -88,17 +91,19 @@ void amxProcess::Thread(AMX *amx)
 						serial += flags;
 
 						boost::mutex::scoped_lock lock(pMutex);
-						cPool = gPool->clientPool[input.clientID];
+						cPool = gPool->clientPool.find(input.clientID)->second;
 
-						cPool.serial = serial;
-						cPool.auth = true;
+						cPool.Client.Serial = serial;
+						cPool.Client.Auth = true;
 
 						gPool->clientPool[input.clientID] = cPool;
 						lock.unlock();
 
 						gSocket->Send(input.clientID, formatString() << "TCPQUERY" << " " << "SERVER_CALL" << " " << 1000 << " " << serial);
+						
+						break;
 					}
-					break;
+
 					case 1001: // TCPQUERY CLIENT_CALL 1001 %i1   ---   Sends addon module detach info | %i1 - Reason
 					{
 						amxDisconnect pushme;
@@ -116,8 +121,10 @@ void amxProcess::Thread(AMX *amx)
 						boost::mutex::scoped_lock lock(pMutex);
 						amxDisconnectQueue.push(pushme);
 						lock.unlock();
+
+						break;
 					}
-					break;
+
 					case 1002: // TCPQUERY CLIENT_CALL 1002 %s1    ---   Sends async key data | %s1 - Keys array
 					{
 						amxKey amxKeyData;
@@ -133,8 +140,10 @@ void amxProcess::Thread(AMX *amx)
 						boost::mutex::scoped_lock lock(pMutex);
 						amxKeyQueue.push(amxKeyData);
 						lock.unlock();
+
+						break;
 					}
-					break;
+
 					case 1003: // TCPQUERY CLIENT_CALL 1003 %s1   ---   Screenshot was taken | %s1 - Screenshot name
 					{
 						amxScreenshot amxScreenshotData;
@@ -150,43 +159,60 @@ void amxProcess::Thread(AMX *amx)
 						boost::mutex::scoped_lock lock(pMutex);
 						amxScreenshotQueue.push(amxScreenshotData);
 						lock.unlock();
+
+						break;
 					}
-					break;
-					case 2001: // TCPQUERY CLIENT_CALL 2001 %s1 %i1   ---   Transfer file data | %s1 - Remote file name, %i1 - Remote file length
+
+					case 2000:
 					{
-						char check[10];
-						int length;
+						char code[5];
 
 						#if defined WIN32
-							sscanf_s(input.data.c_str(), "%*s %*s %*i %s %i", check, sizeof check, &length);
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %s", code, sizeof code);
 						#else
-							sscanf(input.data.c_str(), "%*s %*s %*i %s %i", check, &length);
+							sscanf(input.data.c_str(), "%*s %*s %*i %s", code);
 						#endif
 
-						if(!strcmp(check, "END") || !strcmp(check, "READY"))
+						if(strcmp(code, "START"))
+							addonDebug("File transfering to client %i started", input.clientID);
+						
+						break;
+					}
+
+					case 2001: // TCPQUERY CLIENT_CALL 2001 %s1 %i1   ---   Transfer file data | %s1 - Remote file name, %i1 - Remote file length
+					{
+						char file[256];
+						int length = NULL;
+
+						#if defined WIN32
+							sscanf_s(input.data.c_str(), "%*s %*s %*i %s %i", file, sizeof file, &length);
+						#else
+							sscanf(input.data.c_str(), "%*s %*s %*i %s %i", file, &length);
+						#endif
+
+						if((!strcmp(file, "END") || !strcmp(file, "READY")) && !length)
 						{
 							logprintf("Unexpected value passed!");
 
 							continue;
 						}
 
-						transPool pool;
-						sockPool sPool;
+						cliPool cPool;
 
 						boost::mutex::scoped_lock lock(pMutex);
-						pool = gPool->transferPool[input.clientID];
-						sPool = gPool->socketPool[input.clientID];
+						cPool = gPool->clientPool.find(input.clientID)->second;
 
-						pool.file_length = length;
-						sPool.transfer = true;
+						cPool.Transfer.Active = true;
 
-						gPool->transferPool[input.clientID] = pool;
-						gPool->socketPool[input.clientID] = sPool;
+						gPool->clientPool[input.clientID] = cPool;
 						lock.unlock();
 
-						boost::thread receive(boost::bind(&amxTransfer::ReceiveThread, input.clientID));
+						cPool.socketid->write_some(boost::asio::buffer("TCPQUERY SERVER_CALL 2001 START", 32));
+
+						boost::thread receive(boost::bind(&amxTransfer::ReceiveThread, input.clientID, cPool.Transfer.file, length));
+					
+						break;
 					}
-					break;
 				}
 
 				boost::this_thread::sleep(boost::posix_time::milliseconds(1));

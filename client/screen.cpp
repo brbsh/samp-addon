@@ -38,11 +38,11 @@ void addonScreen::Get(std::string filename)
 	gFS->RemoveFile(filename);
 
 	DWORD addr = this->Address;
-	char *c_filename = new char[(filename.length() + 1)];
+	char *c_filename = new char[filename.length()];
 
 	strcpy(c_filename, filename.c_str());
 
-	__asm
+	_asm
 	{
 		mov eax, [0xB6F97C]
 		mov eax, [eax]

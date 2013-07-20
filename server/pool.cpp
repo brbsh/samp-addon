@@ -20,9 +20,7 @@ amxPool::amxPool()
 
 	this->pluginInit = false;
 
-	this->socketPool.clear();
 	this->clientPool.clear();
-	this->transferPool.clear();
 }
 
 

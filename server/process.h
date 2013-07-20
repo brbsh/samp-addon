@@ -13,5 +13,5 @@ class amxProcess
 
 public:
 
-	static void Thread(AMX *amx);
+	static void Thread();
 };

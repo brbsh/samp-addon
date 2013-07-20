@@ -8,35 +8,30 @@
 
 
 
-struct sockPool
+struct transfer
 {
-	int socketid;
-	bool transfer;
+	bool Active;
 
-	std::string ip;
+	std::string file;
+};
+
+
+
+struct client
+{
+	bool Auth;
+	int Serial;
 };
 
 
 
 struct cliPool
 {
-	bool Active;
-	int serial;
-	bool auth;
-	int in_menu;
-	float gravity;
-	float gamespeed;
-};
+	boost::shared_ptr<boost::asio::ip::tcp::socket> socketid;
+	std::string ip;
 
-
-
-struct transPool
-{
-	bool send;
-	long file_length;
-	
-	std::string file;
-	std::string remote_file;
+	struct transfer Transfer;
+	struct client Client;
 };
 
 
@@ -51,7 +46,5 @@ public:
 
 	bool pluginInit;
 
-	boost::unordered_map<int, sockPool> socketPool;
 	boost::unordered_map<int, cliPool> clientPool;
-	boost::unordered_map<int, transPool> transferPool;
 };

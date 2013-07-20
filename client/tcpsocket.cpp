@@ -10,8 +10,8 @@
 
 addonSocket *gSocket;
 
-std::queue<std::string> send_to;
-std::queue<std::string> rec_from;
+std::queue<std::string> sendQueue;
+std::queue<std::string> recvQueue;
 
 
 extern addonData *gData;
@@ -41,6 +41,9 @@ addonSocket::~addonSocket()
 
 	boost::mutex::scoped_lock lock(this->Mutex);
 	this->threadActive = false;
+	this->Socket->shutdown(boost::asio::socket_base::shutdown_both);
+	this->Socket->close();
+	this->io.stop();
 	lock.unlock();
 
 	this->Socket->close();
@@ -54,7 +57,7 @@ void addonSocket::Send(std::string data)
 		return;
 
 	boost::mutex::scoped_lock lock(this->Mutex);
-	send_to.push(data);
+	sendQueue.push(data);
 	lock.unlock();
 }
 
@@ -66,15 +69,13 @@ void addonSocket::Thread()
 	addonDebug("Connecting to %s:%i", gData->Server.IP, gData->Server.Port);
 
 	boost::mutex tMutex;
-	boost::asio::io_service io;
 	boost::system::error_code error;
 
-	gSocket->Socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(io));
-	gSocket->Socket->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(gData->Server.IP), gData->Server.Port), error);
+	gSocket->io.run(error);
 
 	if(error)
 	{
-		addonDebug("Cannot connect to %s:%i", gData->Server.IP, gData->Server.Port);
+		addonDebug("Cannot run I/O service, terminating...");
 
 		boost::mutex::scoped_lock lock(tMutex);
 		delete gData;
@@ -83,7 +84,21 @@ void addonSocket::Thread()
 		return;
 	}
 
-	addonDebug("Connected to %s:%i", gData->Server.IP, gData->Server.Port);
+	gSocket->Socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(gSocket->io));
+	gSocket->Socket->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(gData->Server.IP), gData->Server.Port), error);
+
+	if(error)
+	{
+		addonDebug("Cannot connect to %s:%i trough TCP", gData->Server.IP, gData->Server.Port);
+
+		boost::mutex::scoped_lock lock(tMutex);
+		delete gData;
+		lock.unlock();
+
+		return;
+	}
+
+	addonDebug("Connected to %s:%i trough TCP", gData->Server.IP, gData->Server.Port);
 
 	boost::thread send(boost::bind(&addonSocket::SendThread));
 	boost::thread receive(boost::bind(&addonSocket::ReceiveThread));
@@ -92,8 +107,6 @@ void addonSocket::Thread()
 	{
 		boost::this_thread::sleep(boost::posix_time::seconds(1));
 	}
-
-	gSocket->Socket->close();
 }
 
 
@@ -108,13 +121,20 @@ void addonSocket::SendThread()
 
 	do
 	{
-		if(!send_to.empty())
+		if(!sendQueue.empty())
 		{
-			for(unsigned int i = 0; i < send_to.size(); i++)
+			if(gData->Transfer.Active)
+			{
+				boost::this_thread::sleep(boost::posix_time::seconds(1));
+
+				continue;
+			}
+
+			for(unsigned int i = 0; i < sendQueue.size(); i++)
 			{
 				boost::mutex::scoped_lock lock(sMutex);
-				data = send_to.front();
-				send_to.pop();
+				data = sendQueue.front();
+				sendQueue.pop();
 				lock.unlock();
 
 				addonDebug("Sending to server: '%s'", data.c_str());
@@ -146,11 +166,17 @@ void addonSocket::ReceiveThread()
 
 	do
 	{
-		memset(buffer, NULL, sizeof buffer);
+		if(gData->Transfer.Active)
+		{
+			boost::this_thread::sleep(boost::posix_time::seconds(1));
 
+			continue;
+		}
+
+		memset(buffer, NULL, sizeof buffer);
 		length = gSocket->Socket->read_some(boost::asio::buffer(buffer, sizeof buffer), error);
 
-		if(error == boost::asio::error::eof)
+		if(error)
 		{
 			addonDebug("Server dropped connection, terminating...");
 
@@ -172,7 +198,7 @@ void addonSocket::ReceiveThread()
 			addonDebug("Received from server: '%s'", data.c_str());
 
 			boost::mutex::scoped_lock lock(rMutex);
-			rec_from.push(data);
+			recvQueue.push(data);
 			lock.unlock();
 		}
 

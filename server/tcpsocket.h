@@ -15,7 +15,7 @@ public:
 
 	static void Thread();
 	static void SendThread();
-	static void ReceiveThread();
+	static void ReceiveThread(int clientid);
 
 	amxSocket(std::string ip, int port, int maxclients);
 	~amxSocket();
@@ -31,7 +31,7 @@ public:
 	std::string IP;
 	boost::mutex Mutex;
 
-	boost::unordered_map<int, boost::shared_ptr<boost::asio::ip::tcp::socket> > Socket;
+	boost::asio::io_service io;
 };
 
 

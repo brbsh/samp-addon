@@ -42,6 +42,8 @@
 
 #include "SDK/plugin.h"
 
+#include "fs.h"
+#include "hash.h"
 #include "natives.h"
 #include "pool.h"
 #include "process.h"

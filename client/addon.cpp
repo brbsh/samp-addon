@@ -14,16 +14,24 @@ boost::mutex gMutex;
 std::queue<std::string> logQueue;
 
 
-extern addonSocket *gSocket;
-extern addonProcess *gProcess;
-extern addonKeylog *gKeylog;
-extern addonScreen *gScreen;
 extern addonFS *gFS;
+extern addonHash *gHash;
+extern addonKeylog *gKeylog;
+extern addonProcess *gProcess;
+extern addonScreen *gScreen;
+extern addonSocket *gSocket;
 extern addonString *gString;
 
-extern std::queue<std::string> send_to;
 
 
+
+
+LONG addonExceptionFilter(LPEXCEPTION_POINTERS pointer)
+{
+	addonDebug("Exception at address: 0x%x", pointer);
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
 
 
 
@@ -31,6 +39,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
+		DisableThreadLibraryCalls(hinstDLL);
+		SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&addonExceptionFilter);
+
 		boost::thread debug(boost::bind(&addonData::DebugThread));
 
 		addonDebug("-----------------------------------------------------------------");
@@ -39,6 +50,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
+		gSocket->Socket->shutdown(boost::asio::socket_base::shutdown_both);
+
 		if(!lpvReserved)
 			delete gData;
 
@@ -163,8 +176,10 @@ void addonData::Thread()
 
 	gData->Player.Serial = (serial + flags);
 
+	unsigned int name_hash = gHash->MurmurHash2(gData->Player.Name, strlen(gData->Player.Name));
+
 	gSocket = new addonSocket();
-	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << (serial + (flags ^ 0x2296666)) << " " << gData->Player.Name << " " << ((serial | flags) & 0x28F39) << " " << flags);
+	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << flags << " " << name_hash << " " << (serial ^ flags | name_hash ^ gData->Server.Port));
 
 	gScreen = new addonScreen();
 	gProcess = new addonProcess();

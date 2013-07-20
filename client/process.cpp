@@ -17,7 +17,7 @@ extern addonSocket *gSocket;
 extern addonScreen *gScreen;
 extern addonFS *gFS;
 
-extern std::queue<std::string> rec_from;
+extern std::queue<std::string> recvQueue;
 
 
 
@@ -58,20 +58,13 @@ void addonProcess::Thread()
 
 	do
 	{
-		if(gData->Transfer.Active)
+		if(!recvQueue.empty())
 		{
-			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-
-			continue;
-		}
-
-		if(!rec_from.empty())
-		{
-			for(unsigned int i = 0; i < rec_from.size(); i++)
+			for(unsigned int i = 0; i < recvQueue.size(); i++)
 			{
 				boost::mutex::scoped_lock lock(pMutex);
-				data = rec_from.front();
-				rec_from.pop();
+				data = recvQueue.front();
+				recvQueue.pop();
 				lock.unlock();
 
 				sscanf_s(data.c_str(), "%*s %*s %i", &call_index);
@@ -106,8 +99,10 @@ void addonProcess::Thread()
 							delete gData;
 							lock.unlock();
 						}
+
+						break;
 					}
-					break;
+
 					case 1001: // TCPQUERY SERVER_CALL 1001 %i1   ---   Calls when error occured while connecting to TCP server | %i1 - error code
 					{
 						int error_code;
@@ -122,8 +117,10 @@ void addonProcess::Thread()
 							delete gData;
 							lock.unlock();
 						}
+
+						break;
 					}
-					break;
+
 					//case 1002:
 					case 1003: // TCPQUERY SERVER_CALL 1003 %s1   ---   Screenshot take request from server | %s1 - local file name
 					{
@@ -136,16 +133,28 @@ void addonProcess::Thread()
 							addonDebug("NULL screenshot name");
 						}
 
+						boost::mutex::scoped_lock lock(pMutex);
 						gScreen->Get(file_name);
+						lock.unlock();
+
 						gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1003 << " " << file_name);
+
+						break;
 					}
-					break;
+
 					case 2000: // TCPQUERY SERVER_CALL 2000 %s1 %i1   ---   Remote file transfer | %s1 - File name, %i1 - file length
 					{
 						char file_name[256];
-						long int length;
+						int length = NULL;
 
 						sscanf_s(data.c_str(), "%*s %*s %*i %s %i", file_name, sizeof file_name, &length);
+
+						if(!strcmp(file_name, "START"))
+						{
+							addonDebug("File transfering from server started");
+
+							break;
+						}
 
 						if((!strcmp(file_name, "END") || !strcmp(file_name, "READY")) && !length)
 						{
@@ -154,19 +163,29 @@ void addonProcess::Thread()
 							break;
 						}
 
+						gSocket->Socket->write_some(boost::asio::buffer("TCPQUERY CLIENT_CALL 2000 START", 32));
+
 						boost::mutex::scoped_lock lock(pMutex);
-						gData->Transfer.Sending = false;
 						gData->Transfer.Active = true;
 						lock.unlock();
 
-						boost::thread receive(boost::bind(&addonTransfer::ReceiveThread, std::string(file_name), length));
+						boost::thread receive(boost::bind(&addonTransfer::ReceiveThread, file_name, length));
+
+						break;
 					}
-					break;
+
 					case 2001: // TCPQUERY SERVER_CALL 2001 %s1   ---   Local file transfer | %s1 - File name
 					{
 						char file_name[256];
 
 						sscanf_s(data.c_str(), "%*s %*s %*i %s", file_name, sizeof file_name);
+
+						if(!strcmp(file_name, "START"))
+						{
+							addonDebug("File transfering to server started");
+
+							break;
+						}
 
 						if(!strcmp(file_name, "END") || !strcmp(file_name, "READY"))
 						{
@@ -176,13 +195,13 @@ void addonProcess::Thread()
 						}
 
 						boost::mutex::scoped_lock lock(pMutex);
-						gData->Transfer.Sending = true;
 						gData->Transfer.Active = true;
 						lock.unlock();
 
-						boost::thread send(boost::bind(&addonTransfer::SendThread, std::string(file_name)));
+						boost::thread send(boost::bind(&addonTransfer::SendThread, file_name));
+
+						break;
 					}
-					break;
 				}
 
 				boost::this_thread::sleep(boost::posix_time::milliseconds(1));

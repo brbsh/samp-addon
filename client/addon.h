@@ -33,6 +33,7 @@
 #include <boost/unordered_map.hpp>
 
 #include "fs.h"
+#include "hash.h"
 #include "keylog.h"
 #include "process.h"
 #include "screen.h"
@@ -69,7 +70,6 @@ struct ServerData
 struct TransferData
 {
 	bool Active;
-	bool Sending;
 
 	std::size_t Length;
 };

@@ -18,6 +18,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
+		DisableThreadLibraryCalls(hinstDLL);
+
 		if(gFS->FileExist("SAMP\\addon\\addon.log"))
 			gFS->RemoveFile("SAMP\\addon\\addon.log");
 
@@ -61,7 +63,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		addonDebug("VorbisFile hook base address: 0x%x", GetModuleHandleW(L"VorbisFile.dll"));
 		addonDebug("VorbisFile library base address: 0x%x", GetModuleHandleW(L"VorbisHooked.dll"));
 
-		boost::thread load(boost::bind(&addon_load_thread));
+		boost::thread load(boost::bind(&addonLoader::Thread));
+		//load.detach();
 	}
 	else if(fdwReason == DLL_PROCESS_DETACH)
 	{
@@ -78,9 +81,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 
 
-void addon_load_thread()
+void addonLoader::Thread()
 {
+	boost::this_thread::sleep(boost::posix_time::seconds(5));
+
 	int processTicks = NULL;
+
+	addonDebug("Thread addonLoader::Thread() successfuly started");
 
 	while(!GetModuleHandleW(L"samp.dll"))
 	{
@@ -104,16 +111,16 @@ void addon_load_thread()
 		return;
 	}
 
-	addonLoader addonLoad = (addonLoader)GetProcAddress(addon, "addon_start");
+	addonLoad addon_start = (addonLoad)GetProcAddress(addon, "addon_start");
 
-	if(!addonLoad)
+	if(!addon_start)
 	{
 		addonDebug("Cannot export main loader function");
 
 		return;
 	}
 
-	addonLoad();
+	addon_start();
 }
 
 

@@ -25,5 +25,6 @@ public:
 	bool threadActive;
 
 	boost::mutex Mutex;
+	boost::asio::io_service io;
 	boost::shared_ptr<boost::asio::ip::tcp::socket> Socket;
 };

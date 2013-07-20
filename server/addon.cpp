@@ -8,6 +8,7 @@
 
 extern void *pAMXFunctions;
 
+extern amxFS *gFS;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
@@ -16,6 +17,7 @@ extern amxString *gString;
 logprintf_t logprintf;
 
 boost::mutex gMutex;
+boost::mutex lMutex;
 
 std::list<AMX *> amxList;
 std::queue<std::string> logQueue;
@@ -51,8 +53,9 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	addonDebug("\tDebugging started\n");
 	addonDebug("-----------------------------------------------------------------");
 	addonDebug("Called plugin load | amx data: 0x%x | logprintf address: 0x%x", ppData[PLUGIN_DATA_AMX_EXPORTS], ppData[PLUGIN_DATA_LOGPRINTF]);
-	addonDebug("-----------------------------------------------------------------");
+	addonDebug("-----------------------------------------------------------------\n");
 
+	gFS = new amxFS();
 	gPool = new amxPool();
 
 	logprintf(" samp-addon was loaded");
@@ -64,6 +67,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 
 PLUGIN_EXPORT void PLUGIN_CALL Unload()
 {
+	delete gFS;
 	delete gPool;
 	delete gSocket;
 
@@ -243,7 +247,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnScreenshotTaken(clientid, remote_file[])
+				// public Addon_OnScreenshotTaken(clientid, remote_filename[])
 				if(!amx_FindPublic(*amx, "Addon_OnScreenshotTaken", &amx_idx))
 				{
 					amx_PushString(*amx, &amxAddress, NULL, screenshotData.name, NULL, NULL);
@@ -274,7 +278,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
 				// public Addon_OnClientFileReceived(clientid, file[])
-				if(!amx_FindPublic(*amx, "Addon_OnClientFileReceived", &amx_idx))
+				if(!amx_FindPublic(*amx, "Addon_OnRemoteFileTransfered", &amx_idx))
 				{
 					amx_PushString(*amx, &amxAddress, NULL, fileData.file.c_str(), NULL, NULL);
 					amx_Push(*amx, fileData.clientid);
@@ -303,8 +307,8 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			for(std::list<AMX *>::iterator amx = amxList.begin(); amx != amxList.end(); amx++)
 			{
-				// public Addon_OnClientFileSended(clientid, file[])
-				if(!amx_FindPublic(*amx, "Addon_OnClientFileSended", &amx_idx))
+				// public Addon_OnClientFileSent(clientid, file[])
+				if(!amx_FindPublic(*amx, "Addon_OnLocalFileTransfered", &amx_idx))
 				{
 					amx_PushString(*amx, &amxAddress, NULL, fileData.file.c_str(), NULL, NULL);
 					amx_Push(*amx, fileData.clientid);
@@ -400,7 +404,7 @@ void addonDebug(char *text, ...)
 
 	va_start(args, text);
 
-	boost::mutex::scoped_lock lock(gMutex);
+	boost::mutex::scoped_lock lock(lMutex);
 	logQueue.push(gString->vprintf(text, args));
 	lock.unlock();
 

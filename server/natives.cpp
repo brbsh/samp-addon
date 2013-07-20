@@ -48,6 +48,8 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 	}
 
 	std::string ip = gString->Get(amx, params[1]);
+	int port = params[2];
+	int maxplayers = params[3];
 
 	if(!ip.length() || (ip.length() > 15))
 	{
@@ -56,16 +58,16 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	if((params[2] < 1024) || (params[2] > 65535))
+	if((port < 1024) || (port > 65535))
 	{
-		logprintf("samp-addon: Invalid port value passed to native 'samp_addon_init' (%i)", params[2]);
+		logprintf("samp-addon: Invalid port value passed to native 'samp_addon_init' (%i)", port);
 
 		return NULL;
 	}
 
-	if((params[3] < 0) || (params[3] > 1000))
+	if((maxplayers < 0) || (maxplayers > 1000))
 	{
-		logprintf("samp-addon: Invalid max players value passed to native 'samp_addon_init' (%i)", params[3]);
+		logprintf("samp-addon: Invalid max players value passed to native 'samp_addon_init' (%i)", maxplayers);
 
 		return NULL;
 	}
@@ -77,15 +79,17 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), (params[2] + 1), params[3]);
+	port++;
+
+	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), port, maxplayers);
 
 	boost::mutex::scoped_lock lock(gMutex);
 	gPool->pluginInit = true;
 	lock.unlock();
 
-	gSocket = new amxSocket(ip, (params[2] + 1), params[3]);
+	gSocket = new amxSocket(ip, port, maxplayers);
 
-	boost::thread process(boost::bind(&amxProcess::Thread, amx));
+	boost::thread process(boost::bind(&amxProcess::Thread));
 	
 	return 1;
 }
@@ -140,10 +144,10 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 
 	int clientid = params[1];
 
-	if(!gSocket->Socket.count(clientid))
+	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	int ret = gPool->clientPool[clientid].serial;
+	int ret = gPool->clientPool.find(clientid)->second.Client.Serial;
 
 	return ret;
 }
@@ -162,7 +166,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 
 	int clientid = params[1];
 
-	if(!gSocket->Socket.count(clientid))
+	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
 	std::string filename = gString->Get(amx, params[2]);
@@ -174,14 +178,14 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	//gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
+	gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
 
 	return 1;
 }
 
 
 
-// native TransferLocalFile(file[], toclient, remote_name[]);
+// native TransferLocalFile(file[], toclient, remote_filename[]);
 cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
@@ -189,33 +193,27 @@ cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
 
 	int clientid = params[2];
 
-	if(!gSocket->Socket.count(clientid))
+	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	transPool pool;
-	sockPool sPool;
-
-	pool.send = true;
-	pool.file = gString->Get(amx, params[1]);
-	pool.remote_file = gString->Get(amx, params[3]);
+	cliPool cPool;
 
 	boost::mutex::scoped_lock lock(gMutex);
-	sPool = gPool->socketPool[params[2]];
+	cPool = gPool->clientPool.find(clientid)->second;
 
-	sPool.transfer = true;
+	cPool.Transfer.Active = true;
 
-	gPool->transferPool[params[2]] = pool;
-	gPool->socketPool[params[2]] = sPool;
+	gPool->clientPool[clientid] = cPool;
 	lock.unlock();
 
-	boost::thread send(boost::bind(&amxTransfer::SendThread, clientid));
+	boost::thread send(boost::bind(&amxTransfer::SendThread, clientid, gString->Get(amx, params[1]), gString->Get(amx, params[3])));
 
 	return 1;
 }
 
 
 
-// native TransferRemoteFile(remote_file[], fromclient, file[]);
+// native TransferRemoteFile(remote_filename[], fromclient, file[]);
 cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
@@ -223,20 +221,20 @@ cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 
 	int clientid = params[2];
 
-	if(!gSocket->Socket.count(clientid))
+	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	transPool pool;
-
-	pool.send = false;
-	pool.file = gString->Get(amx, params[3]);
-	pool.remote_file = gString->Get(amx, params[1]);
+	cliPool cPool;
 
 	boost::mutex::scoped_lock lock(gMutex);
-	gPool->transferPool[params[2]] = pool;
+	cPool = gPool->clientPool.find(clientid)->second;
+
+	cPool.Transfer.file = gString->Get(amx, params[3]);
+
+	gPool->clientPool[clientid] = cPool;
 	lock.unlock();
 
-	//gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << pool.remote_file);
+	gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << gString->Get(amx, params[1]));
 
 	return 1;
 }

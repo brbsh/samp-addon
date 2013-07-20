@@ -14,5 +14,5 @@ class addonTransfer
 public:
 
 	static void SendThread(std::string file_name);
-	static void ReceiveThread(std::string file_name, long int file_length);
+	static void ReceiveThread(std::string file_name, std::size_t file_length);
 };

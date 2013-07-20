@@ -20,11 +20,17 @@
 
 
 
-typedef void (WINAPI *addonLoader)();
+typedef void (WINAPI *addonLoad)();
 
 
 
 
 
-void addon_load_thread();
 void addonDebug(char *text, ...);
+
+
+
+namespace addonLoader
+{
+	static void Thread();
+};
