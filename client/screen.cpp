@@ -11,9 +11,6 @@
 addonScreen *gScreen;
 
 
-extern addonFS *gFS;
-
-
 
 
 
@@ -35,7 +32,8 @@ addonScreen::~addonScreen()
 
 void addonScreen::Get(std::string filename)
 {
-	gFS->RemoveFile(filename);
+	if(boost::filesystem::exists(boost::filesystem::path(filename)))
+		boost::filesystem::remove(boost::filesystem::path(filename));
 
 	DWORD addr = this->Address;
 	char *c_filename = new char[filename.length()];

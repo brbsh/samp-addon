@@ -26,6 +26,8 @@ addonSocket::addonSocket()
 
 	gData->Server.Port++;
 
+	this->io.run();
+
 	boost::mutex::scoped_lock lock(this->Mutex);
 	this->threadActive = true;
 	lock.unlock();
@@ -91,10 +93,6 @@ void addonSocket::Thread()
 	{
 		addonDebug("Cannot connect to %s:%i trough TCP", gData->Server.IP, gData->Server.Port);
 
-		boost::mutex::scoped_lock lock(tMutex);
-		delete gData;
-		lock.unlock();
-
 		return;
 	}
 
@@ -116,6 +114,7 @@ void addonSocket::SendThread()
 	addonDebug("Thread addonSocket::SendThread() successfuly started");
 
 	boost::mutex sMutex;
+	boost::system::error_code error;
 	std::string data;
 	std::size_t length;
 
@@ -139,9 +138,14 @@ void addonSocket::SendThread()
 
 				addonDebug("Sending to server: '%s'", data.c_str());
 
-				length = gSocket->Socket->write_some(boost::asio::buffer(data));
+				length = gSocket->Socket->write_some(boost::asio::buffer(data), error);
 
-				addonDebug("Sent %i bytes", length);
+				if(error)
+				{
+					addonDebug("Error while sending data to server");
+
+					return;
+				}
 
 				boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 			}
@@ -190,8 +194,6 @@ void addonSocket::ReceiveThread()
 		if(length > 0)
 		{
 			std::string data;
-
-			addonDebug("Received %i bytes", length);
 
 			data.assign(buffer, length);
 

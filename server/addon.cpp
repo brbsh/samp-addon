@@ -8,7 +8,6 @@
 
 extern void *pAMXFunctions;
 
-extern amxFS *gFS;
 extern amxPool *gPool;
 extern amxSocket *gSocket;
 extern amxString *gString;
@@ -46,8 +45,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 
-	remove("addon.log");
-
+	boost::filesystem::remove(boost::filesystem::path("addon.log"));
 	boost::thread debug(boost::bind(&amxData::DebugThread));
 
 	addonDebug("\tDebugging started\n");
@@ -55,7 +53,6 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	addonDebug("Called plugin load | amx data: 0x%x | logprintf address: 0x%x", ppData[PLUGIN_DATA_AMX_EXPORTS], ppData[PLUGIN_DATA_LOGPRINTF]);
 	addonDebug("-----------------------------------------------------------------\n");
 
-	gFS = new amxFS();
 	gPool = new amxPool();
 
 	logprintf(" samp-addon was loaded");
@@ -67,7 +64,6 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 
 PLUGIN_EXPORT void PLUGIN_CALL Unload()
 {
-	delete gFS;
 	delete gPool;
 	delete gSocket;
 

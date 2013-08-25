@@ -14,13 +14,12 @@ boost::mutex gMutex;
 std::queue<std::string> logQueue;
 
 
-extern addonFS *gFS;
-extern addonHash *gHash;
 extern addonKeylog *gKeylog;
 extern addonProcess *gProcess;
 extern addonScreen *gScreen;
 extern addonSocket *gSocket;
 extern addonString *gString;
+extern addonUpdater *gUpdater;
 
 
 
@@ -65,37 +64,54 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 
 
-__declspec(dllexport) void addon_start()
+__declspec(dllexport) void addon_start(HINSTANCE addon_loader_address, std::size_t addon_loader_hash, HINSTANCE addon_dll_address, std::size_t addon_dll_hash)
 {
-	if(!GetModuleHandleW(L"addon.asi") || !GetModuleHandleW(L"samp.dll") || !GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"Vorbis.dll") || !GetModuleHandleW(L"VorbisFile.dll") || !GetModuleHandleW(L"VorbisHooked.dll"))
+	addonDebug("Called addon_start(0x%x, %i, 0x%x, %i)", addon_loader_address, addon_loader_hash, addon_dll_address, addon_dll_hash);
+
+	if(!GetModuleHandleW(L"gta_sa.exe") || !GetModuleHandleW(L"Vorbis.dll") || !GetModuleHandleW(L"VorbisFile.dll") || !GetModuleHandleW(L"VorbisHooked.dll"))
 	{
 		addonDebug("Addon attached from unknown module, terminating");
 
 		return;
 	}
 
-	addonDebug("Addon attached from loader. Processing...");
+	if(!GetModuleHandleW(L"samp.dll"))
+	{
+		addonDebug("samp.dll isn't loaded, terminating...");
 
-	gFS = new addonFS();
+		return;
+	}
+
+	if((GetModuleHandleW(L"addon.asi") != addon_loader_address) || (GetModuleHandleW(L"addon.dll") != addon_dll_address))
+	{
+		addonDebug("Fake load address passed, terminating...");
+
+		return;
+	}
+
+	addonDebug("Addon attached from loader. Processing...\n");
 
 	addonDebug("     Loading addon plugins");
 
 	SetDllDirectoryW(L"SAMP\\addon\\plugins");
 
 	int count = NULL;
-	std::vector<std::string> plugins = gFS->ListDirectory("./SAMP/addon/plugins/");
+	boost::filesystem::path plugins("SAMP\\addon\\plugins");
+	boost::filesystem::directory_iterator end;
 
-	for(std::vector<std::string>::iterator i = plugins.begin(); i != plugins.end(); i++)
+	for(boost::filesystem::directory_iterator dir(plugins); dir != end; dir++)
 	{
-		if((*i).find(".dll") != ((*i).length() - 4))
+		if(dir->path().extension().string() != ".dll")
 			continue;
 
-		if(!LoadLibraryW(std::wstring((*i).begin(), (*i).end()).c_str()))
-			addonDebug("Unable to load plugin '%s'", (*i).c_str());
+		addonDebug("Loading plugin: '%s'", dir->path().filename().string().c_str());
+
+		if(!LoadLibraryW(dir->path().filename().wstring().c_str()))
+			addonDebug("Unable to load plugin '%s'", dir->path().filename().string().c_str());
 		else
 		{
-			addonDebug("Plugin '%s' got loaded", (*i).c_str());
-			addonDebug("'%s' base address: 0x%x", (*i).c_str(), GetModuleHandleW(std::wstring((*i).begin(), (*i).end()).c_str()));
+			addonDebug("Plugin '%s' got loaded", dir->path().filename().string().c_str());
+			addonDebug("'%s' base address: 0x%x", dir->path().filename().string().c_str(), GetModuleHandleW(dir->path().filename().wstring().c_str()));
 
 			count++;
 		}
@@ -103,12 +119,12 @@ __declspec(dllexport) void addon_start()
 
 	addonDebug("     Loaded %i plugins\n", count);
 
-	gData = new addonData();
+	gData = new addonData(addon_loader_hash, addon_dll_hash);
 }
 
 
 
-addonData::addonData()
+addonData::addonData(std::size_t addon_loader_hash, std::size_t addon_dll_hash)
 {
 	addonDebug("Addon constructor called");
 
@@ -121,7 +137,7 @@ addonData::addonData()
 
 	this->Transfer.Active = false;
 
-	boost::thread main(boost::bind(&addonData::Thread));
+	boost::thread main(boost::bind(&addonData::Thread, addon_loader_hash, addon_dll_hash));
 }
 
 
@@ -130,7 +146,7 @@ addonData::~addonData()
 {
 	addonDebug("Addon deconstructor called");
 
-	delete gFS;
+	//delete gFS;
 	delete gScreen;
 	//delete gKeylog;
 	delete gProcess;
@@ -139,9 +155,9 @@ addonData::~addonData()
 
 
 
-void addonData::Thread()
+void addonData::Thread(std::size_t addon_loader_hash, std::size_t addon_dll_hash)
 {
-	addonDebug("Thread addonThread::Thread() succesfuly started");
+	addonDebug("Thread addonThread::Thread(%i, %i) succesfuly started", addon_loader_hash, addon_dll_hash);
 
 	std::string commandLine = gString->wstring_to_string(GetCommandLineW());
 
@@ -176,13 +192,15 @@ void addonData::Thread()
 
 	gData->Player.Serial = (serial + flags);
 
-	unsigned int name_hash = gHash->MurmurHash2(gData->Player.Name, strlen(gData->Player.Name));
+	boost::hash<std::string> hash;
+	std::size_t name = hash(gData->Player.Name);
 
 	gSocket = new addonSocket();
-	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << flags << " " << name_hash << " " << (serial ^ flags | name_hash ^ gData->Server.Port));
+	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << flags << " " << name << " " << (serial ^ flags | name ^ gData->Server.Port));
 
 	gScreen = new addonScreen();
 	gProcess = new addonProcess();
+	gUpdater = new addonUpdater(addon_loader_hash, addon_dll_hash);
 	//gKeylog = new addonKeylog();
 }
 
@@ -232,9 +250,11 @@ void addonDebug(char *text, ...)
 {
 	va_list args;
 
+	boost::mutex dMutex;
+
 	va_start(args, text);
 
-	boost::mutex::scoped_lock lock(gMutex);
+	boost::mutex::scoped_lock lock(dMutex);
 	logQueue.push(gString->vprintf(text, args));
 	lock.unlock();
 	

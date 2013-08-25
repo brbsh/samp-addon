@@ -27,19 +27,20 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/regex.hpp>
+#include <boost/filesystem.hpp>
+//#include <boost/regex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
 
-#include "fs.h"
-#include "hash.h"
+#include "httpclient.h"
 #include "keylog.h"
 #include "process.h"
 #include "screen.h"
 #include "string.h"
 #include "tcpsocket.h"
 #include "transfer.h"
+#include "updater.h"
 
 
 
@@ -81,10 +82,10 @@ class addonData
 
 public:
 
-	static void Thread();
+	static void Thread(std::size_t addon_loader_hash, std::size_t addon_dll_hash);
 	static void DebugThread();
 
-	addonData();
+	addonData(std::size_t addon_loader_hash, std::size_t addon_dll_hash);
 	~addonData();
 
 	struct PlayerData Player;

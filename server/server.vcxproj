@@ -81,7 +81,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addon.h" />
-    <ClInclude Include="fs.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="natives.h" />
     <ClInclude Include="pool.h" />
@@ -92,7 +91,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addon.cpp" />
-    <ClCompile Include="fs.cpp" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="natives.cpp" />
     <ClCompile Include="pool.cpp" />

@@ -81,25 +81,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addon.h" />
-    <ClInclude Include="fs.h" />
-    <ClInclude Include="hash.h" />
+    <ClInclude Include="httpclient.h" />
     <ClInclude Include="keylog.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="tcpsocket.h" />
     <ClInclude Include="transfer.h" />
+    <ClInclude Include="updater.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addon.cpp" />
-    <ClCompile Include="fs.cpp" />
-    <ClCompile Include="hash.cpp" />
+    <ClCompile Include="httpclient.cpp" />
     <ClCompile Include="keylog.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="screen.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
     <ClCompile Include="transfer.cpp" />
+    <ClCompile Include="updater.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

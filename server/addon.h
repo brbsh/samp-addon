@@ -34,6 +34,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
@@ -42,7 +43,6 @@
 
 #include "SDK/plugin.h"
 
-#include "fs.h"
 #include "hash.h"
 #include "natives.h"
 #include "pool.h"

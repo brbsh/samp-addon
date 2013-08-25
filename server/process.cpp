@@ -55,7 +55,7 @@ void amxProcess::Thread()
 
 				if((call_index < 1000) || (!gPool->clientPool.find(input.clientID)->second.Client.Auth && (call_index != 1000)))
 				{
-					logprintf("samp-addon: Invalid query from %i", input.clientID);
+					addonDebug("Invalid query from %i", input.clientID);
 
 					gSocket->KickClient(input.clientID);
 
@@ -81,7 +81,7 @@ void amxProcess::Thread()
 
 						if(!serial || !flags || !name_hash || (key != (serial ^ flags | name_hash ^ gSocket->Port)))
 						{
-							logprintf("samp-addon: Invalid auth key sent from %i", input.clientID);
+							addonDebug("Invalid auth key sent from %i", input.clientID);
 
 							gSocket->KickClient(input.clientID);
 
@@ -165,7 +165,7 @@ void amxProcess::Thread()
 
 					case 2000:
 					{
-						char code[5];
+						char code[16];
 
 						#if defined WIN32
 							sscanf_s(input.data.c_str(), "%*s %*s %*i %s", code, sizeof code);
@@ -175,6 +175,8 @@ void amxProcess::Thread()
 
 						if(strcmp(code, "START"))
 							addonDebug("File transfering to client %i started", input.clientID);
+						else
+							addonDebug("Invalid start header sent from %i", input.clientID);
 						
 						break;
 					}

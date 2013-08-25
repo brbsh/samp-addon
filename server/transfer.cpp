@@ -37,7 +37,6 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 	boost::mutex sMutex;
 	boost::system::error_code error;
 	boost::shared_ptr<boost::asio::ip::tcp::socket> socketid;
-	std::stringstream format;
 	std::size_t length = NULL;
 	std::size_t total = NULL;
 	std::size_t file_length = NULL;
@@ -66,6 +65,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		cPool = gPool->clientPool.find(clientid)->second;
 
 		cPool.Transfer.Active = false;
+		cPool.Transfer.file.clear();
 
 		gPool->clientPool[clientid] = cPool;
 		lock.unlock();
@@ -81,8 +81,13 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 
 	addonDebug("File %s has %i bytes length", file_name.c_str(), file_length);
 
-	format << "TCPQUERY SERVER_CALL" << " " << 2000 << " " << remote_file_name << " " << file_length;
-	socketid->write_some(boost::asio::buffer(format.str()));
+	#if defined WIN32
+		sprintf_s(buffer, "TCPQUERY SERVER_CALL 2000 %s %i", remote_file_name.c_str(), file_length);
+	#else
+		sprintf(buffer, "TCPQUERY SERVER_CALL 2000 %s %i", remote_file_name.c_str(), file_length);
+	#endif
+
+	socketid->write_some(boost::asio::buffer(buffer));
 
 	addonDebug("Length query sended, sleeping for 1 sec...");
 
@@ -107,6 +112,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		cPool = gPool->clientPool.find(clientid)->second;
 
 		cPool.Transfer.Active = false;
+		cPool.Transfer.file.clear();
 
 		gPool->clientPool[clientid] = cPool;
 		lock.unlock();
@@ -132,6 +138,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		cPool = gPool->clientPool.find(clientid)->second;
 
 		cPool.Transfer.Active = false;
+		cPool.Transfer.file.clear();
 
 		gPool->clientPool[clientid] = cPool;
 		lock.unlock();
@@ -156,10 +163,36 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		if(total > file_length)
 		{
 			addonDebug("WARNING: Total transfered data (%i) bigger than it's length (%i), cutted", total, file_length);
-			socketid->write_some(boost::asio::buffer(buffer, (length - (total - file_length))));
+			socketid->write_some(boost::asio::buffer(buffer, (length - (total - file_length))), error);
 		}
 		else
-			socketid->write_some(boost::asio::buffer(buffer, length));
+			socketid->write_some(boost::asio::buffer(buffer, length), error);
+
+		if(error)
+		{
+			addonDebug("An error occured while sending file %s to client %i", file_name.c_str(), clientid);
+
+			pushError.io = 0;
+			pushError.clientid = clientid;
+			pushError.file = file_name;
+			pushError.error.assign("Error while sending file");
+			pushError.errorCode = 4;
+
+			boost::mutex::scoped_lock lock(sMutex);
+			amxFileErrorQueue.push(pushError);
+
+			cPool = gPool->clientPool.find(clientid)->second;
+
+			cPool.Transfer.Active = false;
+			cPool.Transfer.file.clear();
+
+			gPool->clientPool[clientid] = cPool;
+			lock.unlock();
+
+			fclose(io);
+
+			return;
+		}
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(50));
 	}
@@ -176,7 +209,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		pushError.clientid = clientid;
 		pushError.file = file_name;
 		pushError.error.assign("Error while receiving final response");
-		pushError.errorCode = 4;
+		pushError.errorCode = 5;
 
 		boost::mutex::scoped_lock lock(sMutex);
 		amxFileErrorQueue.push(pushError);
@@ -184,6 +217,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		cPool = gPool->clientPool.find(clientid)->second;
 
 		cPool.Transfer.Active = false;
+		cPool.Transfer.file.clear();
 
 		gPool->clientPool[clientid] = cPool;
 		lock.unlock();
@@ -195,13 +229,13 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 
 	if(strcmp(buffer, "TCPQUERY CLIENT_CALL 2000 END"))
 	{
-		addonDebug("Invalid final response from client %i", clientid);
+		addonDebug("Invalid final response '%s' from client %i", buffer, clientid);
 
 		pushError.io = 0;
 		pushError.clientid = clientid;
 		pushError.file = file_name;
 		pushError.error.assign("Invalid final response from client");
-		pushError.errorCode = 5;
+		pushError.errorCode = 6;
 
 		boost::mutex::scoped_lock lock(sMutex);
 		amxFileErrorQueue.push(pushError);
@@ -209,6 +243,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 		cPool = gPool->clientPool.find(clientid)->second;
 
 		cPool.Transfer.Active = false;
+		cPool.Transfer.file.clear();
 
 		gPool->clientPool[clientid] = cPool;
 		lock.unlock();
@@ -231,6 +266,7 @@ void amxTransfer::SendThread(int clientid, std::string file_name, std::string re
 	cPool = gPool->clientPool.find(clientid)->second;
 
 	cPool.Transfer.Active = false;
+	cPool.Transfer.file.clear();
 
 	gPool->clientPool[clientid] = cPool;
 	lock.unlock();

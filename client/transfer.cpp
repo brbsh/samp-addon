@@ -11,7 +11,6 @@
 addonTransfer *gTransfer;
 
 
-extern addonFS *gFS;
 extern addonData *gData;
 extern addonSocket *gSocket;
 
@@ -148,10 +147,7 @@ void addonTransfer::ReceiveThread(std::string file_name, std::size_t file_length
 
 	addonDebug("Thread addonTransfer::ReceiveThread(%s, %i) started", file_name.c_str(), file_length);
 
-	if(gFS->FileExist(file_name))
-		gFS->RemoveFile(file_name);
-
-	fopen_s(&io, file_name.c_str(), "ab");
+	fopen_s(&io, file_name.c_str(), "wb");
 
 	if(!io)
 	{

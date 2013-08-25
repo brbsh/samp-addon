@@ -15,7 +15,6 @@ extern addonData *gData;
 extern addonTransfer *gTransfer;
 extern addonSocket *gSocket;
 extern addonScreen *gScreen;
-extern addonFS *gFS;
 
 extern std::queue<std::string> recvQueue;
 
@@ -156,13 +155,6 @@ void addonProcess::Thread()
 							break;
 						}
 
-						if((!strcmp(file_name, "END") || !strcmp(file_name, "READY")) && !length)
-						{
-							addonDebug("Unexpected data passed!");
-
-							break;
-						}
-
 						gSocket->Socket->write_some(boost::asio::buffer("TCPQUERY CLIENT_CALL 2000 START", 32));
 
 						boost::mutex::scoped_lock lock(pMutex);
@@ -183,13 +175,6 @@ void addonProcess::Thread()
 						if(!strcmp(file_name, "START"))
 						{
 							addonDebug("File transfering to server started");
-
-							break;
-						}
-
-						if(!strcmp(file_name, "END") || !strcmp(file_name, "READY"))
-						{
-							addonDebug("Unexpected data passed!");
 
 							break;
 						}
