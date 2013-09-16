@@ -26,6 +26,24 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 		if(GetModuleHandleW(L"_addon.asi") == /*boost::lexical_cast<HMODULE>(*/hinstDLL)//)
 		{
+			std::size_t old_file_size = boost::filesystem::file_size(addon_loader, error);
+
+			if(error)
+			{
+				addonDebug("Cannot calculate size of file 'addon.asi' (Error code: %i)", boost::lexical_cast<int>(error));
+
+				return false;
+			}
+
+			std::size_t new_file_size = boost::filesystem::file_size(addon_temp_loader, error);
+
+			if(error)
+			{
+				addonDebug("Cannot calculate size of file '_addon.asi' (Error code: %i)", boost::lexical_cast<int>(error));
+
+				return false;
+			}
+
 			boost::filesystem::copy(addon_temp_loader, addon_loader, error);
 
 			if(error)
@@ -35,21 +53,39 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				MessageBoxW(NULL, L"Cannot update addon loader, please post about this bug (including file addon.log) to https://github.com/BJIADOKC/samp-addon/issues", L"SAMP-Addon", NULL);
 			}
 			else
-				addonDebug("addon.asi was updated");
+				addonDebug("addon.asi (%i) was updated to newest version (%i)", old_file_size, new_file_size);
 
 			return false;
 		}
 
-		if(boost::filesystem::exists(addon_temp_loader))
-			boost::filesystem::remove(addon_temp_loader);
-
 		if(boost::filesystem::exists(addon_log))
-			boost::filesystem::remove(addon_log);
+		{
+			boost::filesystem::remove(addon_log, error);
+
+			if(error)
+				addonDebug("Cannot remove old log file 'addon.log' (Error code: %i)", boost::lexical_cast<int>(error));
+		}
 
 		addonDebug("\tDebugging started\n");
 		addonDebug("-----------------------------------------------------------------");
 		addonDebug("Called asi attach | asi base address: 0x%x | attach reason: %i | reserved: %i", hinstDLL, fdwReason, lpvReserved);
 		addonDebug("-----------------------------------------------------------------");
+
+		if(boost::filesystem::exists(addon_temp_loader))
+		{
+			addonDebug("Removing old instance of addon loader '_addon.asi'");
+
+			boost::filesystem::remove(addon_temp_loader, error);
+
+			if(error)
+			{
+				addonDebug("Cannot remove old instance of addon loader '_addon.asi' (Error code: %i)", boost::lexical_cast<int>(error));
+
+				return false;
+			}
+
+			addonDebug("Old instance of addon loader '_addon.asi' was removed");
+		}
 
 		if(!boost::filesystem::exists(addon_loader) || (GetModuleHandleW(L"addon.asi") != /*boost::lexical_cast<HMODULE>(*/hinstDLL))//)
 		{
@@ -81,7 +117,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 						return false;
 					}
 					else
-						addonDebug("Updated addon.asi was copied to temp loader (_addon.asi)");
+						addonDebug("Updated addon.asi was copied to temp loader '_addon.asi'");
 
 					boost::filesystem::remove(dir->path(), error);
 
@@ -333,7 +369,7 @@ void addonLoader::Thread(HINSTANCE addon_loader_address, std::size_t addon_loade
 
 	if(!addon)
 	{
-		addonDebug("Cannot launch SAMP\\addon\\addon.dll");
+		addonDebug("Cannot launch SAMP\\addon\\addon.dll (Error code: %i)", GetLastError());
 
 		return;
 	}
@@ -342,7 +378,7 @@ void addonLoader::Thread(HINSTANCE addon_loader_address, std::size_t addon_loade
 
 	if(!addon_start)
 	{
-		addonDebug("Cannot export main loader function");
+		addonDebug("Cannot export main loader function (Error code: %i)", GetLastError());
 
 		return;
 	}

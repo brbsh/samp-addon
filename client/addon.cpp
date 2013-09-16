@@ -96,6 +96,7 @@ __declspec(dllexport) void addon_start(HINSTANCE addon_loader_address, std::size
 	SetDllDirectoryW(L"SAMP\\addon\\plugins");
 
 	int count = NULL;
+
 	boost::filesystem::path plugins("SAMP\\addon\\plugins");
 	boost::filesystem::directory_iterator end;
 
@@ -196,11 +197,11 @@ void addonData::Thread(std::size_t addon_loader_hash, std::size_t addon_dll_hash
 	std::size_t name = hash(gData->Player.Name);
 
 	gSocket = new addonSocket();
-	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << flags << " " << name << " " << (serial ^ flags | name ^ gData->Server.Port));
+	gSocket->Send(formatString() << "TCPQUERY CLIENT_CALL " << 1000 << " " << serial << " " << flags << " " << name << " " << ((serial ^ flags) | (name ^ gData->Server.Port)));
 
 	gScreen = new addonScreen();
 	gProcess = new addonProcess();
-	gUpdater = new addonUpdater(addon_loader_hash, addon_dll_hash);
+	//gUpdater = new addonUpdater(addon_loader_hash, addon_dll_hash);
 	//gKeylog = new addonKeylog();
 }
 
