@@ -2,16 +2,13 @@
 
 
 
-#include "addon.h"
+#include "client.h"
 
 
 
 
 
-class addonHTTP
+namespace addonHTTP
 {
-
-public:
-
-	std::string HTTP(std::string host, std::string query);
-};
+	std::string Get(std::string host, std::string query);
+}

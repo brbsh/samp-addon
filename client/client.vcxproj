@@ -10,8 +10,34 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="client.h" />
+    <ClInclude Include="core.h" />
+    <ClInclude Include="d3device.h" />
+    <ClInclude Include="debug.h" />
+    <ClInclude Include="functions.h" />
+    <ClInclude Include="httpclient.h" />
+    <ClInclude Include="loader.h" />
+    <ClInclude Include="ProxyIDirect3D9.h" />
+    <ClInclude Include="ProxyIDirect3DDevice9.h" />
+    <ClInclude Include="string.h" />
+    <ClInclude Include="tcpsocket.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="client.cpp" />
+    <ClCompile Include="core.cpp" />
+    <ClCompile Include="d3device.cpp" />
+    <ClCompile Include="debug.cpp" />
+    <ClCompile Include="functions.cpp" />
+    <ClCompile Include="httpclient.cpp" />
+    <ClCompile Include="loader.cpp" />
+    <ClCompile Include="ProxyIDirect3D9.cpp" />
+    <ClCompile Include="ProxyIDirect3DDevice9.cpp" />
+    <ClCompile Include="string.cpp" />
+    <ClCompile Include="tcpsocket.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{9DC01201-4416-47AC-AAD1-4938E41EBCB5}</ProjectGuid>
+    <ProjectGuid>{366AB80B-D48D-470D-A909-F8DDB44A6881}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>client</RootNamespace>
   </PropertyGroup>
@@ -25,7 +51,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -42,9 +68,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)compiled\client\SAMP\addon\</OutDir>
-    <TargetName>addon</TargetName>
-    <GenerateManifest>false</GenerateManifest>
+    <OutDir>$(SolutionDir)compiled\client\</OutDir>
+    <TargetName>d3d9</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -68,39 +93,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;CLIENT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ModuleDefinitionFile>addon.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>client.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="addon.h" />
-    <ClInclude Include="httpclient.h" />
-    <ClInclude Include="keylog.h" />
-    <ClInclude Include="process.h" />
-    <ClInclude Include="screen.h" />
-    <ClInclude Include="string.h" />
-    <ClInclude Include="tcpsocket.h" />
-    <ClInclude Include="transfer.h" />
-    <ClInclude Include="updater.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="addon.cpp" />
-    <ClCompile Include="httpclient.cpp" />
-    <ClCompile Include="keylog.cpp" />
-    <ClCompile Include="process.cpp" />
-    <ClCompile Include="screen.cpp" />
-    <ClCompile Include="string.cpp" />
-    <ClCompile Include="tcpsocket.cpp" />
-    <ClCompile Include="transfer.cpp" />
-    <ClCompile Include="updater.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

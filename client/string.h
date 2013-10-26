@@ -2,30 +2,27 @@
 
 
 
-#include "addon.h"
+#include "client.h"
 
 
 
 
 
-class addonString
+namespace addonString
 {
-
-public:
-
-	std::string wstring_to_string(const std::wstring &input);
+	std::string wstringToString(const std::wstring &input);
 	std::string vprintf(const char *format, va_list args);
 };
 
 
 
-class formatString 
+class strFormat
 {
 
 public:
 
     template<class T>
-    formatString& operator<< (const T& arg) 
+    strFormat& operator<< (const T& arg) 
 	{
         m_stream << arg;
         return *this;

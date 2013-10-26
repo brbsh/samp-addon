@@ -8,14 +8,16 @@
 
 
 
-addonString *gString;
+extern boost::shared_ptr<addonDebug> gDebug;
 
 
 
 
 
-std::string addonString::wstring_to_string(const std::wstring &input)
+std::string addonString::wstringToString(const std::wstring &input)
 {
+	gDebug->TraceLastFunction(strFormat() << "addonString::wstringToString(...) at 0x" << std::hex << &addonString::wstringToString);
+
 	char *buffer = new char[(input.length() + 1)];
 	std::string output;
 
@@ -32,6 +34,8 @@ std::string addonString::wstring_to_string(const std::wstring &input)
 
 std::string addonString::vprintf(const char *format, va_list args)
 {
+	gDebug->TraceLastFunction(strFormat() << "addonString::vprintf(...) at 0x" << std::hex << &addonString::vprintf);
+
 	int length = vsnprintf(NULL, NULL, format, args);
 	char *chars = new char[++length];
 

@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{E404D541-7B28-473C-B54F-D7D2B1F7F19B}</ProjectGuid>
+    <ProjectGuid>{0F56D934-3EE3-4958-812B-55FE5C97094D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>server</RootNamespace>
   </PropertyGroup>
@@ -44,7 +44,6 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)compiled\server\</OutDir>
     <TargetName>addon</TargetName>
-    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -68,15 +67,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SERVER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ModuleDefinitionFile>addon.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -95,7 +91,6 @@
     <ClCompile Include="natives.cpp" />
     <ClCompile Include="pool.cpp" />
     <ClCompile Include="process.cpp" />
-    <ClCompile Include="SDK\amxplugin.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
     <ClCompile Include="transfer.cpp" />

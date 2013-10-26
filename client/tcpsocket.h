@@ -2,7 +2,7 @@
 
 
 
-#include "addon.h"
+#include "client.h"
 
 
 
@@ -13,18 +13,8 @@ class addonSocket
 
 public:
 
-	static void Thread();
-	static void SendThread();
-	static void ReceiveThread();
-
 	addonSocket();
-	~addonSocket();
+	virtual ~addonSocket();
 
-	void Send(std::string data);
-
-	bool threadActive;
-
-	boost::mutex Mutex;
-	boost::asio::io_service io;
-	boost::shared_ptr<boost::asio::ip::tcp::socket> Socket;
+	boost::asio::io_service IOService;
 };
