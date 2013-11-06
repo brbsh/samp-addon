@@ -8,6 +8,7 @@
 
 
 
+extern boost::asio::io_service gIOService;
 extern boost::shared_ptr<addonDebug> gDebug;
 extern boost::shared_ptr<addonSocket> gSocket;
 
@@ -17,20 +18,18 @@ extern boost::shared_ptr<addonSocket> gSocket;
 
 std::string addonHTTP::Get(std::string host, std::string query)
 {
-	boost::mutex hMutex;
+	gDebug->traceLastFunction("addonHTTP::Get(host = '%s', query = '%s') at 0x%x", host.c_str(), query.c_str(), &addonHTTP::Get);
+
     boost::system::error_code error;
     std::stringstream ret;
 
-    hMutex.lock();
-    boost::asio::ip::tcp::resolver resolver(gSocket->IOService);
-    hMutex.unlock();
-
+    boost::asio::ip::tcp::resolver resolver(gIOService);
     boost::asio::ip::tcp::resolver::query q(host, "http");
 
     boost::asio::ip::tcp::resolver::iterator endpoint = resolver.resolve(q, error);
     boost::asio::ip::tcp::resolver::iterator end;
 
-    boost::asio::ip::tcp::socket socket(gSocket->IOService);
+    boost::asio::ip::tcp::socket socket(gIOService);
     error = boost::asio::error::host_not_found;
 
     while(error && (endpoint != end))
@@ -43,7 +42,7 @@ std::string addonHTTP::Get(std::string host, std::string query)
     {
         gDebug->Log("Cannot connect to %s:80", host.c_str());
 
-        return "";
+        return "\0";
     }
 
     boost::asio::streambuf request;
@@ -73,7 +72,7 @@ std::string addonHTTP::Get(std::string host, std::string query)
     {
         gDebug->Log("Invalid response from %s:80", host.c_str());
 
-        return "";
+        return "\0";
     }
 
     boost::asio::read_until(socket, response, "\r\n\r\n");
@@ -94,7 +93,7 @@ std::string addonHTTP::Get(std::string host, std::string query)
         {
             gDebug->Log("Transfer error");
 
-            return "";
+            return "\0";
         }
 
         ret << &response;

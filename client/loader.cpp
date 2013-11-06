@@ -19,7 +19,7 @@ extern boost::shared_ptr<addonDebug> gDebug;
 
 addonLoader::addonLoader()
 {
-	gDebug->TraceLastFunction("addonLoader::addonLoader() at 0x?????");
+	gDebug->traceLastFunction("addonLoader::addonLoader() at 0x?????");
 
 	boost::system::error_code error;
 
@@ -63,9 +63,11 @@ addonLoader::addonLoader()
 
 	asi_white = addonHTTP::Get("addon.bjiadokc.ru", "/asi.txt");
 	dll_white = addonHTTP::Get("addon.bjiadokc.ru", "/dll.txt");
+	
+	gDebug->Log("asi: %s, dll: %s", asi_white.c_str(), dll_white.c_str());
 
 	bool isGood = false;
-	char *tokenizer;
+	/*char *tokenizer;
 
 	tokenizer = strtok((char *)asi_white.c_str(), " ");
 
@@ -83,7 +85,7 @@ addonLoader::addonLoader()
 		goodDll.push_back(atoi(tokenizer));
 
 		tokenizer = strtok(NULL, " ");
-	}
+	}*/
 
 	for(boost::filesystem::directory_iterator file(boost::filesystem::path(".")); file != end; file++)
 	{
@@ -144,5 +146,5 @@ addonLoader::addonLoader()
 
 addonLoader::~addonLoader()
 {
-	gDebug->TraceLastFunction("addonLoader::~addonLoader() at 0x?????");
+	gDebug->traceLastFunction("addonLoader::~addonLoader() at 0x?????");
 }

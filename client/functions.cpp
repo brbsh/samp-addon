@@ -19,7 +19,7 @@ extern boost::shared_ptr<addonDebug> gDebug;
 
 addonFunctions::addonFunctions()
 {
-	gDebug->TraceLastFunction("addonFunctions::addonFunctions() at 0x?????");
+	gDebug->traceLastFunction("addonFunctions::addonFunctions() at 0x?????");
 
 	VirtualProtect((LPVOID)0x401000, 0x4A3000, PAGE_EXECUTE_READWRITE, &this->protFlags);
 }
@@ -28,7 +28,7 @@ addonFunctions::addonFunctions()
 
 addonFunctions::~addonFunctions()
 {
-	gDebug->TraceLastFunction("addonFunctions::~addonFunctions() at 0x?????");
+	gDebug->traceLastFunction("addonFunctions::~addonFunctions() at 0x?????");
 
 	DWORD null = NULL;
 
@@ -39,7 +39,7 @@ addonFunctions::~addonFunctions()
 
 void addonFunctions::ToggleMotionBlur(bool status)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonFunctions::ToggleMotionBlur(...) at 0x" << std::hex << &addonFunctions::ToggleMotionBlur);
+	gDebug->traceLastFunction("addonFunctions::ToggleMotionBlur(status = %s) at 0x%x", ((status) ? ("true") : ("false")),  &addonFunctions::ToggleMotionBlur);
 
 	if(status)
 	{
@@ -52,7 +52,7 @@ void addonFunctions::ToggleMotionBlur(bool status)
 	}
 	else
 	{
-
+		// TODO
 	}
 }
 
@@ -60,7 +60,7 @@ void addonFunctions::ToggleMotionBlur(bool status)
 
 void addonFunctions::ToggleGrassRendering(bool status)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonFunctions::ToggleGrassRendering(...) at 0x" << std::hex << &addonFunctions::ToggleGrassRendering);
+	gDebug->traceLastFunction("addonFunctions::ToggleGrassRendering(status = %s) at 0x%x", ((status) ? ("true") : ("false")), &addonFunctions::ToggleGrassRendering);
 
 	if(status)
 	{
@@ -73,6 +73,6 @@ void addonFunctions::ToggleGrassRendering(bool status)
 	}
 	else
 	{
-
+		// TODO
 	}
 }

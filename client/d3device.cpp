@@ -19,61 +19,66 @@ extern boost::shared_ptr<addonDebug> gDebug;
 
 addonD3Device::addonD3Device()
 {
-	//gDebug->TraceLastFunction("addonD3Device::addonD3Device() at 0x?????");
+	//gDebug->traceLastFunction("addonD3Device::addonD3Device() at 0x?????");
 
 	this->OriginalRender = NULL;
+	this->HookedRender = NULL;
 	this->OriginalDevice = NULL;
+	this->HookedDevice = NULL;
+
 	this->wText = NULL;
+
+	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
+	//this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonD3Device::Thread)));
 }
 
 
 
 addonD3Device::~addonD3Device()
 {
-	gDebug->TraceLastFunction("addonD3Device::~addonD3Device() at 0x?????");
+	gDebug->traceLastFunction("addonD3Device::~addonD3Device() at 0x?????");
+
+	this->wText->Release();
+	this->mutexInstance->destroy();
 }
 
 
 
-void addonD3Device::SetRender(IDirect3D9 *render)
+void addonD3Device::setRender(IDirect3D9 *render, bool original)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::SetRender(render = 0x" << std::hex << (int)render << ") at 0x" << std::hex << &addonD3Device::SetRender);
+	//gDebug->traceLastFunction("addonD3Device::setRender(render = 0x%x, original = %s) at 0x%x", (int)render, ((original) ? ("true") : ("false")), &addonD3Device::setRender);
 
-	this->OriginalRender = render;
+	this->mutexInstance->lock();
+
+	if(original)
+		this->OriginalRender = render;
+	else
+		this->HookedRender = render;
+
+	this->mutexInstance->unlock();
 }
 
 
 
-IDirect3D9 *addonD3Device::GetRender()
+void addonD3Device::setDevice(IDirect3DDevice9 *device, bool original)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::GetRender() at 0x" << std::hex << &addonD3Device::GetRender);
+	//gDebug->traceLastFunction("addonD3Device::setDevice(device = 0x%x) at 0x%x", (int)device, ((original) ? ("true") : ("false")), &addonD3Device::setDevice);
 
-	return this->OriginalRender;
-}
+	this->mutexInstance->lock();
 
+	if(original)
+		this->OriginalDevice = device;
+	else
+		this->HookedDevice = device;
 
-
-void addonD3Device::SetDevice(IDirect3DDevice9 *device)
-{
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::SetDevice(device = 0x" << std::hex << (int)device << ") at 0x" << std::hex << &addonD3Device::SetDevice);
-
-	this->OriginalDevice = device;
-}
-
-
-
-IDirect3DDevice9 *addonD3Device::GetDevice()
-{
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::GetDevice() at 0x" << std::hex << &addonD3Device::GetDevice);
-
-	return this->OriginalDevice;
+	this->mutexInstance->unlock();
 }
 
 
 
 void addonD3Device::Screenshot(std::string filename)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::Screenshot(filename = '" << filename << "') at 0x" << std::hex << &addonD3Device::Screenshot);
+	gDebug->traceLastFunction("addonD3Device::Screenshot(filename = '%s') at 0x%x", filename.c_str(), &addonD3Device::Screenshot);
 
 	boost::filesystem::path file(filename);
 
@@ -94,10 +99,10 @@ void addonD3Device::Screenshot(std::string filename)
 
 void addonD3Device::InitFontRender()
 {
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::InitFontRender() at 0x" << std::hex << &addonD3Device::InitFontRender);
+	//gDebug->traceLastFunction("addonD3Device::InitFontRender() at 0x%x", &addonD3Device::InitFontRender);
 
 	if(this->wText == NULL)
-		D3DXCreateFont(this->OriginalDevice, 18, NULL, FW_NORMAL, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &this->wText);
+		D3DXCreateFont(this->HookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &this->wText);
 	else
 	{
 		this->wText->OnLostDevice();
@@ -109,27 +114,14 @@ void addonD3Device::InitFontRender()
 
 void addonD3Device::RenderText(std::string text, int x, int y, int r, int g, int b, int a)
 {
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::RenderText(...) at 0x" << std::hex << &addonD3Device::RenderText);
+	//gDebug->traceLastFunction("addonD3Device::RenderText(text = '%s', x = 0x%x, y = 0x%x, r = 0x%x, g = 0x%x, b = 0x%x, a = 0x%x) at 0x%x", text.c_str(), x, y, r, g, b, a, &addonD3Device::RenderText);
 
 	RECT rText;
 
 	rText.left = x;
 	rText.top = y;
-	rText.right = 10000;
-	rText.bottom = 10000;
+	rText.right = 1680;
+	rText.bottom = (y + 200);
 
-	this->OriginalDevice->BeginScene();
-	this->wText->DrawText(NULL, text.c_str(), text.length(), &rText, NULL, D3DCOLOR_ARGB(a, r, g, b));
-	this->OriginalDevice->EndScene();
-}
-
-
-
-void addonD3Device::ReleaseRenderedText()
-{
-	gDebug->TraceLastFunction(strFormat() << "addonD3Device::ReleaseRenderedText() at 0x" << std::hex << &addonD3Device::ReleaseRenderedText);
-
-	this->OriginalDevice->BeginScene();
-	this->wText->Release();
-	this->OriginalDevice->EndScene();
+	this->wText->DrawText(NULL, text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB(a, r, g, b));
 }

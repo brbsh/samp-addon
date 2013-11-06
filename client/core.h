@@ -16,8 +16,15 @@ public:
 	addonCore();
 	virtual ~addonCore();
 
-	boost::mutex *getMutexInstance();
-	boost::thread *getThreadInstance();
+	boost::mutex *getMutexInstance() const
+	{
+		return mutexInstance.get();
+	}
+
+	boost::thread *getThreadInstance() const
+	{
+		return threadInstance.get();
+	}
 
 	static void Thread();
 

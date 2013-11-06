@@ -6,11 +6,12 @@
 
 
 #include <algorithm>
-#include <fstream>
-#include <iostream>
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <d3dx9tex.h>
+#include <fstream>
+#include <iostream>
+#include <list>
 #include <queue>
 #include <string>
 #include <sstream>
@@ -28,10 +29,12 @@
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
+#include <boost/unordered_map.hpp>
 
 #include "ProxyIDirect3D9.h"
 #include "ProxyIDirect3DDevice9.h"
 
+#include "addrpool.h"
 #include "core.h"
 #include "d3device.h"
 #include "debug.h"

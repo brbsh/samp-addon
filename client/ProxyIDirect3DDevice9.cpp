@@ -14,7 +14,7 @@ extern boost::shared_ptr<addonD3Device> gD3Device;
 
 
 
-ProxyIDirect3DDevice9::ProxyIDirect3DDevice9(IDirect3DDevice9* _original, UINT _adapter, D3DDEVTYPE _deviceType, HWND _focusWindow, DWORD _behaviorFlags, D3DPRESENT_PARAMETERS* _presentationParameters) :
+ProxyIDirect3DDevice9::ProxyIDirect3DDevice9(IDirect3DDevice9 *_original, UINT _adapter, D3DDEVTYPE _deviceType, HWND _focusWindow, DWORD _behaviorFlags, D3DPRESENT_PARAMETERS *_presentationParameters) :
 	original(_original),
 	adapter(_adapter),
 	deviceType(_deviceType),
@@ -25,10 +25,14 @@ ProxyIDirect3DDevice9::ProxyIDirect3DDevice9(IDirect3DDevice9* _original, UINT _
 
 }
 
+
+
 ProxyIDirect3DDevice9::~ProxyIDirect3DDevice9()
 {
 
 }
+
+
 
 HRESULT ProxyIDirect3DDevice9::QueryInterface(REFIID riid, void** ppvObj)
 {
@@ -240,7 +244,6 @@ HRESULT ProxyIDirect3DDevice9::SetRenderTarget(DWORD RenderTargetIndex,IDirect3D
 	return original->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 }
 
-
 HRESULT ProxyIDirect3DDevice9::GetRenderTarget(DWORD RenderTargetIndex,IDirect3DSurface9** ppRenderTarget)
 {
 	return original->GetRenderTarget(RenderTargetIndex, ppRenderTarget);
@@ -258,11 +261,25 @@ HRESULT ProxyIDirect3DDevice9::GetDepthStencilSurface(IDirect3DSurface9** ppZSte
 
 HRESULT ProxyIDirect3DDevice9::BeginScene()
 {
+	gD3Device->InitFontRender();
+
 	return original->BeginScene();
 }
 
 HRESULT ProxyIDirect3DDevice9::EndScene()
 {
+	if(!gD3Device->renderList.empty())
+	{
+		renderData render;
+
+		for(std::list<renderData>::iterator i = gD3Device->renderList.begin(); i != gD3Device->renderList.end(); i++)
+		{
+			render = *i;
+
+			gD3Device->RenderText(render.text, render.x, render.y, render.r, render.g, render.b, render.a);
+		}
+	}
+
 	return original->EndScene();
 }
 

@@ -20,16 +20,17 @@ public:
 	virtual ~addonDebug();
 
 	void Log(char *format, ...);
-	void TraceLastFunction(std::string funcdata);
+	void traceLastFunction(char *format, ...);
 
-	std::string GetLastFunction();
-	std::string GetCurrentFunction();
+	boost::mutex *getMutexInstance() const
+	{
+		return mutexInstance.get();
+	}
 
-	boost::mutex *getMutexInstance();
-	boost::thread *getThreadInstance();
-
-	void SetLastFunction(std::string funcname);
-	void SetCurrentFunction(std::string funcname);
+	boost::thread *getThreadInstance() const
+	{
+		return threadInstance.get();
+	}
 
 	static void Thread();
 	static LONG WINAPI UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *ExceptionInfo);

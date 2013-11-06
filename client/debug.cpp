@@ -16,34 +16,20 @@ boost::shared_ptr<addonDebug> gDebug;
 
 addonDebug::addonDebug()
 {
-	this->TraceLastFunction("addonDebug::addonDebug() at 0x?????");
-
 	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonDebug::Thread)));
+
+	this->traceLastFunction("addonDebug::addonDebug() at 0x?????");
 }
 
 
 
 addonDebug::~addonDebug()
 {
-	this->TraceLastFunction("addonDebug::~addonDebug() at 0x?????");
+	this->traceLastFunction("addonDebug::~addonDebug() at 0x?????");
 
 	this->getMutexInstance()->destroy();
 	this->getThreadInstance()->interrupt();
-}
-
-
-
-boost::mutex *addonDebug::getMutexInstance()
-{
-	return this->mutexInstance.get();
-}
-
-
-
-boost::thread *addonDebug::getThreadInstance()
-{
-	return this->threadInstance.get();
 }
 
 
@@ -250,7 +236,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 void addonDebug::Log(char *format, ...)
 {
-	this->TraceLastFunction(strFormat() << "addonDebug::Log(...) at 0x" << std::hex << &addonDebug::Log);
+	//this->traceLastFunction("addonDebug::Log(...) at 0x%x", &addonDebug::Log);
 
 	va_list args;
 
@@ -265,16 +251,26 @@ void addonDebug::Log(char *format, ...)
 
 
 
-void addonDebug::TraceLastFunction(std::string funcdata)
+void addonDebug::traceLastFunction(char *format, ...)
 {
-	this->funcTrace.push_back(funcdata);
+	va_list args;
+
+	va_start(args, format);
+
+	this->getMutexInstance()->lock();
+	this->funcTrace.push_back(addonString::vprintf(format, args));
+	this->getMutexInstance()->unlock();
+
+	va_end(args);
 }
 
 
 
 void addonDebug::Thread()
 {
-	gDebug->TraceLastFunction(strFormat() << "addonDebug::Thread() at 0x" << std::hex << &addonDebug::Thread);
+	assert(gDebug->getThreadInstance->get_id() == boost::this_thread::get_id());
+
+	gDebug->traceLastFunction("addonDebug::Thread() at 0x%x", &addonDebug::Thread);
 
 	char timeform[16];
 	struct tm *timeinfo;

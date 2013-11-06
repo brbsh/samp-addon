@@ -22,7 +22,7 @@ class strFormat
 public:
 
     template<class T>
-    strFormat& operator<< (const T& arg) 
+    strFormat& operator<<(const T& arg) 
 	{
         m_stream << arg;
         return *this;

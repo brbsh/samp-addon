@@ -8,15 +8,11 @@
 
 
 
-HINSTANCE d3d9_dll_instance;
-HINSTANCE d3d9_original;
 FARPROC proxy = NULL;
 
-IDirect3D9 *render_original;
-ProxyIDirect3D9 *render_hooked;
-IDirect3DDevice9 *device_hooked;
-ProxyIDirect3DDevice9 *device_original;
 
+boost::atomic<HINSTANCE> addonDLLInstance;
+boost::atomic<HINSTANCE> d3d9DLLInstance;
 boost::atomic<bool> addonInit;
 
 
@@ -30,7 +26,7 @@ extern boost::shared_ptr<addonDebug> gDebug;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	//gDebug->TraceLastFunction(strFormat() << "DllMain(hModule = 0x" << std::hex << hModule << ", ul_reason_for_call = 0x" << std::hex << ul_reason_for_call << ", lpReserved = 0x" << std::hex << lpReserved << ") at 0x" << std::hex << &DllMain);
+	//gDebug->traceLastFunction("DllMain(hModule = 0x%x, ul_reason_for_call = 0x%x, lpReserved = 0x%x) at 0x%x", hModule, ul_reason_for_call, lpReserved, &DllMain);
 
 	switch(ul_reason_for_call)
 	{
@@ -39,32 +35,40 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			if(GetModuleHandle("d3d9.dll") != hModule)
 				return false;
 
-			char filename[MAX_PATH];
+			if(!GetModuleHandle("gta_sa.exe") && !GetModuleHandle("gta-sa.exe"))
+				return false;
+
+			if(!GetModuleHandle("samp.dll"))
+			{
+				if(!addonInit)
+					gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
+
+				addonInit = true;
+			}
 
 			DisableThreadLibraryCalls(hModule);
 			SetUnhandledExceptionFilter(addonDebug::UnhandledExceptionFilter);
 
-			gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
+			char filename[MAX_PATH];
 
 			GetSystemDirectory(filename, (UINT)(MAX_PATH - 10));
 			strcat_s(filename, "\\d3d9.dll");
 
-			d3d9_dll_instance = hModule;
-			d3d9_original = LoadLibrary(filename);
+			addonDLLInstance = hModule;
+			d3d9DLLInstance = LoadLibrary(filename);
 
-			if(!d3d9_original)
-			{
+			if(!d3d9DLLInstance)
 				return false;
-			}
 
-			proxy = GetProcAddress(d3d9_original, "Direct3DCreate9");
+			proxy = GetProcAddress(d3d9DLLInstance, "Direct3DCreate9");
 		}
 		break;
 
 		case DLL_PROCESS_DETACH:
 		{
-			FreeLibrary(d3d9_original);
-			d3d9_original = NULL;
+			FreeLibrary(d3d9DLLInstance);
+
+			d3d9DLLInstance = NULL;
 		}
 		break;
 	}
@@ -77,17 +81,32 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 // Direct3DCreate9
 IDirect3D9 *__stdcall d3dHook_Direct3DCreate9(UINT SDKVersion)
 {
+	IDirect3D9 *render_original = NULL;
+	ProxyIDirect3D9 *render_hooked = NULL;
+
 	if(!addonInit)
+	{
 		gCore = boost::shared_ptr<addonCore>(new addonCore());
+		gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
 
-	addonInit = true;
-
-	gDebug->TraceLastFunction(strFormat() << "d3dHook_Direct3DCreate9(SDKVersion = 0x" << std::hex << SDKVersion << ") at 0x" << std::hex << &d3dHook_Direct3DCreate9);
+		gDebug->traceLastFunction("d3dHook_Direct3DCreate9(SDKVersion = 0x%x) at 0x%x", SDKVersion, &d3dHook_Direct3DCreate9);
+		gDebug->Log("Called Direct3DCreate9, hooking it...");
+	}
 
 	render_original = ((pfnDirect3DCreate9)proxy)(SDKVersion);
 	render_hooked = new ProxyIDirect3D9(render_original);
 
-	gD3Device->SetRender(render_original);
+	gD3Device->setRender(render_original, true);
+	gD3Device->setRender(render_hooked, false);
+	
+	if(!addonInit)
+	{
+		gDebug->Log("Original render address: 0x%x", (int)render_original);
+		gDebug->Log("Hooked render address: 0x%x", (int)render_hooked);
+		gDebug->Log("Returning hooked render address, hook was installed!");
+	}
+
+	addonInit = true;
 
 	return render_hooked;
 }
