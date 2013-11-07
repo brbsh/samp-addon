@@ -11,6 +11,7 @@
 struct renderData
 {
 	std::string text;
+
 	int x;
 	int y;
 	int r;
@@ -33,20 +34,27 @@ public:
 
 	void Screenshot(std::string filename);
 
-	void InitFontRender();
-	void RenderText(std::string text, int x, int y, int r, int g, int b, int a);
+	void initRender(boost::mutex *mutex);
+	void renderText(std::string text, int x, int y, int r, int g, int b, int a, boost::mutex *mutex);
+	void stopLastRender(boost::mutex *mutex);
+	void clearRender(boost::mutex *mutex);
 
 	void setRender(IDirect3D9 *render, bool original);
 	void setDevice(IDirect3DDevice9 *device, bool original);
 
 	IDirect3D9 *getRender(bool original) const
 	{
-		return (original) ? OriginalRender : HookedRender;
+		return (original) ? originalRender : hookedRender;
 	}
 
 	IDirect3DDevice9 *getDevice(bool original) const
 	{
-		return (original) ? OriginalDevice : HookedDevice;
+		return (original) ? originalDevice : hookedDevice;
+	}
+
+	ID3DXFont *getTextRender() const
+	{
+		return renderInstance;
 	}
 
 	boost::mutex *getMutexInstance() const
@@ -56,13 +64,13 @@ public:
 
 private:
 
-	IDirect3D9 *OriginalRender;
-	IDirect3D9 *HookedRender;
-	IDirect3DDevice9 *OriginalDevice;
-	IDirect3DDevice9 *HookedDevice;
+	IDirect3D9 *originalRender;
+	IDirect3D9 *hookedRender;
+	IDirect3DDevice9 *originalDevice;
+	IDirect3DDevice9 *hookedDevice;
 
-	ID3DXFont *wText;
+	ID3DXFont *renderInstance;
 
 	boost::shared_ptr<boost::mutex> mutexInstance;
-	boost::shared_ptr<boost::thread> threadInstance;
+	//boost::shared_ptr<boost::thread> threadInstance;
 };

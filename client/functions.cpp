@@ -20,6 +20,7 @@ extern boost::shared_ptr<addonDebug> gDebug;
 addonFunctions::addonFunctions()
 {
 	gDebug->traceLastFunction("addonFunctions::addonFunctions() at 0x?????");
+	gDebug->Log("Called functions constructor");
 
 	VirtualProtect((LPVOID)0x401000, 0x4A3000, PAGE_EXECUTE_READWRITE, &this->protFlags);
 }
@@ -29,6 +30,7 @@ addonFunctions::addonFunctions()
 addonFunctions::~addonFunctions()
 {
 	gDebug->traceLastFunction("addonFunctions::~addonFunctions() at 0x?????");
+	gDebug->Log("Called functions destructor");
 
 	DWORD null = NULL;
 
@@ -43,16 +45,21 @@ void addonFunctions::ToggleMotionBlur(bool status)
 
 	if(status)
 	{
-		// Motion blur
-		*(BYTE *)0x704E8A = 0xE8;
-		*(BYTE *)0x704E8B = 0x11;
-		*(BYTE *)0x704E8C = 0xE2;
-		*(BYTE *)0x704E8D = 0xFF;
-		*(BYTE *)0x704E8E = 0xFF;
+		// Motion blur: ON
+		GTA_BLUR_ADDR_1 = 0xE8;
+		GTA_BLUR_ADDR_2 = 0x11;
+		GTA_BLUR_ADDR_3 = 0xE2;
+		GTA_BLUR_ADDR_4 = 0xFF;
+		GTA_BLUR_ADDR_5 = 0xFF;
 	}
 	else
 	{
-		// TODO
+		// Motion blur: OFF
+		GTA_BLUR_ADDR_1 = 0x90;
+		GTA_BLUR_ADDR_2 = 0x90;
+		GTA_BLUR_ADDR_3 = 0x90;
+		GTA_BLUR_ADDR_4 = 0x90;
+		GTA_BLUR_ADDR_5 = 0x90;
 	}
 }
 
@@ -64,15 +71,20 @@ void addonFunctions::ToggleGrassRendering(bool status)
 
 	if(status)
 	{
-		// Grass
-		*(BYTE *)0x53C159 = 0xE8;
-		*(BYTE *)0x53C15A = 0x42;
-		*(BYTE *)0x53C15B = 0x0E;
-		*(BYTE *)0x53C15C = 0x0A;
-		*(BYTE *)0x53C15D = 0x00;
+		// Grass rendering: ON
+		GTA_GRASS_ADDR_1 = 0xE8;
+		GTA_GRASS_ADDR_2 = 0x42;
+		GTA_GRASS_ADDR_3 = 0x0E;
+		GTA_GRASS_ADDR_4 = 0x0A;
+		GTA_GRASS_ADDR_5 = 0x00;
 	}
 	else
 	{
-		// TODO
+		// Grass rendering: OFF
+		GTA_GRASS_ADDR_1 = 0x90;
+		GTA_GRASS_ADDR_2 = 0x90;
+		GTA_GRASS_ADDR_3 = 0x90;
+		GTA_GRASS_ADDR_4 = 0x90;
+		GTA_GRASS_ADDR_5 = 0x90;
 	}
 }

@@ -21,12 +21,12 @@ addonD3Device::addonD3Device()
 {
 	//gDebug->traceLastFunction("addonD3Device::addonD3Device() at 0x?????");
 
-	this->OriginalRender = NULL;
-	this->HookedRender = NULL;
-	this->OriginalDevice = NULL;
-	this->HookedDevice = NULL;
+	this->originalRender = NULL;
+	this->hookedRender = NULL;
+	this->originalDevice = NULL;
+	this->hookedDevice = NULL;
 
-	this->wText = NULL;
+	this->renderInstance = NULL;
 
 	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	//this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonD3Device::Thread)));
@@ -37,8 +37,8 @@ addonD3Device::addonD3Device()
 addonD3Device::~addonD3Device()
 {
 	gDebug->traceLastFunction("addonD3Device::~addonD3Device() at 0x?????");
+	gDebug->Log("Called D3Device destructor");
 
-	this->wText->Release();
 	this->mutexInstance->destroy();
 }
 
@@ -51,9 +51,9 @@ void addonD3Device::setRender(IDirect3D9 *render, bool original)
 	this->mutexInstance->lock();
 
 	if(original)
-		this->OriginalRender = render;
+		this->originalRender = render;
 	else
-		this->HookedRender = render;
+		this->hookedRender = render;
 
 	this->mutexInstance->unlock();
 }
@@ -67,9 +67,9 @@ void addonD3Device::setDevice(IDirect3DDevice9 *device, bool original)
 	this->mutexInstance->lock();
 
 	if(original)
-		this->OriginalDevice = device;
+		this->originalDevice = device;
 	else
-		this->HookedDevice = device;
+		this->hookedDevice = device;
 
 	this->mutexInstance->unlock();
 }
@@ -83,12 +83,19 @@ void addonD3Device::Screenshot(std::string filename)
 	boost::filesystem::path file(filename);
 
 	if(boost::filesystem::exists(file))
-		boost::filesystem::remove(file);
+	{
+		boost::system::error_code error;
+
+		boost::filesystem::remove(file, error);
+
+		if(error)
+			gDebug->Log("Cannot remove file %s: %s (Error code: %i)", filename.c_str(), error.message().c_str(), error.value());
+	}
 
 	IDirect3DSurface9 *pSurface;
 
-	this->OriginalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
-	this->OriginalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
+	this->originalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
+	this->originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
 
 	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
 
@@ -97,31 +104,62 @@ void addonD3Device::Screenshot(std::string filename)
 
 
 
-void addonD3Device::InitFontRender()
+void addonD3Device::initRender(boost::mutex *mutex)
 {
-	//gDebug->traceLastFunction("addonD3Device::InitFontRender() at 0x%x", &addonD3Device::InitFontRender);
+	mutex->lock();
 
-	if(this->wText == NULL)
-		D3DXCreateFont(this->HookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &this->wText);
+	if(!this->renderInstance)
+	{
+		D3DXCreateFont(this->hookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &this->renderInstance);
+	}
 	else
 	{
-		this->wText->OnLostDevice();
-		this->wText->OnResetDevice();
+		this->renderInstance->OnLostDevice();
+		this->renderInstance->OnResetDevice();
 	}
+
+	mutex->unlock();
 }
 
 
 
-void addonD3Device::RenderText(std::string text, int x, int y, int r, int g, int b, int a)
+void addonD3Device::renderText(std::string text, int x, int y, int r, int g, int b, int a, boost::mutex *mutex)
 {
-	//gDebug->traceLastFunction("addonD3Device::RenderText(text = '%s', x = 0x%x, y = 0x%x, r = 0x%x, g = 0x%x, b = 0x%x, a = 0x%x) at 0x%x", text.c_str(), x, y, r, g, b, a, &addonD3Device::RenderText);
+	gDebug->traceLastFunction("addonD3Device::renderText(text = '%s', x = 0x%x, y = 0x%x, r = 0x%x, g = 0x%x, b = 0x%x, a = 0x%x) at 0x%x", text.c_str(), x, y, r, g, b, a, &addonD3Device::renderText);
 
-	RECT rText;
+	renderData struct_push;
 
-	rText.left = x;
-	rText.top = y;
-	rText.right = 1680;
-	rText.bottom = (y + 200);
+	struct_push.text = text;
+	struct_push.x = x;
+	struct_push.y = y;
+	struct_push.r = r;
+	struct_push.g = g;
+	struct_push.b = b;
+	struct_push.a = a;
 
-	this->wText->DrawText(NULL, text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB(a, r, g, b));
+	mutex->lock();
+	this->renderList.push_back(struct_push);
+	mutex->unlock();
+}
+
+
+
+void addonD3Device::stopLastRender(boost::mutex *mutex)
+{
+	gDebug->traceLastFunction("addonD3Device::stopLastRender() at 0x%x", &addonD3Device::stopLastRender);
+
+	mutex->lock();
+	this->renderList.pop_back();
+	mutex->unlock();
+}
+
+
+
+void addonD3Device::clearRender(boost::mutex *mutex)
+{
+	gDebug->traceLastFunction("addonD3Device::clearRender() at 0x%x", &addonD3Device::clearRender);
+
+	mutex->lock();
+	this->renderList.clear();
+	mutex->unlock();
 }

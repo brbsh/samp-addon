@@ -13,12 +13,10 @@ class addonSocket
 
 public:
 	
-	boost::asio::io_service IOService;
-
 	addonSocket();
 	virtual ~addonSocket();
 
-	void Connect(std::string ip, unsigned short port);
+	bool Connect(std::string ip, UINT port);
 	void Send(std::string data);
 
 	boost::asio::ip::tcp::socket *getSocket() const
@@ -26,24 +24,26 @@ public:
 		return socket.get();
 	}
 
-	boost::mutex *getMutexInstance() const
+	boost::mutex *getMutexInstance(bool recv) const
 	{
-		return mutexInstance.get();
+		return (recv) ? mutexRecvInstance.get() : mutexSendInstance.get();
 	}
 
 	boost::thread *getThreadInstance(bool recv) const
 	{
-		return (recv) ? recvThreadHandle.get() : sendThreadHandle.get();
+		return (recv) ? recvThreadInstance.get() : sendThreadInstance.get();
 	}
 
-	static void sendThread(addonSocket *sock);
-	static void recvThread(addonSocket *sock);
+	static void sendThread();
+	static void recvThread();
 
 private:
 
-	boost::shared_ptr<boost::mutex> mutexInstance;
-	boost::shared_ptr<boost::thread> sendThreadHandle;
-	boost::shared_ptr<boost::thread> recvThreadHandle;
+	boost::shared_ptr<boost::mutex> mutexSendInstance;
+	boost::shared_ptr<boost::mutex> mutexRecvInstance;
+
+	boost::shared_ptr<boost::thread> sendThreadInstance;
+	boost::shared_ptr<boost::thread> recvThreadInstance;
 
 	boost::shared_ptr<boost::asio::ip::tcp::socket> socket;
 };

@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "client", "client\client.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server", "server\server.vcxproj", "{0F56D934-3EE3-4958-812B-55FE5C97094D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "updater", "updater\updater.vcxproj", "{18C664D7-0DBC-42C0-8D4D-FA22F4FBA341}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -21,6 +23,10 @@ Global
 		{0F56D934-3EE3-4958-812B-55FE5C97094D}.Debug|Win32.Build.0 = Debug|Win32
 		{0F56D934-3EE3-4958-812B-55FE5C97094D}.Release|Win32.ActiveCfg = Release|Win32
 		{0F56D934-3EE3-4958-812B-55FE5C97094D}.Release|Win32.Build.0 = Release|Win32
+		{18C664D7-0DBC-42C0-8D4D-FA22F4FBA341}.Debug|Win32.ActiveCfg = Debug|Win32
+		{18C664D7-0DBC-42C0-8D4D-FA22F4FBA341}.Debug|Win32.Build.0 = Debug|Win32
+		{18C664D7-0DBC-42C0-8D4D-FA22F4FBA341}.Release|Win32.ActiveCfg = Release|Win32
+		{18C664D7-0DBC-42C0-8D4D-FA22F4FBA341}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

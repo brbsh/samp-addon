@@ -10,7 +10,6 @@
 
 namespace addonString
 {
-	std::string wstringToString(const std::wstring &input);
 	std::string vprintf(const char *format, va_list args);
 };
 

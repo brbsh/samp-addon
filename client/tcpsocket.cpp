@@ -12,6 +12,7 @@ boost::asio::io_service gIOService;
 boost::shared_ptr<addonSocket> gSocket;
 
 
+extern boost::shared_ptr<addonCore> gCore;
 extern boost::shared_ptr<addonDebug> gDebug;
 
 
@@ -21,15 +22,17 @@ extern boost::shared_ptr<addonDebug> gDebug;
 addonSocket::addonSocket()
 {
 	gDebug->traceLastFunction("addonSocket::addonSocket() at 0x?????");
+	gDebug->Log("Called socket constructor");
 
 	boost::system::error_code error;
 
 	gIOService.run(error);
 
 	if(error)
-		gDebug->Log("Cannot run I/O service: %s (%i)", error.message().c_str(), boost::lexical_cast<int>(error));
+		gDebug->Log("Cannot run I/O service: %s (Error code: %i)", error.message().c_str(), error.value());
 
-	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
+	this->mutexSendInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
+	this->mutexRecvInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 }
 
 
@@ -37,10 +40,14 @@ addonSocket::addonSocket()
 addonSocket::~addonSocket()
 {
 	gDebug->traceLastFunction("addonSocket::~addonSocket() at 0x?????");
+	gDebug->Log("Called socket destructor");
 
-	this->mutexInstance->destroy();
-	this->sendThreadHandle->interrupt();
-	this->recvThreadHandle->interrupt();
+	this->sendThreadInstance->interruption_requested();
+	this->recvThreadInstance->interruption_requested();
+
+	this->mutexSendInstance->destroy();
+	this->mutexRecvInstance->destroy();
+
 	this->socket->shutdown(boost::asio::socket_base::shutdown_both);
 	this->socket->close();
 
@@ -49,43 +56,77 @@ addonSocket::~addonSocket()
 
 
 
-void addonSocket::Connect(std::string host, unsigned short port)
+bool addonSocket::Connect(std::string host, UINT port)
 {
+	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
+
 	gDebug->traceLastFunction("addonSocket::Connect(host = '%s', port = 0x%x) at 0x%x", host.c_str(), port, &addonSocket::Connect);
+	gDebug->Log("Attempting to connect to %s:%i trough TCP", host.c_str(), port);
 	
 	boost::system::error_code error;
 
-	this->socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(this->IOService));
-	boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address_v4::from_string(host), port);
-	this->socket->connect(endpoint, error);
+	this->socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(gIOService));
+	this->socket->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(host), port), error);
 
 	if(error)
-		gDebug->Log("Cannot connect to %s:%i: %s (%i)", host.c_str(), port, error.message().c_str(), boost::lexical_cast<int>(error));
-	else
-		gDebug->Log("Connected to %s:%i trough TCP", host.c_str(), port);
+	{
+		gDebug->Log("Cannot connect to %s:%i trough TCP: %s (Error code: %i)", host.c_str(), port, error.message().c_str(), error.value());
 
-	this->sendThreadHandle = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::recvThread, this)));
-	this->recvThreadHandle = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::sendThread, this)));
+		return false;
+	}
+	else
+	{
+		gDebug->Log("Connected to %s:%i trough TCP", host.c_str(), port);
+	}
+
+	this->sendThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::recvThread)));
+	this->recvThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::sendThread)));
+
+	return true;
 }
 
 
 
-void addonSocket::sendThread(addonSocket *sock)
+void addonSocket::sendThread()
 {
 	assert(gSocket->getThreadInstance(false)->get_id() == boost::this_thread::get_id());
 
-	gDebug->traceLastFunction("addonSocket::sendThread(sock = 0x%x) at 0x%x", &sock, &addonSocket::sendThread);
+	gDebug->traceLastFunction("addonSocket::sendThread() at 0x%x", &addonSocket::sendThread);
+	gDebug->Log("Started socket send thread with id 0x%x", gSocket->getThreadInstance(false)->get_thread_info()->id);
 
-	boost::mutex tMutex;
+	boost::system::error_code error;
+	boost::asio::streambuf buffer;
+
+	std::size_t length;
 
 	while(true)
 	{
-		/*if(true) // if(!queue.empty())
+		while(!gCore->outputQueue.empty())
 		{
 			boost::this_thread::disable_interruption di;
 
+			std::ostream request(&buffer);
+			std::pair<UINT, std::string> sendData;
+
+			gSocket->getMutexInstance(false)->lock();
+			sendData = gCore->outputQueue.front();
+			gCore->outputQueue.pop();
+			gSocket->getMutexInstance(false)->unlock();
+
+			request << "TCPQUERY CLIENT_CALL" << " " << sendData.first;
+			request << "DATA" << " " << sendData.second << "\n.\n.\n.";
+
+			length = boost::asio::write(*gSocket->getSocket(), buffer, error);
+
+			if(error)
+				gDebug->Log("Cannot write to socket: %s (Error code: %i)", error.message().c_str(), error.value());
+
+			if(length < 1)
+				gDebug->Log("NULL or negative length returned by socket write function");
+
+			boost::this_thread::restore_interruption re(di);
 			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-		}*/
+		}
 
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
@@ -93,23 +134,41 @@ void addonSocket::sendThread(addonSocket *sock)
 
 
 
-void addonSocket::recvThread(addonSocket *sock)
+void addonSocket::recvThread()
 {
 	assert(gSocket->getThreadInstance(true)->get_id() == boost::this_thread::get_id());
 
-	gDebug->traceLastFunction("addonSocket::recvThread(sock = 0x%x) at 0x%x", &sock, &addonSocket::recvThread);
+	gDebug->traceLastFunction("addonSocket::recvThread() at 0x%x", &addonSocket::recvThread);
+	gDebug->Log("Started socket receive thread with id 0x%x", gSocket->getThreadInstance(true)->get_thread_info()->id);
 
-	boost::mutex tMutex;
+	boost::system::error_code error;
+	boost::asio::streambuf buffer;
+
+	std::size_t length;
 
 	while(true)
 	{
-		/*if(true) // if(!queue.empty())
+		boost::this_thread::disable_interruption di;
+
+		length = boost::asio::read_until(*gSocket->getSocket(), buffer, "\n.\n.\n.", error);
+
+		if(error)
+			gDebug->Log("Cannot read from socket: %s (Error code: %i)", error.message().c_str(), error.value());
+
+		if(length > 0)
 		{
-			boost::this_thread::disable_interruption di;
+			std::istream response(&buffer);
+			std::pair<UINT, std::string> pushData;
 
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-		}*/
+			response >> pushData.first;
+			std::getline(response, pushData.second);
 
+			gSocket->getMutexInstance(true)->lock();
+			gCore->pendingQueue.push(pushData);
+			gSocket->getMutexInstance(true)->unlock();
+		}
+
+		boost::this_thread::restore_interruption re(di);
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }

@@ -9,6 +9,7 @@
 
 
 boost::shared_ptr<addonCore> gCore;
+boost::unordered_map<std::string, std::string> gMap;
 
 
 extern boost::shared_ptr<addonD3Device> gD3Device;
@@ -29,6 +30,7 @@ addonCore::addonCore()
 	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
 	gDebug->traceLastFunction("addonCore::addonCore() at 0x?????");
+	gDebug->Log("Core constructor called");
 
 	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonCore::Thread)));
@@ -38,19 +40,11 @@ addonCore::addonCore()
 
 addonCore::~addonCore()
 {
-	//gFunctions->~addonFunctions();
-	//gFunctions.reset();
-
-	//gSocket->~addonSocket();
-	//gSocket.reset();
-
-	//gLoader->~addonLoader();
-	//gLoader.reset();
-
 	gDebug->traceLastFunction("addonCore::~addonCore() at 0x?????");
+	gDebug->Log("Core destructor called");
 
-	this->getMutexInstance()->destroy();
-	this->getThreadInstance()->interrupt();
+	this->threadInstance->interruption_requested();
+	this->mutexInstance->destroy();
 }
 
 
@@ -59,74 +53,33 @@ void addonCore::Thread()
 {
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
-	boost::mutex tMutex;
-
 	gDebug->traceLastFunction("addonCore::Thread() at 0x%x", &addonCore::Thread);
+	gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->get_thread_info()->id);
 
-	while(gD3Device->getDevice(true) == NULL) // Wait until we create D3D device
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+	gCore->getMutexInstance()->lock();
 
-	renderData loading;
+	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
+		boost::this_thread::sleep_for(boost::chrono::seconds(5));
 
-	loading.text.assign("Loading SAMP-Addon...");
-	loading.x = 10;
-	loading.y = 10;
-	loading.r = 255;
-	loading.g = 0;
-	loading.b = 0;
-	loading.a = 127;
+	gCore->getMutexInstance()->unlock();
+	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	tMutex.lock();
-	gD3Device->renderList.push_back(loading);
-	tMutex.unlock();
+	boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
-	boost::this_thread::sleep_for(boost::chrono::seconds(2));
+	gD3Device->stopLastRender(gCore->getMutexInstance());
+	gD3Device->renderText("Loading SAMP-Addon... OK!", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
+	gD3Device->renderText("Scanning GTA dir for illegal files...", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	tMutex.lock();
-	gD3Device->renderList.pop_back();
-	tMutex.unlock();
+	boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
-	loading.text.assign("Loading SAMP-Addon... OK!");
-	loading.x = 10;
-	loading.y = 10;
-	loading.r = 255;
-	loading.g = 0;
-	loading.b = 0;
-	loading.a = 127;
+	gD3Device->stopLastRender(gCore->getMutexInstance());
+	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	tMutex.lock();
-	gD3Device->renderList.push_back(loading);
-	tMutex.unlock();
+	char sysdrive[5];
 
-	loading.text.assign("Scanning GTA dir for illegal files...");
-	loading.x = 10;
-	loading.y = 30;
-	loading.r = 255;
-	loading.g = 0;
-	loading.b = 0;
-	loading.a = 127;
-
-	tMutex.lock();
-	gD3Device->renderList.push_back(loading);
-	tMutex.unlock();
-
-	boost::this_thread::sleep_for(boost::chrono::seconds(2));
-
-	tMutex.lock();
-	gD3Device->renderList.pop_back();
-	tMutex.unlock();
-
-	loading.text.assign("Scanning GTA dir for illegal files... OK!");
-	loading.x = 10;
-	loading.y = 30;
-	loading.r = 255;
-	loading.g = 0;
-	loading.b = 0;
-	loading.a = 127;
-
-	tMutex.lock();
-	gD3Device->renderList.push_back(loading);
-	tMutex.unlock();
+	DWORD serial = NULL;
+	DWORD flags = NULL;
+	UINT port = NULL;
 
 	std::string cmdline(GetCommandLine());
 
@@ -135,40 +88,74 @@ void addonCore::Thread()
 	std::size_t port_ptr = (cmdline.find("-p") + 3);
 	std::size_t pass_ptr = (cmdline.find("-z") + 3);
 
-	std::string name = cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4));
-	std::string ip = cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4));
-	UINT port = atoi(cmdline.substr(port_ptr, 5).c_str());
+	gMap["serverIP"] = cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4));
+	gMap["serverPort"] = cmdline.substr(port_ptr, 5);
+	gMap["playerName"] = cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4));
 
 	if(pass_ptr != std::string::npos)
 	{
+		gMap["serverPassword"] = cmdline.substr(pass_ptr, INFINITE);
+
 		//password
 	}
 
-	loading.text.assign(strFormat() << "Connecting to " << ip << ":" << port << " ...");
-	loading.x = 10;
-	loading.y = 50;
-	loading.r = 255;
-	loading.g = 0;
-	loading.b = 0;
-	loading.a = 127;
+	strcpy_s(sysdrive, getenv("SystemDrive"));
+	strcat_s(sysdrive, "\\");
 
-	tMutex.lock();
-	gD3Device->renderList.push_back(loading);
-	tMutex.unlock();
+	port = (atoi(gMap.find("serverPort")->second.c_str()) + 1);
 
-	//gSocket->Connect("127.0.0.1", 7777);
+	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
+	gMap["playerSerial"] = strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags;
 
-	while(GTA_PED_STATUS_ADDR == NULL) // PED context load flag
+	gD3Device->renderText(strFormat() << "Your UID is: " << gMap.find("playerSerial")->second, 300, 30, 255, 255, 255, 127, gCore->getMutexInstance());
+	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ...", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+
+	boost::this_thread::sleep_for(boost::chrono::seconds(1));
+
+	if(gSocket->Connect(gMap.find("serverIP")->second, port))
+	{
+		gD3Device->stopLastRender(gCore->getMutexInstance());
+		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ... OK!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+	}
+	else
+	{
+		gD3Device->stopLastRender(gCore->getMutexInstance());
+		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ... ERROR!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+		gD3Device->renderText("Addon TCP server is temporary unavalible, or this server hasn't support of SAMP-Addon", 10, 70, 255, 255, 255, 127, gCore->getMutexInstance());
+	}
+
+	while(!GTA_PED_STATUS_ADDR) // PED context load flag
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
 
-	tMutex.lock();
-	gD3Device->renderList.clear();
-	tMutex.unlock();
+	gD3Device->clearRender(gCore->getMutexInstance());
 
-	boost::this_thread::sleep_for(boost::chrono::seconds(10));
+	//boost::this_thread::sleep_for(boost::chrono::seconds(10));
 
 	gFunctions->ToggleMotionBlur(true);
 	gFunctions->ToggleGrassRendering(true);
 
-	//RaiseException(0x0000DEAD, NULL, NULL, NULL);
+	while(true)
+	{
+		while(!gCore->pendingQueue.empty())
+		{
+			boost::this_thread::disable_interruption di;
+
+			std::pair<UINT, std::string> data;
+
+			gCore->getMutexInstance()->lock();
+			data = gCore->pendingQueue.front();
+			gCore->pendingQueue.pop();
+			gCore->getMutexInstance()->unlock();
+
+			switch(data.first)
+			{
+
+			}
+
+			boost::this_thread::restore_interruption re(di);
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		}
+
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+	}
 }

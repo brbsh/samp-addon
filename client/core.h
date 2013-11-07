@@ -13,6 +13,9 @@ class addonCore
 
 public:
 
+	std::queue<std::pair<UINT, std::string>> outputQueue;
+	std::queue<std::pair<UINT, std::string>> pendingQueue;
+
 	addonCore();
 	virtual ~addonCore();
 

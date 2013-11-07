@@ -261,7 +261,7 @@ HRESULT ProxyIDirect3DDevice9::GetDepthStencilSurface(IDirect3DSurface9** ppZSte
 
 HRESULT ProxyIDirect3DDevice9::BeginScene()
 {
-	gD3Device->InitFontRender();
+	gD3Device->initRender(gD3Device->getMutexInstance());
 
 	return original->BeginScene();
 }
@@ -270,13 +270,16 @@ HRESULT ProxyIDirect3DDevice9::EndScene()
 {
 	if(!gD3Device->renderList.empty())
 	{
-		renderData render;
-
 		for(std::list<renderData>::iterator i = gD3Device->renderList.begin(); i != gD3Device->renderList.end(); i++)
 		{
-			render = *i;
+			RECT rText;
 
-			gD3Device->RenderText(render.text, render.x, render.y, render.r, render.g, render.b, render.a);
+			rText.left = (*i).x;
+			rText.top = (*i).y;
+			rText.right = 1680;
+			rText.bottom = ((*i).y + 200);
+
+			gD3Device->getTextRender()->DrawText(NULL, (*i).text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB((*i).a, (*i).r, (*i).g, (*i).b));
 		}
 	}
 

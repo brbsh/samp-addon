@@ -13,8 +13,8 @@ class addonDebug
 
 public:
 
-	std::queue<std::string> Queue;
-	std::vector<std::string> funcTrace;
+	std::queue<std::string> logQueue;
+	std::list<std::string> funcTrace;
 
 	addonDebug();
 	virtual ~addonDebug();
