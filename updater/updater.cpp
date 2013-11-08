@@ -15,6 +15,7 @@ int main()
 	boost::filesystem::path dllfile(".\\d3d9.dll");
 
 	printf("SAMP-Addon updater was started\n");
+	printf("Parameters passed: %s", GetCommandLine());
 	printf("Downloading update...\n");
 
 	HRESULT res = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/d3d9.tmp", ".\\d3d9.tmp", NULL, NULL);
@@ -73,9 +74,30 @@ int main()
 		printf("Cannot download changelog file: %i (Error code: %i)\n", res, GetLastError());
 	}
 
-	printf("Update completed! This window will close in 5 seconds\n");
+	WinExec("taskkill /F /IM samp.exe", SW_SHOW);
 
 	Sleep(5000);
+
+	printf("Launching samp.exe with parameters: %s\n", GetCommandLine());
+
+	STARTUPINFO updaterStart;
+	PROCESS_INFORMATION updaterStartInfo;
+
+	ZeroMemory(&updaterStart, sizeof(updaterStart));
+	updaterStart.cb = sizeof(updaterStart);
+
+	ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
+
+	if (CreateProcess("samp.exe", GetCommandLine(), NULL, NULL, FALSE, DETACHED_PROCESS, NULL, NULL, &updaterStart, &updaterStartInfo))
+	{
+
+	}
+	else
+	{
+		printf("Error while creating process samp.exe: %i\n", GetLastError());
+	}
+
+	printf("Update completed!\n");
 
 	system("exit");
 

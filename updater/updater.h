@@ -1,5 +1,6 @@
 #pragma once
 #pragma comment(lib, "urlmon.lib")
+#pragma warning(disable:4996)
 
 
 
@@ -11,4 +12,3 @@
 #include <Windows.h>
 
 #include <boost/filesystem.hpp>
-

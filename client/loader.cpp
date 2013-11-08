@@ -12,6 +12,7 @@ boost::shared_ptr<addonLoader> gLoader;
 
 
 extern boost::shared_ptr<addonDebug> gDebug;
+extern boost::unordered_map<std::string, std::string> gMap;
 
 
 
@@ -64,18 +65,49 @@ addonLoader::addonLoader()
 
 	/*if(boost::filesystem::exists(vorbishooked))
 	{
-		FreeLibrary(GetModuleHandle("VorbisFile.dll"));
-		boost::filesystem::remove(vorbisfile, error);
+	FreeLibrary(GetModuleHandle("VorbisFile.dll"));
+	boost::filesystem::remove(vorbisfile, error);
 
-		if(error)
-			gDebug->Log("Error while removing ASI loader: %s (Error code: %i)", error.message().c_str(), error.value());
+	if(error)
+	gDebug->Log("Error while removing ASI loader: %s (Error code: %i)", error.message().c_str(), error.value());
 
-		FreeLibrary(GetModuleHandle("VorbisHooked.dll"));
-		boost::filesystem::rename(vorbishooked, vorbisfile, error);
+	FreeLibrary(GetModuleHandle("VorbisHooked.dll"));
+	boost::filesystem::rename(vorbishooked, vorbisfile, error);
 
-		if(error)
-			gDebug->Log("Error while renaming original Vorbis: %s (Error code: %i)", error.message().c_str(), error.value());
+	if(error)
+	gDebug->Log("Error while renaming original Vorbis: %s (Error code: %i)", error.message().c_str(), error.value());
 	}*/
+
+	char sysdrive[5];
+
+	DWORD serial = NULL;
+	DWORD flags = NULL;
+
+	std::string cmdline(GetCommandLine());
+
+	MessageBox(NULL, cmdline.c_str(), "Command Line", NULL);
+
+	std::size_t name_ptr = (cmdline.find("-n") + 3);
+	std::size_t ip_ptr = (cmdline.find("-h") + 3);
+	std::size_t port_ptr = (cmdline.find("-p") + 3);
+	std::size_t pass_ptr = (cmdline.find("-z") + 3);
+
+	gMap["serverIP"] = cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4));
+	gMap["serverPort"] = cmdline.substr(port_ptr, 5);
+	gMap["playerName"] = cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4));
+
+	if(pass_ptr != std::string::npos)
+	{
+		gMap["serverPassword"] = cmdline.substr(pass_ptr, INFINITE);
+
+		//password
+	}
+
+	strcpy_s(sysdrive, getenv("SystemDrive"));
+	strcat_s(sysdrive, "\\");
+
+	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
+	gMap["playerSerial"] = strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags;
 
 	boost::unordered_map<std::string, std::size_t> legal;
 
@@ -105,8 +137,6 @@ addonLoader::addonLoader()
 
 		if(download == S_OK)
 		{
-			MessageBox(NULL, "Addon update process was started, press OK to continue\n\nЗапущено обновление аддона, нажмите ОК для продолжения", "SAMP-Addon", NULL);
-
 			STARTUPINFO updaterStart;
 			PROCESS_INFORMATION updaterStartInfo;
 
@@ -115,7 +145,7 @@ addonLoader::addonLoader()
 
 			ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
 
-			if(CreateProcess("updater.exe", NULL, NULL, NULL, FALSE, (CREATE_NEW_CONSOLE | CREATE_DEFAULT_ERROR_MODE), NULL, NULL, &updaterStart, &updaterStartInfo))
+			if(CreateProcess("updater.exe", (LPSTR)cmdline.substr((name_ptr - 3), INFINITE).c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
 			{
 				exit(EXIT_SUCCESS);
 			}

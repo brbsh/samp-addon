@@ -56,10 +56,12 @@ void addonCore::Thread()
 	gDebug->traceLastFunction("addonCore::Thread() at 0x%x", &addonCore::Thread);
 	gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->get_thread_info()->id);
 
+	boost::this_thread::sleep_for(boost::chrono::seconds(5));
+
 	gCore->getMutexInstance()->lock();
 
 	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
-		boost::this_thread::sleep_for(boost::chrono::seconds(5));
+		boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gCore->getMutexInstance()->unlock();
 	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
@@ -75,37 +77,7 @@ void addonCore::Thread()
 	gD3Device->stopLastRender(gCore->getMutexInstance());
 	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	char sysdrive[5];
-
-	DWORD serial = NULL;
-	DWORD flags = NULL;
-	UINT port = NULL;
-
-	std::string cmdline(GetCommandLine());
-
-	std::size_t name_ptr = (cmdline.find("-c -n") + 6);
-	std::size_t ip_ptr = (cmdline.find("-h") + 3);
-	std::size_t port_ptr = (cmdline.find("-p") + 3);
-	std::size_t pass_ptr = (cmdline.find("-z") + 3);
-
-	gMap["serverIP"] = cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4));
-	gMap["serverPort"] = cmdline.substr(port_ptr, 5);
-	gMap["playerName"] = cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4));
-
-	if(pass_ptr != std::string::npos)
-	{
-		gMap["serverPassword"] = cmdline.substr(pass_ptr, INFINITE);
-
-		//password
-	}
-
-	strcpy_s(sysdrive, getenv("SystemDrive"));
-	strcat_s(sysdrive, "\\");
-
-	port = (atoi(gMap.find("serverPort")->second.c_str()) + 1);
-
-	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
-	gMap["playerSerial"] = strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags;
+	UINT port = (atoi(gMap.find("serverPort")->second.c_str()) + 1);
 
 	gD3Device->renderText(strFormat() << "Your UID is: " << gMap.find("playerSerial")->second, 300, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ...", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
@@ -128,8 +100,6 @@ void addonCore::Thread()
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
 
 	gD3Device->clearRender(gCore->getMutexInstance());
-
-	//boost::this_thread::sleep_for(boost::chrono::seconds(10));
 
 	gFunctions->ToggleMotionBlur(true);
 	gFunctions->ToggleGrassRendering(true);
