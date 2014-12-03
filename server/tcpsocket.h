@@ -2,7 +2,7 @@
 
 
 
-#include "addon.h"
+#include "server.h"
 
 
 
@@ -13,16 +13,16 @@ class amxSocket
 
 public:
 
-	static void Thread();
-	static void SendThread();
-	static void ReceiveThread(int clientid);
-
 	amxSocket(std::string ip, int port, int maxclients);
 	~amxSocket();
 
 	bool IsClientConnected(int clientid);
 	void KickClient(int clientid);
 	void Send(int clientid, std::string data);
+
+	static void Thread();
+	static void SendThread();
+	static void ReceiveThread(int clientid);
 
 	bool Active;
 	int Port;
@@ -31,14 +31,4 @@ public:
 	std::string IP;
 	boost::mutex Mutex;
 
-	boost::asio::io_service io;
-};
-
-
-
-struct processStruct
-{
-	int clientID;
-
-	std::string data;
 };

@@ -12,7 +12,7 @@ boost::shared_ptr<addonLoader> gLoader;
 
 
 extern boost::shared_ptr<addonDebug> gDebug;
-extern boost::unordered_map<std::string, std::string> gMap;
+extern boost::shared_ptr<addonPool> gPool;
 
 
 
@@ -22,6 +22,9 @@ addonLoader::addonLoader()
 {
 	gDebug->traceLastFunction("addonLoader::addonLoader() at 0x?????");
 	gDebug->Log("Called loader constructor");
+
+	boost::mutex *tmpMutex = new boost::mutex();
+	tmpMutex->initialize();
 
 	boost::system::error_code error;
 
@@ -35,7 +38,7 @@ addonLoader::addonLoader()
 
 	boost::filesystem::directory_iterator end;
 
-	if(!boost::filesystem::exists(gtasa))
+	if(!boost::filesystem::exists(gtasa) && !boost::filesystem::exists(gtasa_steam))
 	{
 		gDebug->Log("Cannot find GTA SA executable, terminating...");
 
@@ -92,13 +95,13 @@ addonLoader::addonLoader()
 	std::size_t port_ptr = (cmdline.find("-p") + 3);
 	std::size_t pass_ptr = (cmdline.find("-z") + 3);
 
-	gMap["serverIP"] = cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4));
-	gMap["serverPort"] = cmdline.substr(port_ptr, 5);
-	gMap["playerName"] = cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4));
+	gPool->setVar("playerName", cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4)), tmpMutex);
+	gPool->setVar("serverIP", cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4)), tmpMutex);
+	gPool->setVar("serverPort", cmdline.substr(port_ptr, 5), tmpMutex);
 
 	if(pass_ptr != std::string::npos)
 	{
-		gMap["serverPassword"] = cmdline.substr(pass_ptr, INFINITE);
+		gPool->setVar("serverPassword", cmdline.substr(pass_ptr, INFINITE), tmpMutex);
 
 		//password
 	}
@@ -107,9 +110,7 @@ addonLoader::addonLoader()
 	strcat_s(sysdrive, "\\");
 
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
-	gMap["playerSerial"] = strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags;
-
-	boost::unordered_map<std::string, std::size_t> legal;
+	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags, tmpMutex);
 
 	HRESULT download = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/version.txt", ".\\version.txt", NULL, NULL);
 	UINT version = ADDON_NUMERIC_VERSION;
@@ -145,7 +146,7 @@ addonLoader::addonLoader()
 
 			ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
 
-			if(CreateProcess("updater.exe", (LPSTR)cmdline.substr((name_ptr - 3), INFINITE).c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
+			if(CreateProcess("updater.exe", (LPSTR)cmdline.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
 			{
 				exit(EXIT_SUCCESS);
 			}
@@ -167,6 +168,8 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("Addon version (%i) is up to date", version);
 	}
+
+	boost::unordered_map<std::string, std::size_t> legal;
 
 	download = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/whitelist.txt", ".\\whitelist.txt", NULL, NULL);
 
@@ -193,16 +196,16 @@ addonLoader::addonLoader()
 		gDebug->Log("Error while retrieving whitelist file: %i (Error code: %i)", download, GetLastError());
 	}
 	
-	gDebug->Log("\n\nLibrary whitelist: \n");
+	/*gDebug->Log("\n\nLibrary whitelist: \n");
 
 	for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 	{
 		gDebug->Log("%s %i", i->first.c_str(), i->second);
-	}
+	}*/
 
-	//bool isGood = false;
+	bool isGood = false;
 
-	/*for(boost::filesystem::directory_iterator file(current); file != end; file++)
+	for(boost::filesystem::directory_iterator file(current); file != end; file++)
 	{
 		if(boost::filesystem::is_regular_file(file->status()))
 		{
@@ -211,54 +214,45 @@ addonLoader::addonLoader()
 
 			isGood = false;
 
-			if(file->path().extension().string() == ".asi")
+			for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 			{
-				for(std::vector<std::size_t>::iterator i = goodAsi.begin(); i != goodAsi.end(); i++)
+				if((file->path().filename().string() == i->first) && (boost::filesystem::file_size(file->path()) == i->second))
 				{
-					if(*i == boost::filesystem::file_size(file->path()))
-					{
-						isGood = true;
+					isGood = true;
 
-						break;
-					}
-				}
-
-				if(!isGood)
-				{
-					gDebug->Log("Removing %s due to asi block active");
-
-					FreeLibrary(GetModuleHandle(file->path().filename().string().c_str()));
-					boost::filesystem::remove(file->path(), error);
-
-					if(error)
-						gDebug->Log("Cannot remove file %s: %s (Error code: %i)", file->path().filename().string().c_str(), error.message().c_str(), error.value());
-				}
-				else
-				{
-					if(LoadLibrary(file->path().filename().string().c_str()))
-						gDebug->Log("%s got loaded", file->path().filename().string().c_str());
-					else
-						gDebug->Log("Error while loading library %s", file->path().filename().string().c_str());
+					break;
 				}
 			}
-			else if(file->path().extension().string() == ".dll")
-			{
 
+			if(!isGood)
+			{
+				// bad file
+			}
+			else
+			{
+				if(file->path().extension().string() == ".asi")
+				{
+					if(LoadLibrary(file->path().filename().string().c_str()))
+						gDebug->Log("Plugin %s got loaded", file->path().filename().string().c_str());
+					else
+						gDebug->Log("Failed to load plugin %s", file->path().filename().string().c_str());
+				}
 			}
 		}
 		else if(boost::filesystem::is_directory(file->status()))
 		{
 			if(file->path().filename().string() == "cleo")
 			{
-				gDebug->Log("Removing cleo directory due to cheat block activated");
-
-				boost::filesystem::remove(file->path(), error);
-
-				if(error)
-					gDebug->Log("Cannot remove cleo directory: %s (Error code: %i)", error.message().c_str(), error.value());
+				// cleo dir found
+			}
+			else if(file->path().filename().string() == "mod_sa")
+			{
+				// m0d_sa dir found
 			}
 		}
-	}*/
+	}
+
+	tmpMutex->destroy();
 }
 
 

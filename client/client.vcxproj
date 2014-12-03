@@ -22,6 +22,7 @@
     <ClInclude Include="ProxyIDirect3DDevice9.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="tcpsocket.h" />
+    <ClInclude Include="pool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />
@@ -34,6 +35,7 @@
     <ClCompile Include="ProxyIDirect3DDevice9.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
+    <ClCompile Include="pool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="client.rc" />

@@ -10,13 +10,8 @@
 
 extern logprintf_t logprintf;
 
-extern amxPool *gPool;
-extern amxSocket *gSocket;
-extern amxString *gString;
-
-extern boost::mutex gMutex;
-
-extern std::queue<amxConnectError> amxConnectErrorQueue;
+extern boost::shared_ptr<amxPool> gPool;
+extern boost::shared_ptr<amxSocket> gSocket;
 
 
 
@@ -24,13 +19,13 @@ extern std::queue<amxConnectError> amxConnectErrorQueue;
 
 const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 {
-	{"InitAddon", amxNatives::Init},
-	{"IsClientConnected", amxNatives::IsClientConnected},
-	{"KickClient", amxNatives::KickClient},
-	{"GetClientSerial", amxNatives::GetClientSerial},
-	{"GetClientScreenshot", amxNatives::GetClientScreenshot},
-	{"TransferLocalFile", amxNatives::TransferLocalFile},
-	{"TransferRemoteFile", amxNatives::TransferRemoteFile},
+	{"InitAddon", amxNatives::InitAddon},
+	//{"IsClientConnected", amxNatives::IsClientConnected},
+	//{"KickClient", amxNatives::KickClient},
+	//{"GetClientSerial", amxNatives::GetClientSerial},
+	//{"GetClientScreenshot", amxNatives::GetClientScreenshot},
+	//{"TransferLocalFile", amxNatives::TransferLocalFile},
+	//{"TransferRemoteFile", amxNatives::TransferRemoteFile},
 
 	{NULL, NULL}
 };
@@ -38,58 +33,54 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 
 
 // native InitAddon(ip[], port, maxplayers);
-cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'samp_addon_init' (%i)", (params[0] >> 4));
+		logprintf("SAMP-Addon: Invalid argument count in native 'InitAddon' (%i)", (params[0] >> 4));
 
 		return NULL;
 	}
 
-	std::string ip = gString->Get(amx, params[1]);
+	std::string ip = amxString::Get(amx, params[1]);
 	int port = params[2];
 	int maxplayers = params[3];
 
 	if(!ip.length() || (ip.length() > 15))
 	{
-		logprintf("samp-addon: NULL ip argument passed to native 'samp_addon_init'");
+		logprintf("SAMP-Addon: NULL ip argument passed to native 'InitAddon'");
 
 		return NULL;
 	}
 
 	if((port < 1024) || (port > 65535))
 	{
-		logprintf("samp-addon: Invalid port value passed to native 'samp_addon_init' (%i)", port);
+		logprintf("SAMP-Addon: Invalid port value passed to native 'InitAddon' (%i)", port);
 
 		return NULL;
 	}
 
 	if((maxplayers < 0) || (maxplayers > 1000))
 	{
-		logprintf("samp-addon: Invalid max players value passed to native 'samp_addon_init' (%i)", maxplayers);
+		logprintf("SAMP-Addon: Invalid max players value passed to native 'InitAddon' (%i)", maxplayers);
 
 		return NULL;
 	}
 
 	if(gPool->pluginInit)
 	{
-		logprintf("samp-addon: Duplicate init interrupted");
+		logprintf("SAMP-Addon: Duplicate init interrupted");
 
 		return NULL;
 	}
 
-	port++;
+	logprintf("\nSAMP-Addon: Requested init with address: %s:%i, max clients is %i\n", ip.c_str(), ++port, maxplayers);
 
-	logprintf("\nsamp-addon: Init with address: %s:%i, max clients is %i\n", ip.c_str(), port, maxplayers);
+	boost::mutex tmpMutex;
 
-	boost::mutex::scoped_lock lock(gMutex);
+	tmpMutex.lock();
 	gPool->pluginInit = true;
-	lock.unlock();
-
-	gSocket = new amxSocket(ip, port, maxplayers);
-
-	boost::thread process(boost::bind(&amxProcess::Thread));
+	tmpMutex.unlock();
 	
 	return 1;
 }
@@ -97,18 +88,16 @@ cell AMX_NATIVE_CALL amxNatives::Init(AMX *amx, cell *params)
 
 
 // native IsClientConnected(clientid)
-cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
+/*cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'IsClientConnected' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'IsClientConnected' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
 
-	int clientid = params[1];
-
-	return (gSocket->IsClientConnected(clientid)) ? 1 : 0;
+	return (gSocket->IsClientConnected(params[1])) ? 1 : 0;
 }
 
 
@@ -118,14 +107,12 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'KickClient' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'KickClient' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
 
-	int clientid = params[1];
-
-	gSocket->KickClient(clientid);
+	gSocket->KickClient(params[1]);
 
 	return 1;
 }
@@ -169,16 +156,16 @@ cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	std::string filename = gString->Get(amx, params[2]);
+	std::string filename = amxString::Get(amx, params[2]);
 
 	if(!filename.length() || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)))
 	{
-		logprintf("samp-addon: Invalid file name format");
+		logprintf("SAMP-Addon: Invalid file name format");
 
 		return NULL;
 	}
 
-	gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
+	gSocket->Send(clientid, strFormat() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
 
 	return 1;
 }
@@ -237,4 +224,4 @@ cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 	gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << gString->Get(amx, params[1]));
 
 	return 1;
-}
+}*/

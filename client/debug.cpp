@@ -69,9 +69,9 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 			gDebug->Log("Cannot remove old crashreport file: %s (Error code: %i)", error.message().c_str(), error.value());
 	}
 
-	std::fstream report;
+	std::ofstream report;
 
-	report.open("addon_crashreport.log", (std::fstream::out | std::fstream::app));
+	report.open("addon_crashreport.log", (std::ofstream::out | std::ofstream::app));
 
 	report << "-----------------------------------------------------------------" << std::endl;
 	report << "\t\t     SAMP-Addon was crashed" << std::endl;
@@ -252,6 +252,7 @@ void addonDebug::Log(char *format, ...)
 {
 	va_list args;
 	boost::mutex logMutex;
+	logMutex.initialize();
 
 	va_start(args, format);
 
@@ -302,7 +303,7 @@ void addonDebug::Thread()
 	struct tm *timeinfo;
 	time_t rawtime;
 
-	std::fstream file;
+	std::ofstream file;
 	std::string data;
 
 	while(true)
@@ -320,7 +321,7 @@ void addonDebug::Thread()
 			timeinfo = localtime(&rawtime);
 			strftime(timeform, sizeof timeform, "%X", timeinfo);
 
-			file.open("addon.log", (std::fstream::out | std::fstream::app));
+			file.open("addon.log", (std::ofstream::out | std::ofstream::app));
 			file << "[" << timeform << "] " << data << std::endl;
 			file.close();
 

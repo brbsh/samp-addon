@@ -2,37 +2,9 @@
 
 
 
-#include "addon.h"
+#include "server.h"
 
 
-
-
-
-struct transfer
-{
-	bool Active;
-
-	std::string file;
-};
-
-
-
-struct client
-{
-	bool Auth;
-	int Serial;
-};
-
-
-
-struct cliPool
-{
-	boost::shared_ptr<boost::asio::ip::tcp::socket> socketid;
-	std::string ip;
-
-	struct transfer Transfer;
-	struct client Client;
-};
 
 
 
@@ -41,10 +13,16 @@ class amxPool
 
 public:
 
-	amxPool();
-	~amxPool();
-
 	bool pluginInit;
 
-	boost::unordered_map<int, cliPool> clientPool;
+	amxPool();
+	virtual ~amxPool();
+
+	void setServerVar(std::string key, std::string value, boost::mutex *mutex);
+	std::string getServerVar(std::string key, boost::mutex *mutex);
+
+private:
+
+	//boost::unordered_map<int, cliPool> clientPool;
+	boost::unordered_map<std::string, std::string> serverPool;
 };

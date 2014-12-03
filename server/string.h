@@ -3,17 +3,14 @@
 
 
 
-#include "addon.h"
+#include "server.h"
 
 
 
 
 
-class amxString
+namespace amxString
 {
-
-public:
-
 	void Set(AMX *amx, cell param, std::string data);
 	std::string Get(AMX *amx, cell param);
 	std::string vprintf(const char *format, va_list args);
@@ -21,13 +18,13 @@ public:
 
 
 
-class formatString 
+class strFormat 
 {
 
 public:
 
     template<class T>
-    formatString& operator<< (const T& arg) 
+    strFormat& operator<< (const T& arg) 
 	{
         m_stream << arg;
         return *this;

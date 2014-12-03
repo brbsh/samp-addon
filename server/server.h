@@ -1,30 +1,17 @@
 #pragma once
-#pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dx9.lib")
-#pragma comment(lib, "urlmon.lib")
 #pragma warning(disable:4996)
-
-
-
-#define ADDON_STRING_VERSION	"2013.11.15"
-#define ADDON_NUMERIC_VERSION	(20131115)
 
 
 
 #include <algorithm>
 #include <assert.h>
-#include <d3d9.h>
-#include <d3dx9.h>
-#include <d3dx9tex.h>
+#include <cstdarg>
 #include <fstream>
 #include <iostream>
 #include <list>
 #include <queue>
 #include <sstream>
 #include <string>
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h> // Windows-only, alright?
 
 //#include <boost/archive/text_iarchive.hpp>
 //#include <boost/archive/text_oarchive.hpp>
@@ -37,15 +24,13 @@
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
 
-#include "ProxyIDirect3D9.h"
-#include "ProxyIDirect3DDevice9.h"
+#define HAVE_STDINT_H
 
-#include "addrpool.h"
+#include "SDK/plugin.h"
+
 #include "core.h"
-#include "d3device.h"
 #include "debug.h"
-#include "functions.h"
-#include "loader.h"
+#include "natives.h"
 #include "pool.h"
 #include "string.h"
 #include "tcpsocket.h"
@@ -54,4 +39,4 @@
 
 
 
-typedef IDirect3D9 *(WINAPI *pfnDirect3DCreate9)(UINT SDKVersion);
+typedef void (*logprintf_t)(char *format, ...);

@@ -9,13 +9,13 @@
 
 
 boost::shared_ptr<addonCore> gCore;
-boost::unordered_map<std::string, std::string> gMap;
 
 
 extern boost::shared_ptr<addonD3Device> gD3Device;
 extern boost::shared_ptr<addonDebug> gDebug;
 extern boost::shared_ptr<addonFunctions> gFunctions;
 extern boost::shared_ptr<addonLoader> gLoader;
+extern boost::shared_ptr<addonPool> gPool;
 extern boost::shared_ptr<addonSocket> gSocket;
 
 
@@ -26,6 +26,7 @@ addonCore::addonCore()
 {
 	gDebug = boost::shared_ptr<addonDebug>(new addonDebug());
 	gFunctions = boost::shared_ptr<addonFunctions>(new addonFunctions());
+	gPool = boost::shared_ptr<addonPool>(new addonPool());
 	gSocket = boost::shared_ptr<addonSocket>(new addonSocket());
 	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
@@ -77,22 +78,24 @@ void addonCore::Thread()
 	gD3Device->stopLastRender(gCore->getMutexInstance());
 	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	UINT port = (atoi(gMap.find("serverPort")->second.c_str()) + 1);
+	std::string serial = gPool->getVar("playerSerial", gCore->getMutexInstance());
+	std::string ip = gPool->getVar("serverIP", gCore->getMutexInstance());
+	UINT port = (atoi(gPool->getVar("serverPort", gCore->getMutexInstance()).c_str()) + 1);
 
-	gD3Device->renderText(strFormat() << "Your UID is: " << gMap.find("playerSerial")->second, 300, 30, 255, 255, 255, 127, gCore->getMutexInstance());
-	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ...", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+	gD3Device->renderText(strFormat() << "Your UID is: " << serial, 300, 30, 255, 255, 255, 127, gCore->getMutexInstance());
+	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ...", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
 
 	boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
-	if(gSocket->Connect(gMap.find("serverIP")->second, port))
+	if(gSocket->Connect(ip, port))
 	{
 		gD3Device->stopLastRender(gCore->getMutexInstance());
-		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ... OK!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ... OK!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
 	}
 	else
 	{
 		gD3Device->stopLastRender(gCore->getMutexInstance());
-		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << gMap.find("serverIP")->second << ":" << port << " ... ERROR!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
+		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ... ERROR!", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
 		gD3Device->renderText("Addon TCP server is temporary unavalible, or this server hasn't support of SAMP-Addon", 10, 70, 255, 255, 255, 127, gCore->getMutexInstance());
 	}
 

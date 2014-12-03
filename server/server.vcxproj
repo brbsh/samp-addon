@@ -74,27 +74,29 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AddModuleNamesToAssembly>server.def</AddModuleNamesToAssembly>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="addon.h" />
-    <ClInclude Include="hash.h" />
+    <ClInclude Include="core.h" />
+    <ClInclude Include="debug.h" />
+    <ClInclude Include="server.h" />
     <ClInclude Include="natives.h" />
     <ClInclude Include="pool.h" />
-    <ClInclude Include="process.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="tcpsocket.h" />
-    <ClInclude Include="transfer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="addon.cpp" />
-    <ClCompile Include="hash.cpp" />
+    <ClCompile Include="core.cpp" />
+    <ClCompile Include="debug.cpp" />
+    <ClCompile Include="server.cpp" />
     <ClCompile Include="natives.cpp" />
     <ClCompile Include="pool.cpp" />
-    <ClCompile Include="process.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
-    <ClCompile Include="transfer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="server.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

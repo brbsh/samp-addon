@@ -113,7 +113,7 @@ void addonSocket::sendThread()
 			gCore->outputQueue.pop();
 			gSocket->getMutexInstance(false)->unlock();
 
-			request << "TCPQUERY CLIENT_CALL" << " " << sendData.first;
+			request << "TCPQUERY CLIENT_CALL" << " " << sendData.first << std::endl;
 			request << "DATA" << " " << sendData.second << "\n.\n.\n.";
 
 			length = boost::asio::write(*gSocket->getSocket(), buffer, error);

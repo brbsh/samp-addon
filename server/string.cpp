@@ -6,10 +6,6 @@
 
 
 
-amxString *gString;
-
-
-
 
 
 void amxString::Set(AMX *amx, cell param, std::string data)

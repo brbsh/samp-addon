@@ -8,7 +8,10 @@
 
 
 
-amxPool *gPool;
+boost::shared_ptr<amxPool> gPool;
+
+
+extern boost::shared_ptr<amxDebug> gDebug;
 
 
 
@@ -16,16 +19,35 @@ amxPool *gPool;
 
 amxPool::amxPool()
 {
-	addonDebug("Pool constructor called");
+	gDebug->Log("Pool constructor called");
 
 	this->pluginInit = false;
 
-	this->clientPool.clear();
+	//this->clientPool.clear();
+	this->serverPool.clear();
 }
 
 
 
 amxPool::~amxPool()
 {
-	addonDebug("Pool deconstructor called");
+	gDebug->Log("Pool destructor called");
+}
+
+
+
+void amxPool::setServerVar(std::string key, std::string value, boost::mutex *mutex)
+{
+	mutex->lock();
+	this->serverPool[key] = value;
+	mutex->unlock();
+}
+
+
+
+std::string amxPool::getServerVar(std::string key, boost::mutex *mutex)
+{
+	boost::mutex::scoped_lock lock(*mutex);
+
+	return this->serverPool.find(key)->second;
 }

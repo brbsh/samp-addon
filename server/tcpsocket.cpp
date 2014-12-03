@@ -8,19 +8,14 @@
 
 
 
-amxSocket *gSocket;
-
-std::queue<processStruct> sendQueue;
-std::queue<processStruct> recvQueue;
+boost::asio::io_service gIOService;
+boost::shared_ptr<amxSocket> gSocket;
 
 
 extern logprintf_t logprintf;
 
-extern amxPool *gPool;
-
-extern std::queue<amxConnect> amxConnectQueue;
-extern std::queue<amxConnectError> amxConnectErrorQueue;
-extern std::queue<amxDisconnect> amxDisconnectQueue;
+extern boost::shared_ptr<amxDebug> gDebug;
+extern boost::shared_ptr<amxPool> gPool;
 
 
 
@@ -28,15 +23,7 @@ extern std::queue<amxDisconnect> amxDisconnectQueue;
 
 amxSocket::amxSocket(std::string ip, int port, int maxclients)
 {
-	addonDebug("Socket constructor called");
-
-	boost::mutex::scoped_lock lock(this->Mutex);
-	this->Active = true;
-	lock.unlock();
-
-	this->IP = ip;
-	this->Port = port;
-	this->MaxClients = maxclients;
+	gDebug->Log("Socket constructor called");
 
 	boost::thread accept(boost::bind(&amxSocket::Thread));
 	boost::thread send(boost::bind(&amxSocket::SendThread));
@@ -47,12 +34,9 @@ amxSocket::amxSocket(std::string ip, int port, int maxclients)
 
 amxSocket::~amxSocket()
 {
-	addonDebug("Socket deconstructor called");
+	gDebug->Log("Socket deconstructor called");
 
-	boost::mutex::scoped_lock lock(this->Mutex);
-	this->Active = false;
-	this->io.stop();
-	lock.unlock();
+	gIOService.stop();
 }
 
 
