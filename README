@@ -2,7 +2,7 @@ SAMP-Addon by BJIADOKC
 
 ====================
 
-Client-side game-loadable module that communicates with another TCP server (transfering data/game extensibility/etc).
+Client <-> Server module that communicates through TCP (transfering data/game extensibility/etc).
 
 
 
