@@ -44,7 +44,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)compiled\client\</OutDir>
+    <OutDir>$(SolutionDir)build\client\</OutDir>
     <TargetName>updater</TargetName>
     <GenerateManifest>false</GenerateManifest>
     <TargetExt>.exe</TargetExt>

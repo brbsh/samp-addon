@@ -74,7 +74,7 @@ int main()
 	printf("Downloading package...\n");
 
 	path += "d3d9.tmp";
-	HRESULT res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/compiled/client/d3d9.dll", path.c_str(), NULL, NULL);
+	HRESULT res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", path.c_str(), NULL, NULL);
 	path.erase(path.find("d3d9."), INFINITE);
 
 	if(res == S_OK)
@@ -127,7 +127,7 @@ int main()
 		boost::filesystem::remove(changelog);
 
 	path += "addon_changelog.log";
-	res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/compiled/client/changelog.txt", path.c_str(), NULL, NULL);
+	res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", path.c_str(), NULL, NULL);
 	path.erase(path.find("addon_changelog."), INFINITE);
 
 	if(res == S_OK)
