@@ -58,7 +58,7 @@ x64/
 *.exp
 *.filters
 *.ilk
-*.lib
+#*.lib
 *.meta
 *.obj
 *.pch
@@ -195,7 +195,7 @@ $RECYCLE.BIN/
 *.egg
 *.egg-info
 dist/
-build/
+#build/
 eggs/
 parts/
 var/
