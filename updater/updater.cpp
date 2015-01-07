@@ -11,6 +11,7 @@
 int main()
 {
 	bool install = false;
+	bool calledFromAddon = false;
 	HKEY rKey;
 	char rString[512] = {NULL};
 	DWORD rLen = sizeof(rString);
@@ -20,6 +21,15 @@ int main()
 	RegCloseKey(rKey);
 
 	std::string cmdline(GetCommandLine());
+
+	if(!cmdline.length())
+	{
+		printf("SAMP-Addon installer: NULL passed to command line, terminaing...");
+
+		Sleep(5000);
+		exit(EXIT_SUCCESS);
+	}
+
 	std::string path(rString);
 
 	if(!path.length())
@@ -38,15 +48,20 @@ int main()
 	boost::filesystem::path tmpfile(path + "d3d9.tmp");
 	boost::filesystem::path dllfile(path + "d3d9.dll");
 
-	install = ((cmdline.find("-n") == std::string::npos) || !boost::filesystem::exists(dllfile));
+	install = ((cmdline.find("-n") == std::string::npos) && !boost::filesystem::exists(dllfile));
+	calledFromAddon = (!install && (cmdline.find("gta_sa.exe") != std::string::npos));
 
-	printf("SAMP-Addon %s was started\n", (install) ? ("installer") : ("updater"));
+	printf("SAMP-Addon %s was started%s", (install) ? ("installer") : ("updater"), (calledFromAddon) ? ("\n") : (" (Manual mode)\n"));
 	printf("SA-MP installation folder: %s\n", path.c_str());
 	printf("Parameters passed: %s\n", cmdline.c_str());
 
 	if(!install)
 	{
-		cmdline.erase(0, (cmdline.find("gta_sa.exe") + 13));
+		if(calledFromAddon)
+			cmdline.erase(0, (cmdline.find("gta_sa.exe") + 12));
+		else
+			cmdline.erase(0, (cmdline.find("updater.exe") + 13));
+
 		printf("Terminating game instance...\n");
 
 		WinExec("taskkill /F /IM gta_sa.exe", SW_SHOW);
