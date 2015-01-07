@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <cstdlib>
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
@@ -16,6 +17,7 @@
 //#include <boost/archive/text_iarchive.hpp>
 //#include <boost/archive/text_oarchive.hpp>
 #include <boost/asio.hpp>
+#include <boost/atomic.hpp>
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
 #include <boost/filesystem.hpp>
@@ -26,7 +28,7 @@
 
 #define HAVE_STDINT_H
 
-#include "SDK/plugin.h"
+#include "../build/server/SDK/plugin.h"
 
 #include "core.h"
 #include "debug.h"

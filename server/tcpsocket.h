@@ -13,22 +13,17 @@ class amxSocket
 
 public:
 
+	boost::shared_ptr<boost::thread> acceptThread;
+	boost::shared_ptr<boost::thread> sendThread;
+
 	amxSocket(std::string ip, int port, int maxclients);
-	~amxSocket();
+	virtual ~amxSocket();
 
-	bool IsClientConnected(int clientid);
-	void KickClient(int clientid);
-	void Send(int clientid, std::string data);
+	//bool IsClientConnected(int clientid);
+	//void KickClient(int clientid);
+	//void Send(int clientid, std::string data);
 
-	static void Thread();
+	static void AcceptThread(std::string ip, int port, int maxClients);
 	static void SendThread();
-	static void ReceiveThread(int clientid);
-
-	bool Active;
-	int Port;
-	int MaxClients;
-
-	std::string IP;
-	boost::mutex Mutex;
-
+	//static void ReceiveThread(int clientid);
 };

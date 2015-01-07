@@ -1,14 +1,14 @@
 GPP = g++
 GCC = gcc
 
-OUTFILE = "../compiled/server/addon.so"
+OUTFILE = "../build/server/linux/addon.so"
 
-COMPILE_FLAGS = -c -O2 -fPIC -w -DLINUX -Wall -I./SDK/amx/
-LIBS = ./lib/boost/libboost_chrono.a ./lib/boost/libboost_filesystem.a ./lib/boost/libboost_system.a ./lib/boost/libboost_thread.a
+COMPILE_FLAGS = -c -O2 -fPIC -w -DLINUX -Wall -I../build/server/SDK/amx/
+LIBS = ../build/lib/linux/boost_static/libboost_atomic.a ../build/lib/linux/boost_static/libboost_chrono.a ../build/lib/linux/boost_static/libboost_filesystem.a #../build/lib/linux/boost_static/libboost_system.a ../build/lib/linux/boost_static/libboost_thread.a
 
 all:
-	$(GCC) $(COMPILE_FLAGS) ./SDK/amx/*.c
-	$(GPP) $(COMPILE_FLAGS) ./SDK/*.cpp
+	$(GCC) $(COMPILE_FLAGS) ../build/server/SDK/amx/*.c
+	$(GPP) $(COMPILE_FLAGS) ../build/server/SDK/*.cpp
 	$(GPP) $(COMPILE_FLAGS) *.cpp
 	$(GPP) -O2 -fshort-wchar -shared -o $(OUTFILE) *.o $(LIBS)
 	rm -f *.o

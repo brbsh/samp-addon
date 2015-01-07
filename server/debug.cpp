@@ -25,7 +25,7 @@ amxDebug::amxDebug()
 amxDebug::~amxDebug()
 {
 	this->threadInstance->interruption_requested();
-	this->mutexInstance->destroy();
+	//this->mutexInstance->destroy();
 }
 
 
@@ -43,7 +43,7 @@ void amxDebug::Log(char *format, ...)
 
 	va_end(args);
 
-	logMutex.destroy();
+	//logMutex.destroy();
 }
 
 
@@ -52,7 +52,7 @@ void amxDebug::Thread()
 {
 	assert(gDebug->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
-	gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->get_thread_info()->id);
+	gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->native_handle());
 
 	char timeform[16];
 	struct tm *timeinfo;
@@ -81,7 +81,7 @@ void amxDebug::Thread()
 			file.close();
 
 			boost::this_thread::restore_interruption re(di);
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
 		}
 
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));

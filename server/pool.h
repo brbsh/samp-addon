@@ -13,7 +13,7 @@ class amxPool
 
 public:
 
-	bool pluginInit;
+	boost::atomic<bool> pluginInit;
 
 	amxPool();
 	virtual ~amxPool();

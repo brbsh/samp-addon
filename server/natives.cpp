@@ -76,11 +76,18 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 
 	logprintf("\nSAMP-Addon: Requested init with address: %s:%i, max clients is %i\n", ip.c_str(), ++port, maxplayers);
 
-	boost::mutex tmpMutex;
+	char destbuf[12];
+	boost::mutex *cMutex = new boost::mutex();
 
-	tmpMutex.lock();
-	gPool->pluginInit = true;
-	tmpMutex.unlock();
+	gPool->setServerVar("serverIP", ip, cMutex);
+
+	sprintf(destbuf, "%i", port);
+	gPool->setServerVar("serverPort", destbuf, cMutex);
+
+	sprintf(destbuf, "%i", maxplayers);
+	gPool->setServerVar("maxClients", destbuf, cMutex);
+
+	gPool->pluginInit.store(true);
 	
 	return 1;
 }

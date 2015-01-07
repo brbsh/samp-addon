@@ -21,7 +21,7 @@ amxPool::amxPool()
 {
 	gDebug->Log("Pool constructor called");
 
-	this->pluginInit = false;
+	this->pluginInit.store(false);
 
 	//this->clientPool.clear();
 	this->serverPool.clear();
@@ -32,6 +32,8 @@ amxPool::amxPool()
 amxPool::~amxPool()
 {
 	gDebug->Log("Pool destructor called");
+
+	this->pluginInit.store(false);
 }
 
 
