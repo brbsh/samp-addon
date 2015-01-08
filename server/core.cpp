@@ -58,4 +58,15 @@ void amxCore::Thread()
 	gSocket = boost::shared_ptr<amxSocket>(new amxSocket(ip, port, maxclients));
 
 	gDebug->Log("Addon TCP server started on %s:%i with maxclients: %i", ip.c_str(), port, maxclients);
+
+	do
+	{
+		boost::this_thread::disable_interruption di;
+
+		//central processing cycle
+
+		boost::this_thread::restore_interruption re(di);
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+	}
+	while(gPool->pluginInit.load());
 }

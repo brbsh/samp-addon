@@ -53,6 +53,8 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	gDebug->Log("-----------------------------------------------------------------");
 	gDebug->Log("\tDebugging stopped");
 
+	gPool->pluginInit.store(false);
+
     logprintf(" SAMP-Addon was unloaded");
 }
 

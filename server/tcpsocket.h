@@ -13,17 +13,32 @@ class amxSocket
 
 public:
 
-	boost::shared_ptr<boost::thread> acceptThread;
-	boost::shared_ptr<boost::thread> sendThread;
-
-	amxSocket(std::string ip, int port, int maxclients);
+	amxSocket(std::string ip, unsigned int port, unsigned int maxclients);
 	virtual ~amxSocket();
 
-	//bool IsClientConnected(int clientid);
-	//void KickClient(int clientid);
-	//void Send(int clientid, std::string data);
+	boost::thread *getThreadInstance() const
+	{
+		return this->acceptThread.get();
+	}
 
-	static void AcceptThread(std::string ip, int port, int maxClients);
-	static void SendThread();
-	//static void ReceiveThread(int clientid);
+	boost::mutex *getMutexInstance() const
+	{
+		return this->acceptMutex.get();
+	}
+
+	bool IsClientConnected(unsigned int clientid);
+	void KickClient(unsigned int clientid);
+
+	void asyncWrite(unsigned int clientid, std::string data);
+	std::string asyncRead(unsigned int clientid);
+
+	static void asyncWriteCallback(unsigned int clientid, const boost::system::error_code& error);
+	static void asyncReadCallback(unsigned int clientid, const boost::system::error_code& error, std::size_t transf);
+
+	static void AcceptThread(std::string ip, unsigned int port, unsigned int maxClients);
+
+private:
+
+	boost::shared_ptr<boost::thread> acceptThread;
+	boost::shared_ptr<boost::mutex> acceptMutex;
 };

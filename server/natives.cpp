@@ -20,9 +20,9 @@ extern boost::shared_ptr<amxSocket> gSocket;
 const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 {
 	{"InitAddon", amxNatives::InitAddon},
-	//{"IsClientConnected", amxNatives::IsClientConnected},
-	//{"KickClient", amxNatives::KickClient},
-	//{"GetClientSerial", amxNatives::GetClientSerial},
+	{"IsClientConnected", amxNatives::IsClientConnected},
+	{"KickClient", amxNatives::KickClient},
+	{"GetClientSerial", amxNatives::GetClientSerial},
 	//{"GetClientScreenshot", amxNatives::GetClientScreenshot},
 	//{"TransferLocalFile", amxNatives::TransferLocalFile},
 	//{"TransferRemoteFile", amxNatives::TransferRemoteFile},
@@ -95,7 +95,7 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 
 
 // native IsClientConnected(clientid)
-/*cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
@@ -131,7 +131,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'GetClientVolumeID' (%i)", (params[0] >> 2));
+		logprintf("samp-addon: Invalid argument count in native 'GetClientSerial' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
@@ -141,7 +141,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	int ret = gPool->clientPool.find(clientid)->second.Client.Serial;
+	int ret = gPool->clientPool.find(clientid)->second.sID;
 
 	return ret;
 }
@@ -149,7 +149,7 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 
 
 // native GetClientScreenshot(clientid, remote_filename[]);
-cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
+/*cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 {
 	if(!arguments(2))
 	{

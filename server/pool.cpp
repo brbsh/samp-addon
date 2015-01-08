@@ -23,7 +23,7 @@ amxPool::amxPool()
 
 	this->pluginInit.store(false);
 
-	//this->clientPool.clear();
+	this->clientPool.clear();
 	this->serverPool.clear();
 }
 
