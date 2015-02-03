@@ -92,7 +92,8 @@ std::size_t crc32_file(std::string filename)
 
 
 
-INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow)
+//INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow)
+int main()
 {
 	HKEY rKey;
 	char rString[512] = {NULL};
@@ -135,7 +136,7 @@ INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLi
 
 		std::ofstream f;
 
-		updaterLog("DEBUG: Requested version files generate, processing...");
+		//updaterLog("DEBUG: Requested version files generate, processing...");
 
 		if(boost::filesystem::exists(version_af))
 			boost::filesystem::remove(version_af);
@@ -165,7 +166,7 @@ INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLi
 		f << crc32_file("..\\build\\server\\linux\\addon.so");
 		f.close();
 
-		updaterLog("DEBUG: Version files generation completed.");
+		//updaterLog("DEBUG: Version files generation completed.");
 
 		return 0;
 	}
@@ -188,7 +189,7 @@ INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLi
 
 	if(cmdline.find("/checkforupdates") != std::string::npos)
 	{
-		updaterLog("SAMP-Addon updater daemon started (version %i)", crc32_file(".\\addon_updater.tmp"));
+		updaterLog("SAMP-Addon updater daemon started");
 		updaterLog("Running flags: %s", cmdline.c_str());
 		updaterLog("Waiting for GTA:SA process terminate...");
 

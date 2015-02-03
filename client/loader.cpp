@@ -131,7 +131,7 @@ addonLoader::addonLoader()
 	if(boost::filesystem::exists(vorbishooked))
 		cmdline_flags += " /removeasiloader";
 
-	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, (CREATE_NO_WINDOW | DETACHED_PROCESS), NULL, NULL, &updaterStart, &updaterStartInfo))
+	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &updaterStart, &updaterStartInfo))
 	{
 		gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
 	}
@@ -201,11 +201,11 @@ addonLoader::addonLoader()
 		gDebug->Log("Error while retrieving whitelist file: %i (Error code: %i)", download, GetLastError());
 	}
 	
-	gDebug->Log("\n\nLibrary whitelist: \n");
+	gDebug->Log("      Library whitelist:");
 
 	for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 	{
-		gDebug->Log("%s (CRC32: %i)", i->first.c_str(), i->second);
+		gDebug->Log("   %s   (CRC32: %i)", i->first.c_str(), i->second);
 	}
 
 	bool isGood = false;
