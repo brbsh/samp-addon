@@ -67,8 +67,7 @@ int main()
 	{
 		printf("SAMP-Addon: NULL passed to command line, terminaing...");
 
-		system("pause");
-		exit(EXIT_SUCCESS);
+		return 1;
 	}
 
 	std::string path(rString);
@@ -78,8 +77,7 @@ int main()
 	{
 		printf("SAMP-Addon: please (re)install GTA:SA & SA:MP first!");
 
-		system("pause");
-		exit(EXIT_SUCCESS);
+		return 1;
 	}
 
 	boost::filesystem::path changelog(".\\addon_changelog.txt");
@@ -127,10 +125,21 @@ int main()
 
 		printf("DEBUG: Version files generation completed.\n");
 
-		exit(EXIT_SUCCESS);
+		return 0;
 	}
 
 	SetCurrentDirectory(path.c_str());
+
+	if(cmdline.find("/uninstall") != std::string::npos)
+	{
+		printf("Uninstalling SAMP-Addon...\n");
+
+		boost::filesystem::remove(dllfile);
+		boost::filesystem::remove(changelog);
+		boost::filesystem::remove(boost::filesystem::path(".\\addon_updater.tmp"));
+
+		return 0;
+	}
 
 	if(cmdline.find("/checkforupdates") != std::string::npos)
 	{
@@ -176,8 +185,8 @@ int main()
 		else
 		{
 			printf("Error while retrieving addon version: %i (Error code: %i)", download, GetLastError());
-			system("pause");
-			exit(EXIT_SUCCESS);
+
+			return 1;
 		}
 
 		if(hashcheck != hashcheck_remote)
@@ -194,8 +203,8 @@ int main()
 			else
 			{
 				printf("Error while downloading update package: %i (Error code: %i)\n", download, GetLastError());
-				system("pause");
-				exit(EXIT_SUCCESS);
+
+				return 1;
 			}
 
 			boost::filesystem::remove(dllfile);
@@ -215,8 +224,8 @@ int main()
 			else
 			{
 				printf("Cannot download changelog file: %i (Error code: %i)\n", download, GetLastError());
-				system("pause");
-				exit(EXIT_SUCCESS);
+
+				return 1;
 			}
 
 			exit(EXIT_SUCCESS);
@@ -224,7 +233,7 @@ int main()
 
 		printf("Addon files is up to date\n");
 
-		exit(EXIT_SUCCESS);
+		return 1;
 	}
 
 	printf("SAMP-Addon installer was started\n");
@@ -240,8 +249,8 @@ int main()
 	else
 	{
 		printf("Error while downloading update package: %i (Error code: %i)\n", download, GetLastError());
-		system("pause");
-		exit(EXIT_SUCCESS);
+
+		return 1;
 	}
 
 	if(boost::filesystem::exists(dllfile))
@@ -251,8 +260,8 @@ int main()
 			boost::filesystem::remove(tmpfile);
 
 			printf("Latest version of SAMP-Addon already installed, terminating...\n");
-			system("pause");
-			exit(EXIT_SUCCESS);
+
+			return 1;
 		}
 
 		boost::filesystem::remove(dllfile);
@@ -274,12 +283,11 @@ int main()
 	else
 	{
 		printf("Cannot download changelog file: %i (Error code: %i)\n", download, GetLastError());
-		system("pause");
-		exit(EXIT_SUCCESS);
+
+		return 1;
 	}
 
 	printf("Installation completed!\n");
-	system("pause");
 
-	return 1;
+	return 0;
 }

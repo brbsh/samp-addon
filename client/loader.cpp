@@ -67,7 +67,7 @@ addonLoader::addonLoader()
 		else
 		{
 			gDebug->Log("Error while downloading addon updater package: %i (Error code: %i)", download, GetLastError());
-
+			
 			boost::this_thread::sleep_for(boost::chrono::seconds(1));
 			exit(EXIT_FAILURE);
 		}
