@@ -25,9 +25,6 @@ addonLoader::addonLoader()
 
 	HRESULT download = NULL;
 
-	boost::mutex *tmpMutex = new boost::mutex();
-	tmpMutex->initialize();
-
 	boost::system::error_code error;
 
 	boost::filesystem::path current(".");
@@ -159,13 +156,13 @@ addonLoader::addonLoader()
 	std::size_t port_ptr = (cmdline.find("-p") + 3);
 	std::size_t pass_ptr = (cmdline.find("-z") + 3);
 
-	gPool->setVar("playerName", cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4)), tmpMutex);
-	gPool->setVar("serverIP", cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4)), tmpMutex);
-	gPool->setVar("serverPort", cmdline.substr(port_ptr, 5), tmpMutex);
+	gPool->setVar("playerName", cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4)));
+	gPool->setVar("serverIP", cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4)));
+	gPool->setVar("serverPort", cmdline.substr(port_ptr, 5));
 
 	if(pass_ptr != std::string::npos)
 	{
-		gPool->setVar("serverPassword", cmdline.substr(pass_ptr, INFINITE), tmpMutex);
+		gPool->setVar("serverPassword", cmdline.substr(pass_ptr, INFINITE));
 
 		//password
 	}
@@ -174,7 +171,7 @@ addonLoader::addonLoader()
 	strcat_s(sysdrive, "\\");
 
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
-	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags, tmpMutex);
+	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags);
 
 	boost::unordered_map<std::string, std::size_t> legal;
 	boost::unordered_map<std::string, HMODULE> loaded;
@@ -272,8 +269,6 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("  %s -> %08x", (*i).first.c_str(), (*i).second);
 	}
-
-	tmpMutex->destroy();
 }
 
 

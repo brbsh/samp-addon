@@ -9,7 +9,6 @@
 
 
 int hookCount = NULL;
-bool addonInit = false;
 bool sampLoaded = false;
 
 HINSTANCE addonDLLInstance = NULL;
@@ -21,6 +20,9 @@ FARPROC proxy = NULL;
 extern boost::shared_ptr<addonCore> gCore;
 extern boost::shared_ptr<addonD3Device> gD3Device;
 extern boost::shared_ptr<addonDebug> gDebug;
+
+
+void singlePlayerRender();
 
 
 
@@ -40,15 +42,7 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved
 
 			sampLoaded = !(!GetModuleHandle("samp.dll"));
 
-			if(!sampLoaded)
-			{
-				gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
-
-				addonInit = true;
-			}
-
 			DisableThreadLibraryCalls(hModule);
-			SetUnhandledExceptionFilter(addonDebug::UnhandledExceptionFilter);
 
 			char filename[MAX_PATH];
 
@@ -92,23 +86,37 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 
 	hookCount++;
 
-	if(!addonInit && sampLoaded && (hookCount == 1))
+	if(sampLoaded)
 	{
-		gCore = boost::shared_ptr<addonCore>(new addonCore());
-		gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
+		if(hookCount == 1)
+		{
+			gDebug = boost::shared_ptr<addonDebug>(new addonDebug());
+			gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
+			gCore = boost::shared_ptr<addonCore>(new addonCore());
 
-		gDebug->traceLastFunction("d3dHook_Direct3DCreate9(SDKVersion = 0x%x) at 0x%x", SDKVersion, &d3dHook_Direct3DCreate9);
-		gDebug->Log("Called Direct3DCreate9, hooking it...");
+			gDebug->traceLastFunction("d3dHook_Direct3DCreate9(SDKVersion = 0x%x) at 0x%x", SDKVersion, &d3dHook_Direct3DCreate9);
+			gDebug->Log("Called Direct3DCreate9, hooking it...");
+		}
 	}
-	else if(!sampLoaded && (hookCount == 2))
+	else
 	{
-		MessageBox(NULL, "SA-MP isn't launching, forcing singleplayer mode\n\nSA-MP не запущен, выбран режим одиночной игры", "SAMP-Addon", NULL);
+		if(hookCount == 1)
+		{
+			gDebug = boost::shared_ptr<addonDebug>(new addonDebug());
+			gD3Device = boost::shared_ptr<addonD3Device>(new addonD3Device());
+		}
+		else if(hookCount == 2)
+		{
+			MessageBox(NULL, "SA-MP isn't launching, forcing singleplayer mode\n\nSA-MP не запущен, выбран режим одиночной игры", "SAMP-Addon", NULL);
+
+			boost::thread render(&singlePlayerRender);
+		}
 	}
 
 	render_original = ((pfnDirect3DCreate9)proxy)(SDKVersion);
 	render_hooked = new ProxyIDirect3D9(render_original);
 	
-	if(!addonInit && (hookCount == 1))
+	if(hookCount == 1)
 	{
 		gD3Device->setRender(render_original, true);
 		gD3Device->setRender(render_hooked, false);
@@ -118,7 +126,21 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 		gDebug->Log("Returning hooked render address, hook was installed!");
 	}
 
-	addonInit = true;
-
 	return render_hooked;
+}
+
+
+
+void singlePlayerRender()
+{
+	gDebug->traceLastFunction("singlePlayerRender() at 0x%x", &addonD3Device::Screenshot);
+
+	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
+		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+
+	gD3Device->renderText("SAMP-Addon started in singleplayer mode", 10, 10, 255, 255, 255, 127);
+
+	boost::this_thread::sleep_for(boost::chrono::seconds(5));
+
+	gD3Device->stopLastRender();
 }

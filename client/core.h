@@ -15,14 +15,12 @@ public:
 
 	std::queue<std::pair<UINT, std::string>> outputQueue;
 	std::queue<std::pair<UINT, std::string>> pendingQueue;
+	boost::mutex pqMutex;
 
 	addonCore();
 	virtual ~addonCore();
 
-	boost::mutex *getMutexInstance() const
-	{
-		return mutexInstance.get();
-	}
+	void Queue(std::pair<UINT, std::string> set);
 
 	boost::thread *getThreadInstance() const
 	{
@@ -33,6 +31,5 @@ public:
 
 private:
 
-	boost::shared_ptr<boost::mutex> mutexInstance;
 	boost::shared_ptr<boost::thread> threadInstance;
 };

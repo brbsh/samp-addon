@@ -35,18 +35,20 @@ addonPool::~addonPool()
 
 
 
-void addonPool::setVar(std::string key, std::string value, boost::mutex *mutex)
+void addonPool::setVar(std::string key, std::string value)
 {
-	mutex->lock();
+	boost::unique_lock<boost::shared_mutex> lockit(this->mapMutex);
+
 	this->privPool[key] = value;
-	mutex->unlock();
+
+	lockit.unlock();
 }
 
 
 
-std::string addonPool::getVar(std::string key, boost::mutex *mutex)
+std::string addonPool::getVar(std::string key)
 {
-	boost::mutex::scoped_lock lock(*mutex);
+	boost::shared_lock<boost::shared_mutex> lockit(this->mapMutex);
 
 	return this->privPool.find(key)->second;
 }

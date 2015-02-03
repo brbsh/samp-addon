@@ -19,7 +19,8 @@ extern boost::shared_ptr<addonDebug> gDebug;
 
 addonD3Device::addonD3Device()
 {
-	//gDebug->traceLastFunction("addonD3Device::addonD3Device() at 0x?????");
+	gDebug->traceLastFunction("addonD3Device::addonD3Device() at 0x?????");
+	gDebug->Log("Called D3Device constructor");
 
 	this->originalRender = NULL;
 	this->hookedRender = NULL;
@@ -28,7 +29,6 @@ addonD3Device::addonD3Device()
 
 	this->renderInstance = NULL;
 
-	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	//this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonD3Device::Thread)));
 }
 
@@ -38,8 +38,6 @@ addonD3Device::~addonD3Device()
 {
 	gDebug->traceLastFunction("addonD3Device::~addonD3Device() at 0x?????");
 	gDebug->Log("Called D3Device destructor");
-
-	this->mutexInstance->destroy();
 }
 
 
@@ -48,14 +46,14 @@ void addonD3Device::setRender(IDirect3D9 *render, bool original)
 {
 	//gDebug->traceLastFunction("addonD3Device::setRender(render = 0x%x, original = %s) at 0x%x", (int)render, ((original) ? ("true") : ("false")), &addonD3Device::setRender);
 
-	this->mutexInstance->lock();
+	boost::unique_lock<boost::shared_mutex> lockit(this->renMutex);
 
 	if(original)
 		this->originalRender = render;
 	else
 		this->hookedRender = render;
 
-	this->mutexInstance->unlock();
+	lockit.unlock();
 }
 
 
@@ -64,14 +62,14 @@ void addonD3Device::setDevice(IDirect3DDevice9 *device, bool original)
 {
 	//gDebug->traceLastFunction("addonD3Device::setDevice(device = 0x%x) at 0x%x", (int)device, ((original) ? ("true") : ("false")), &addonD3Device::setDevice);
 
-	this->mutexInstance->lock();
+	boost::unique_lock<boost::shared_mutex> lockit(this->devMutex);
 
 	if(original)
 		this->originalDevice = device;
 	else
 		this->hookedDevice = device;
 
-	this->mutexInstance->unlock();
+	lockit.unlock();
 }
 
 
@@ -94,19 +92,22 @@ void addonD3Device::Screenshot(std::string filename)
 
 	IDirect3DSurface9 *pSurface;
 
+	boost::shared_lock<boost::shared_mutex> lockit(this->devMutex);
+
 	this->originalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
 	this->originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
 
-	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
+	lockit.unlock();
 
+	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
 	pSurface->Release();
 }
 
 
 
-void addonD3Device::initRender(boost::mutex *mutex)
+void addonD3Device::initRender()
 {
-	mutex->lock();
+	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
 
 	if(!this->renderInstance)
 	{
@@ -118,12 +119,36 @@ void addonD3Device::initRender(boost::mutex *mutex)
 		this->renderInstance->OnResetDevice();
 	}
 
-	mutex->unlock();
+	lockit.unlock();
 }
 
 
 
-void addonD3Device::renderText(std::string text, int x, int y, int r, int g, int b, int a, boost::mutex *mutex)
+void addonD3Device::processRender()
+{
+	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
+
+	if(!this->renderList.empty())
+	{
+		for(std::list<renderData>::iterator i = this->renderList.begin(); i != this->renderList.end(); i++)
+		{
+			RECT rText;
+
+			rText.left = (*i).x;
+			rText.top = (*i).y;
+			rText.right = 1680;
+			rText.bottom = ((*i).y + 200);
+
+			this->renderInstance->DrawText(NULL, (*i).text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB((*i).a, (*i).r, (*i).g, (*i).b));
+		}
+	}
+
+	lockit.unlock();
+}
+
+
+
+void addonD3Device::renderText(std::string text, int x, int y, int r, int g, int b, int a)
 {
 	gDebug->traceLastFunction("addonD3Device::renderText(text = '%s', x = 0x%x, y = 0x%x, r = 0x%x, g = 0x%x, b = 0x%x, a = 0x%x) at 0x%x", text.c_str(), x, y, r, g, b, a, &addonD3Device::renderText);
 
@@ -137,29 +162,29 @@ void addonD3Device::renderText(std::string text, int x, int y, int r, int g, int
 	struct_push.b = b;
 	struct_push.a = a;
 
-	mutex->lock();
+	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
 	this->renderList.push_back(struct_push);
-	mutex->unlock();
+	lockit.unlock();
 }
 
 
 
-void addonD3Device::stopLastRender(boost::mutex *mutex)
+void addonD3Device::stopLastRender()
 {
 	gDebug->traceLastFunction("addonD3Device::stopLastRender() at 0x%x", &addonD3Device::stopLastRender);
 
-	mutex->lock();
+	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
 	this->renderList.pop_back();
-	mutex->unlock();
+	lockit.unlock();
 }
 
 
 
-void addonD3Device::clearRender(boost::mutex *mutex)
+void addonD3Device::clearRender()
 {
 	gDebug->traceLastFunction("addonD3Device::clearRender() at 0x%x", &addonD3Device::clearRender);
 
-	mutex->lock();
+	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
 	this->renderList.clear();
-	mutex->unlock();
+	lockit.unlock();
 }

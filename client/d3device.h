@@ -34,32 +34,31 @@ public:
 
 	void Screenshot(std::string filename);
 
-	void initRender(boost::mutex *mutex);
-	void renderText(std::string text, int x, int y, int r, int g, int b, int a, boost::mutex *mutex);
-	void stopLastRender(boost::mutex *mutex);
-	void clearRender(boost::mutex *mutex);
+	void initRender();
+	void processRender();
+	void renderText(std::string text, int x, int y, int r, int g, int b, int a);
+	void stopLastRender();
+	void clearRender();
 
 	void setRender(IDirect3D9 *render, bool original);
 	void setDevice(IDirect3DDevice9 *device, bool original);
 
-	IDirect3D9 *getRender(bool original) const
+	IDirect3D9 *getRender(bool original)
 	{
+		boost::shared_lock<boost::shared_mutex> lockit(renMutex);
 		return (original) ? originalRender : hookedRender;
 	}
 
-	IDirect3DDevice9 *getDevice(bool original) const
+	IDirect3DDevice9 *getDevice(bool original)
 	{
+		boost::shared_lock<boost::shared_mutex> lockit(devMutex);
 		return (original) ? originalDevice : hookedDevice;
 	}
 
-	ID3DXFont *getTextRender() const
+	ID3DXFont *getTextRender()
 	{
+		boost::shared_lock<boost::shared_mutex> lockit(txtMutex);
 		return renderInstance;
-	}
-
-	boost::mutex *getMutexInstance() const
-	{
-		return mutexInstance.get();
 	}
 
 private:
@@ -71,6 +70,8 @@ private:
 
 	ID3DXFont *renderInstance;
 
-	boost::shared_ptr<boost::mutex> mutexInstance;
-	//boost::shared_ptr<boost::thread> threadInstance;
+	boost::mutex d3Mutex;
+	boost::shared_mutex renMutex;
+	boost::shared_mutex devMutex;
+	boost::shared_mutex txtMutex;
 };

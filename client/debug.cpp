@@ -16,7 +16,9 @@ boost::shared_ptr<addonDebug> gDebug;
 
 addonDebug::addonDebug()
 {
-	boost::filesystem::path log(".\\addon.log");
+	SetUnhandledExceptionFilter(addonDebug::UnhandledExceptionFilter);
+
+	boost::filesystem::path log(".\\addon_log.txt");
 
 	if(boost::filesystem::exists(log))
 	{
@@ -28,7 +30,6 @@ addonDebug::addonDebug()
 			//gDebug->Log("Cannot remove old log file: %s (Error code: %i)", error.message().c_str(), error.value());
 	}
 
-	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonDebug::Thread)));
 
 	this->traceLastFunction("addonDebug::addonDebug() at 0x?????");
@@ -43,7 +44,6 @@ addonDebug::~addonDebug()
 	this->Log("Called debug destructor");
 
 	this->threadInstance->interruption_requested();
-	this->mutexInstance->destroy();
 }
 
 
@@ -57,7 +57,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 	processingException = true;
 
-	boost::filesystem::path log(".\\addon_crashreport.log");
+	boost::filesystem::path log(".\\addon_crashreport.txt");
 
 	if(boost::filesystem::exists(log))
 	{
@@ -71,7 +71,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 	std::ofstream report;
 
-	report.open("addon_crashreport.log", (std::ofstream::out | std::ofstream::app));
+	report.open(".\\addon_crashreport.txt", std::ofstream::out);
 
 	report << "-----------------------------------------------------------------" << std::endl;
 	report << "\t\t     SAMP-Addon was crashed" << std::endl;
@@ -251,18 +251,14 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 void addonDebug::Log(char *format, ...)
 {
 	va_list args;
-	boost::mutex logMutex;
-	logMutex.initialize();
 
 	va_start(args, format);
 
-	logMutex.lock();
+	boost::unique_lock<boost::mutex> lockit(this->lwrMutex);
 	this->logQueue.push(addonString::vprintf(format, args));
-	logMutex.unlock();
+	lockit.unlock();
 
 	va_end(args);
-
-	logMutex.destroy();
 }
 
 
@@ -270,24 +266,21 @@ void addonDebug::Log(char *format, ...)
 void addonDebug::traceLastFunction(char *format, ...)
 {
 	va_list args;
-	boost::mutex traceMutex;
 
 	va_start(args, format);
 
-	traceMutex.lock();
+	boost::unique_lock<boost::mutex> lockit(this->ftrMutex);
 	this->funcTrace.push_front(addonString::vprintf(format, args));
-	traceMutex.unlock();
+	lockit.unlock();
 
 	va_end(args);
 
 	if(this->funcTrace.size() > 20)
 	{
-		traceMutex.lock();
+		lockit.lock();
 		this->funcTrace.pop_back();
-		traceMutex.unlock();
+		lockit.unlock();
 	}
-
-	traceMutex.destroy();
 }
 
 
@@ -312,16 +305,16 @@ void addonDebug::Thread()
 		{
 			boost::this_thread::disable_interruption di;
 
-			gDebug->getMutexInstance()->lock();
+			boost::unique_lock<boost::mutex> lockit(gDebug->lwrMutex);
 			data = gDebug->logQueue.front();
 			gDebug->logQueue.pop();
-			gDebug->getMutexInstance()->unlock();
+			lockit.unlock();
 
 			time(&rawtime);
 			timeinfo = localtime(&rawtime);
 			strftime(timeform, sizeof timeform, "%X", timeinfo);
 
-			file.open("addon.log", (std::ofstream::out | std::ofstream::app));
+			file.open(".\\addon_log.txt", (std::ofstream::out | std::ofstream::app));
 			file << "[" << timeform << "] " << data << std::endl;
 			file.close();
 

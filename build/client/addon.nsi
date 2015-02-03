@@ -1,6 +1,8 @@
 Name "SAMP-Addon Client"
 OutFile "addon.exe"
 
+#RequestExecutionLevel user
+
 InstallDir $EXEDIR
 
 Section
