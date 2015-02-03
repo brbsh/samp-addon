@@ -92,7 +92,7 @@ std::size_t crc32_file(std::string filename)
 
 
 
-int main()
+INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow)
 {
 	HKEY rKey;
 	char rString[512] = {NULL};
