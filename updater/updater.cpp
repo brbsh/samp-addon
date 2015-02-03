@@ -88,28 +88,44 @@ int main()
 
 	if(cmdline.find("/createverfile") != std::string::npos)
 	{
-		boost::filesystem::path version_af(".\\addon_version.txt");
-		boost::filesystem::path version_uf(".\\updater_version.txt");
+		boost::filesystem::path version_af("..\\build\\client\\client_version.txt");
+		boost::filesystem::path version_uf("..\\build\\client\\updater_version.txt");
+		boost::filesystem::path version_wsf("..\\build\\server\\windows_server_version.txt");
+		boost::filesystem::path version_lsf("..\\build\\server\\linux_server_version.txt");
 
-		std::ifstream i;
 		std::ofstream f;
 
-		printf("DEBUG: Create ver file. Press any key to proceed\n");
-		system("pause");
+		printf("DEBUG: Requested version files generate, processing...\n");
 
 		if(boost::filesystem::exists(version_af))
 			boost::filesystem::remove(version_af);
 
 		if(boost::filesystem::exists(version_uf))
 			boost::filesystem::remove(version_uf);
+
+		if(boost::filesystem::exists(version_wsf))
+			boost::filesystem::remove(version_wsf);
+
+		if(boost::filesystem::exists(version_lsf))
+			boost::filesystem::remove(version_lsf);
 		
-		f.open(".\\addon_version.txt", std::ofstream::out);
-		f << crc32_file(".\\d3d9.dll");
+		f.open("..\\build\\client\\client_version.txt", std::ofstream::out);
+		f << crc32_file("..\\build\\client\\d3d9.dll");
 		f.close();
 
-		f.open(".\\updater_version.txt", std::ofstream::out);
-		f << crc32_file(".\\updater.exe");
+		f.open("..\\build\\client\\updater_version.txt", std::ofstream::out);
+		f << crc32_file("..\\build\\client\\updater.exe");
 		f.close();
+
+		f.open("..\\build\\server\\windows_server_version.txt", std::ofstream::out);
+		f << crc32_file("..\\build\\server\\windows\\addon.dll");
+		f.close();
+
+		f.open("..\\build\\server\\linux_server_version.txt", std::ofstream::out);
+		f << crc32_file("..\\build\\server\\linux\\addon.so");
+		f.close();
+
+		printf("DEBUG: Version files generation completed.\n");
 
 		exit(EXIT_SUCCESS);
 	}
@@ -143,7 +159,7 @@ int main()
 			}
 		}
 
-		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/addon_version.txt", ".\\addon_version.tmp", NULL, NULL);
+		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);
 		std::size_t hashcheck = crc32_file(".\\d3d9.dll");
 		std::size_t hashcheck_remote = hashcheck;
 

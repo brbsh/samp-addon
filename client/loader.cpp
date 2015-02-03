@@ -177,6 +177,7 @@ addonLoader::addonLoader()
 	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags, tmpMutex);
 
 	boost::unordered_map<std::string, std::size_t> legal;
+	boost::unordered_map<std::string, HMODULE> loaded;
 
 	download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/whitelist.txt", ".\\addon_whitelist.tmp", NULL, NULL);
 
@@ -207,7 +208,7 @@ addonLoader::addonLoader()
 
 	for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 	{
-		gDebug->Log("%s (File size: %i)", i->first.c_str(), i->second);
+		gDebug->Log("%s (CRC32: %i)", i->first.c_str(), i->second);
 	}
 
 	bool isGood = false;
@@ -223,7 +224,7 @@ addonLoader::addonLoader()
 
 			for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 			{
-				if((file->path().filename().string() == i->first) && (boost::filesystem::file_size(file->path()) == i->second))
+				if((file->path().filename().string() == i->first) && (this->crc32_file(file->path().filename().string()) == i->second))
 				{
 					isGood = true;
 
@@ -239,10 +240,18 @@ addonLoader::addonLoader()
 			{
 				if(file->path().extension().string() == ".asi")
 				{
-					if(LoadLibrary(file->path().filename().string().c_str()))
+					HMODULE addr = NULL;
+
+					if((addr = LoadLibrary(file->path().filename().string().c_str())))
+					{
 						gDebug->Log("Plugin %s got loaded", file->path().filename().string().c_str());
+
+						loaded[file->path().filename().string()] = addr;
+					}
 					else
+					{
 						gDebug->Log("Failed to load plugin %s", file->path().filename().string().c_str());
+					}
 				}
 			}
 		}
@@ -257,6 +266,11 @@ addonLoader::addonLoader()
 				// m0d_sa dir found
 			}
 		}
+	}
+
+	for(boost::unordered_map<std::string, HMODULE>::iterator i = loaded.begin(); i != loaded.end(); i++)
+	{
+		gDebug->Log("  %s -> %08x", (*i).first.c_str(), (*i).second);
 	}
 
 	tmpMutex->destroy();
