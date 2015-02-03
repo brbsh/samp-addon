@@ -131,7 +131,7 @@ addonLoader::addonLoader()
 	if(boost::filesystem::exists(vorbishooked))
 		cmdline_flags += " /removeasiloader";
 
-	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
+	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, (CREATE_NO_WINDOW | DETACHED_PROCESS), NULL, NULL, &updaterStart, &updaterStartInfo))
 	{
 		gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
 	}
