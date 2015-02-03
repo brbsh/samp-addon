@@ -23,6 +23,8 @@ addonLoader::addonLoader()
 	gDebug->traceLastFunction("addonLoader::addonLoader() at 0x?????");
 	gDebug->Log("Called loader constructor");
 
+	HRESULT download = NULL;
+
 	boost::mutex *tmpMutex = new boost::mutex();
 	tmpMutex->initialize();
 
@@ -56,21 +58,24 @@ addonLoader::addonLoader()
 
 	if(!boost::filesystem::exists(updater))
 	{
-		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
+		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
 
 		if(download == S_OK)
 		{
-			
+			gDebug->Log("Downloaded latest addon updater package (%i bytes)", boost::filesystem::file_size(updater));
 		}
 		else
 		{
-			//error
+			gDebug->Log("Error while downloading addon updater package: %i (Error code: %i)", download, GetLastError());
+
+			boost::this_thread::sleep_for(boost::chrono::seconds(1));
+			exit(EXIT_FAILURE);
 		}
 	}
 	else
 	{
-		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
-		std::size_t hashcheck = boost::filesystem::file_size(updater);
+		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
+		std::size_t hashcheck = this->crc32_file(".\\addon_updater.tmp");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -82,10 +87,15 @@ addonLoader::addonLoader()
 			f.close();
 
 			boost::filesystem::remove(boost::filesystem::path(".\\updater_version.tmp"));
+
+			gDebug->Log("Downloaded updater version file, latest updater version is %i", hashcheck_remote);
 		}
 		else
 		{
-			//error
+			gDebug->Log("Error while downloading updater version file: %i (Error code: %i)", download, GetLastError());
+
+			boost::this_thread::sleep_for(boost::chrono::seconds(1));
+			exit(EXIT_FAILURE);
 		}
 
 		if(hashcheck != hashcheck_remote)
@@ -94,16 +104,19 @@ addonLoader::addonLoader()
 
 			if(download == S_OK)
 			{
-			
+				gDebug->Log("Downloaded latest addon updater package (%i bytes)", boost::filesystem::file_size(updater));
 			}
 			else
 			{
-				//error
+				gDebug->Log("Error while downloading addon updater package: %i (Error code: %i)", download, GetLastError());
+
+				boost::this_thread::sleep_for(boost::chrono::seconds(1));
+				exit(EXIT_FAILURE);
 			}
 		}
 		else
 		{
-			// up to date
+			gDebug->Log("Addon updater package is up to date (%i)", hashcheck);
 		}
 	}
 
@@ -165,7 +178,7 @@ addonLoader::addonLoader()
 
 	boost::unordered_map<std::string, std::size_t> legal;
 
-	HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/whitelist.txt", ".\\addon_whitelist.tmp", NULL, NULL);
+	download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/whitelist.txt", ".\\addon_whitelist.tmp", NULL, NULL);
 
 	if(download == S_OK)
 	{

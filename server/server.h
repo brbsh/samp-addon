@@ -20,6 +20,7 @@
 #include <boost/atomic.hpp>
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
+#include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
 //#include <boost/serialization/serialization.hpp>
 #include <boost/shared_ptr.hpp>

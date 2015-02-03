@@ -12,6 +12,7 @@
 #include <Windows.h>
 
 
+#include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
 
 

@@ -65,19 +65,17 @@ void addonCore::Thread()
 
 	gCore->getMutexInstance()->unlock();
 
-
 	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
+	gD3Device->renderText("Scanning GTA dir for illegal files...", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
 	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
 	gD3Device->stopLastRender(gCore->getMutexInstance());
+	gD3Device->stopLastRender(gCore->getMutexInstance());
 	gD3Device->renderText("Loading SAMP-Addon... OK!", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
-	gD3Device->renderText("Scanning GTA dir for illegal files...", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
-
-	boost::this_thread::sleep_for(boost::chrono::seconds(1));
+	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
 	gD3Device->stopLastRender(gCore->getMutexInstance());
-	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 
 	std::string serial = gPool->getVar("playerSerial", gCore->getMutexInstance());
 	std::string ip = gPool->getVar("serverIP", gCore->getMutexInstance());
@@ -85,8 +83,6 @@ void addonCore::Thread()
 
 	gD3Device->renderText(strFormat() << "Your UID is: " << serial, 300, 30, 255, 255, 255, 127, gCore->getMutexInstance());
 	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ...", 10, 50, 255, 255, 255, 127, gCore->getMutexInstance());
-
-	boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	if(gSocket->Connect(ip, port))
 	{
@@ -104,9 +100,6 @@ void addonCore::Thread()
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
 
 	gD3Device->clearRender(gCore->getMutexInstance());
-
-	gFunctions->ToggleMotionBlur(true);
-	gFunctions->ToggleGrassRendering(true);
 
 	while(true)
 	{

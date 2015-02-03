@@ -28,6 +28,29 @@ bool IsProcessRunning(const char *const processName)
 
 
 
+std::size_t crc32_file(std::string filename)
+{
+	boost::crc_32_type result;
+	std::ifstream i;
+
+	i.open(filename, std::fstream::binary);
+		
+	do
+	{
+		char block[2048];
+		
+		i.read(block, sizeof block);
+		result.process_bytes(block, i.gcount());
+	}
+	while(i);
+
+	i.close();
+
+	return result.checksum();
+}
+
+
+
 int main()
 {
 	HKEY rKey;
@@ -68,6 +91,9 @@ int main()
 		boost::filesystem::path version_af(".\\addon_version.txt");
 		boost::filesystem::path version_uf(".\\updater_version.txt");
 
+		std::ifstream i;
+		std::ofstream f;
+
 		printf("DEBUG: Create ver file. Press any key to proceed\n");
 		system("pause");
 
@@ -76,15 +102,13 @@ int main()
 
 		if(boost::filesystem::exists(version_uf))
 			boost::filesystem::remove(version_uf);
-
-		std::ofstream f;
-
+		
 		f.open(".\\addon_version.txt", std::ofstream::out);
-		f << boost::filesystem::file_size(dllfile);
+		f << crc32_file(".\\d3d9.dll");
 		f.close();
 
 		f.open(".\\updater_version.txt", std::ofstream::out);
-		f << boost::filesystem::file_size(boost::filesystem::path(".\\updater.exe"));
+		f << crc32_file(".\\updater.exe");
 		f.close();
 
 		exit(EXIT_SUCCESS);
@@ -120,7 +144,7 @@ int main()
 		}
 
 		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/addon_version.txt", ".\\addon_version.tmp", NULL, NULL);
-		std::size_t hashcheck = boost::filesystem::file_size(dllfile);
+		std::size_t hashcheck = crc32_file(".\\d3d9.dll");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -206,7 +230,7 @@ int main()
 
 	if(boost::filesystem::exists(dllfile))
 	{
-		if(boost::filesystem::file_size(dllfile) == boost::filesystem::file_size(tmpfile))
+		if(crc32_file(".\\d3d9.dll") == crc32_file(".\\d3d9.tmp"))
 		{
 			boost::filesystem::remove(tmpfile);
 

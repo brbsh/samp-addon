@@ -2,12 +2,9 @@
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "d3dx9.lib")
 #pragma comment(lib, "urlmon.lib")
-#pragma warning(disable:4996)
+#pragma warning(disable:4996 4244)
 
 
-
-#define ADDON_STRING_VERSION	"2015.02.03"
-#define ADDON_NUMERIC_VERSION	(20150203)
 
 
 
@@ -22,6 +19,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
+#include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
 //#include <boost/serialization/serialization.hpp>
 #include <boost/shared_ptr.hpp>
