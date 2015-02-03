@@ -65,18 +65,26 @@ int main()
 
 	if(cmdline.find("/createverfile") != std::string::npos)
 	{
-		boost::filesystem::path version_f(".\\version.txt");
+		boost::filesystem::path version_af(".\\addon_version.txt");
+		boost::filesystem::path version_uf(".\\updater_version.txt");
 
 		printf("DEBUG: Create ver file. Press any key to proceed\n");
 		system("pause");
 
-		if(boost::filesystem::exists(version_f))
-			boost::filesystem::remove(version_f);
+		if(boost::filesystem::exists(version_af))
+			boost::filesystem::remove(version_af);
+
+		if(boost::filesystem::exists(version_uf))
+			boost::filesystem::remove(version_uf);
 
 		std::ofstream f;
 
-		f.open(".\\version.txt", std::ofstream::out);
+		f.open(".\\addon_version.txt", std::ofstream::out);
 		f << boost::filesystem::file_size(dllfile);
+		f.close();
+
+		f.open(".\\updater_version.txt", std::ofstream::out);
+		f << boost::filesystem::file_size(boost::filesystem::path(".\\updater.exe"));
 		f.close();
 
 		exit(EXIT_SUCCESS);
@@ -111,7 +119,7 @@ int main()
 			}
 		}
 
-		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/version.txt", ".\\addon_version.tmp", NULL, NULL);
+		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/addon_version.txt", ".\\addon_version.tmp", NULL, NULL);
 		std::size_t hashcheck = boost::filesystem::file_size(dllfile);
 		std::size_t hashcheck_remote = hashcheck;
 
@@ -119,7 +127,7 @@ int main()
 		{
 			std::ifstream f;
 
-			f.open("addon_version.tmp", std::ifstream::in);
+			f.open(".\\addon_version.tmp", std::ifstream::in);
 			f >> hashcheck_remote;
 			f.close();
 
@@ -181,7 +189,6 @@ int main()
 
 	printf("SAMP-Addon installer was started\n");
 	printf("Found GTA:SA at '%s'\n", path.c_str());
-
 	printf("Downloading SAMP-Addon files...\n");
 
 	HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", ".\\d3d9.tmp", NULL, NULL);
@@ -201,6 +208,8 @@ int main()
 	{
 		if(boost::filesystem::file_size(dllfile) == boost::filesystem::file_size(tmpfile))
 		{
+			boost::filesystem::remove(tmpfile);
+
 			printf("Latest version of SAMP-Addon already installed, terminating...\n");
 			system("pause");
 			exit(EXIT_SUCCESS);

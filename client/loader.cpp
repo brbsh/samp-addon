@@ -34,11 +34,11 @@ addonLoader::addonLoader()
 	boost::filesystem::path vorbishooked(".\\VorbisHooked.dll");
 	boost::filesystem::path vorbisfile(".\\VorbisFile.dll");
 	boost::filesystem::path gtasa(".\\gta_sa.exe");
-	boost::filesystem::path gtasa_steam(".\\gta-sa.exe");
+	//boost::filesystem::path gtasa_steam(".\\gta-sa.exe");
 
 	boost::filesystem::directory_iterator end;
 
-	if(!boost::filesystem::exists(gtasa) && !boost::filesystem::exists(gtasa_steam))
+	if(!boost::filesystem::exists(gtasa))// && !boost::filesystem::exists(gtasa_steam))
 	{
 		gDebug->Log("Cannot find GTA SA executable, terminating...");
 
@@ -60,44 +60,77 @@ addonLoader::addonLoader()
 
 		if(download == S_OK)
 		{
-			STARTUPINFO updaterStart;
-			PROCESS_INFORMATION updaterStartInfo;
-			std::string cmdline_flags;
+			
+		}
+		else
+		{
+			//error
+		}
+	}
+	else
+	{
+		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
+		std::size_t hashcheck = boost::filesystem::file_size(updater);
+		std::size_t hashcheck_remote = hashcheck;
 
-			ZeroMemory(&updaterStart, sizeof(updaterStart));
-			updaterStart.cb = sizeof(updaterStart);
+		if(download == S_OK)
+		{
+			std::ifstream f;
 
-			ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
+			f.open(".\\updater_version.tmp", std::ifstream::in);
+			f >> hashcheck_remote;
+			f.close();
 
-			cmdline_flags += "/checkforupdates";
+			boost::filesystem::remove(boost::filesystem::path(".\\updater_version.tmp"));
+		}
+		else
+		{
+			//error
+		}
 
-			if(boost::filesystem::exists(vorbishooked))
-				cmdline_flags += " /removeasiloader";
+		if(hashcheck != hashcheck_remote)
+		{
+			HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
 
-			if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
+			if(download == S_OK)
 			{
-				gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
+			
 			}
 			else
 			{
-				gDebug->Log("Cannot create process addon_updater.tmp: %i", GetLastError());
-
-				MessageBox(NULL, "Error while creating process addon_updater.tmp", "SAMP-Addon", NULL);
+				//error
 			}
+		}
+		else
+		{
+			// up to date
 		}
 	}
 
-	/*if(boost::filesystem::exists(updater))
+	STARTUPINFO updaterStart;
+	PROCESS_INFORMATION updaterStartInfo;
+	std::string cmdline_flags;
+
+	ZeroMemory(&updaterStart, sizeof(updaterStart));
+	updaterStart.cb = sizeof(updaterStart);
+	
+	ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
+
+	cmdline_flags += "/checkforupdates";
+
+	if(boost::filesystem::exists(vorbishooked))
+		cmdline_flags += " /removeasiloader";
+
+	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
 	{
-		boost::filesystem::remove(updater, error);
+		gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
+	}
+	else
+	{
+		gDebug->Log("Cannot create process addon_updater.tmp: %i", GetLastError());
 
-		if(error)
-		{
-			MessageBox(NULL, "Cannot remove temp updater file", "SAMP-Addon", NULL);
-
-			exit(EXIT_FAILURE);
-		}
-	}*/
+		MessageBox(NULL, "Error while creating process addon_updater.tmp", "SAMP-Addon", NULL);
+	}
 
 	char sysdrive[5];
 
