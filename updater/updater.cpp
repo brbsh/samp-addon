@@ -194,7 +194,7 @@ int main()
 		updaterLog("Waiting for GTA:SA process terminate...");
 
 		while(IsProcessRunning("gta_sa.exe"))
-				Sleep(2500);
+				Sleep(5000);
 
 		updaterLog("GTA:SA process terminated, processing...");
 
