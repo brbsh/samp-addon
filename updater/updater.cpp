@@ -8,10 +8,28 @@
 
 
 
+bool IsProcessRunning(const char *const processName)
+{
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+	PROCESSENTRY32 pe;
+	pe.dwSize = sizeof(PROCESSENTRY32);
+	Process32First(hSnapshot, &pe);
+
+	while(true) 
+	{
+		if(!strcmp(pe.szExeFile, processName)) 
+			return true;
+
+		if(!Process32Next(hSnapshot, &pe)) 
+			return false;
+	}
+}
+
+
+
 int main()
 {
-	bool install = false;
-	bool calledFromAddon = false;
 	HKEY rKey;
 	char rString[512] = {NULL};
 	DWORD rLen = sizeof(rString);
@@ -24,151 +42,195 @@ int main()
 
 	if(!cmdline.length())
 	{
-		printf("SAMP-Addon installer: NULL passed to command line, terminaing...");
+		printf("SAMP-Addon: NULL passed to command line, terminaing...");
 
-		Sleep(5000);
+		system("pause");
 		exit(EXIT_SUCCESS);
 	}
 
 	std::string path(rString);
+	path.erase(path.find("gta_sa.exe"), INFINITE);
 
 	if(!path.length())
 	{
-		printf("SAMP-Addon installer: please (re)install GTA:SA & SA:MP first!");
+		printf("SAMP-Addon: please (re)install GTA:SA & SA:MP first!");
 
-		Sleep(5000);
+		system("pause");
 		exit(EXIT_SUCCESS);
 	}
 
-	path.erase(path.find("gta_sa.exe"), INFINITE);
+	boost::filesystem::path changelog(".\\addon_changelog.txt");
+	boost::filesystem::path dllfile(".\\d3d9.dll");
+	boost::filesystem::path tmpfile(".\\d3d9.tmp");
+
+	if(cmdline.find("/createverfile") != std::string::npos)
+	{
+		boost::filesystem::path version_f(".\\version.txt");
+
+		printf("DEBUG: Create ver file. Press any key to proceed\n");
+		system("pause");
+
+		if(boost::filesystem::exists(version_f))
+			boost::filesystem::remove(version_f);
+
+		std::ofstream f;
+
+		f.open(".\\version.txt", std::ofstream::out);
+		f << boost::filesystem::file_size(dllfile);
+		f.close();
+
+		exit(EXIT_SUCCESS);
+	}
 
 	SetCurrentDirectory(path.c_str());
 
-	boost::filesystem::path changelog(path + "addon_changelog.log");
-	boost::filesystem::path tmpfile(path + "d3d9.tmp");
-	boost::filesystem::path dllfile(path + "d3d9.dll");
-
-	install = ((cmdline.find("-n") == std::string::npos) && !boost::filesystem::exists(dllfile));
-	calledFromAddon = (!install && (cmdline.find("gta_sa.exe") != std::string::npos));
-
-	printf("SAMP-Addon %s was started%s", (install) ? ("installer") : ("updater"), (calledFromAddon) ? ("\n") : (" (Manual mode)\n"));
-	printf("SA-MP installation folder: %s\n", path.c_str());
-	printf("Parameters passed: %s\n", cmdline.c_str());
-
-	if(!install)
+	if(cmdline.find("/checkforupdates") != std::string::npos)
 	{
-		if(calledFromAddon)
-			cmdline.erase(0, (cmdline.find("gta_sa.exe") + 12));
-		else
-			cmdline.erase(0, (cmdline.find("updater.exe") + 13));
+		printf("SAMP-Addon updater daemon started (version %i)\n", ADDON_UPDATER_VERSION);
+		printf("Running flags: %s\n", cmdline.c_str());
+		printf("Waiting for GTA:SA process terminate...\n");
 
-		printf("Terminating game instance...\n");
+		while(IsProcessRunning("gta_sa.exe"))
+				Sleep(2500);
 
-		WinExec("taskkill /F /IM gta_sa.exe", SW_SHOW);
-		WinExec("taskkill /F /IM samp.exe", SW_SHOW);
-		Sleep(5000);
-	}
-	else
-		cmdline.erase(0, (cmdline.find("updater.exe") + 13));
+		printf("GTA:SA process terminated, processing...\n");
 
-	printf("Downloading package...\n");
-
-	path += "d3d9.tmp";
-	HRESULT res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", path.c_str(), NULL, NULL);
-	path.erase(path.find("d3d9."), INFINITE);
-
-	if(res == S_OK)
-	{
-		printf("Downloaded updated package (%i bytes)\n", boost::filesystem::file_size(tmpfile));
-	}
-	else
-	{
-		printf("Error while downloading updated package: %i (Error code: %i)\n", res, GetLastError());
-
-		Sleep(5000);
-		exit(EXIT_SUCCESS);
-	}
-
-	if(boost::filesystem::exists(tmpfile))
-	{
-		boost::system::error_code error;
-
-		if(!install)
+		if(cmdline.find("/removeasiloader") != std::string::npos)
 		{
-			printf("Removing old d3d9.dll...\n");
+			boost::filesystem::path vorbisfile(path + "VorbisFile.dll");
+			boost::filesystem::path vorbishooked(path + "VorbisHooked.dll");
 
-			boost::filesystem::remove(dllfile, error);
 
-			if(error)
+			printf("Found: Remove ASI loader flag, processing...\n");
+
+			if(boost::filesystem::exists(vorbishooked))
 			{
-				printf("Cannot remove old d3d9.dll: %s (Error code: %i)\n", error.message().c_str(), error.value());
+				boost::filesystem::remove(vorbisfile);
 
-				Sleep(5000);
-				exit(EXIT_SUCCESS);
+				boost::filesystem::rename(vorbishooked, vorbisfile);
 			}
 		}
 
-		printf("Replacing d3d9.tmp to d3d9.dll location...\n");
+		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/version.txt", ".\\addon_version.tmp", NULL, NULL);
+		std::size_t hashcheck = boost::filesystem::file_size(dllfile);
+		std::size_t hashcheck_remote = hashcheck;
 
-		boost::filesystem::rename(tmpfile, dllfile, error);
-
-		if(error)
+		if(download == S_OK)
 		{
-			printf("Cannot rename d3d9.tmp to d3d9.dll: %s (Error code: %i)\n", error.message().c_str(), error.value());
+			std::ifstream f;
 
-			Sleep(5000);
+			f.open("addon_version.tmp", std::ifstream::in);
+			f >> hashcheck_remote;
+			f.close();
+
+			boost::filesystem::remove(boost::filesystem::path(".\\addon_version.tmp"));
+		}
+		else
+		{
+			printf("Error while retrieving addon version: %i (Error code: %i)", download, GetLastError());
+			system("pause");
 			exit(EXIT_SUCCESS);
 		}
+
+		if(hashcheck != hashcheck_remote)
+		{
+			printf("Current addon version (%i) was outdated. New version of addon (%i) was found, downloading it", hashcheck, hashcheck_remote);
+			printf("Downloading package...\n");
+
+			download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", ".\\d3d9.tmp", NULL, NULL);
+
+			if(download == S_OK)
+			{
+				printf("Downloaded update package\n");
+			}
+			else
+			{
+				printf("Error while downloading update package: %i (Error code: %i)\n", download, GetLastError());
+				system("pause");
+				exit(EXIT_SUCCESS);
+			}
+
+			boost::filesystem::remove(dllfile);
+			boost::filesystem::rename(tmpfile, dllfile);
+
+			printf("Downloading changelog file...\n");
+
+			if(boost::filesystem::exists(changelog))
+				boost::filesystem::remove(changelog);
+
+			download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", ".\\addon_changelog.txt", NULL, NULL);
+
+			if(download == S_OK)
+			{
+				printf("Changes file saved to addon_changelog.txt\n");
+			}
+			else
+			{
+				printf("Cannot download changelog file: %i (Error code: %i)\n", download, GetLastError());
+				system("pause");
+				exit(EXIT_SUCCESS);
+			}
+
+			exit(EXIT_SUCCESS);
+		}
+
+		printf("Addon files is up to date\n");
+
+		exit(EXIT_SUCCESS);
 	}
+
+	printf("SAMP-Addon installer was started\n");
+	printf("Found GTA:SA at '%s'\n", path.c_str());
+
+	printf("Downloading SAMP-Addon files...\n");
+
+	HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", ".\\d3d9.tmp", NULL, NULL);
+
+	if(download == S_OK)
+	{
+		printf("Downloaded update package (%i bytes)\n", boost::filesystem::file_size(tmpfile));
+	}
+	else
+	{
+		printf("Error while downloading update package: %i (Error code: %i)\n", download, GetLastError());
+		system("pause");
+		exit(EXIT_SUCCESS);
+	}
+
+	if(boost::filesystem::exists(dllfile))
+	{
+		if(boost::filesystem::file_size(dllfile) == boost::filesystem::file_size(tmpfile))
+		{
+			printf("Latest version of SAMP-Addon already installed, terminating...\n");
+			system("pause");
+			exit(EXIT_SUCCESS);
+		}
+
+		boost::filesystem::remove(dllfile);
+	}
+
+	boost::filesystem::rename(tmpfile, dllfile);
 
 	printf("Downloading changelog file...\n");
 
 	if(boost::filesystem::exists(changelog))
 		boost::filesystem::remove(changelog);
 
-	path += "addon_changelog.log";
-	res = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", path.c_str(), NULL, NULL);
-	path.erase(path.find("addon_changelog."), INFINITE);
+	download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", ".\\addon_changelog.txt", NULL, NULL);
 
-	if(res == S_OK)
+	if(download == S_OK)
 	{
-		printf("Changes file saved to addon_changelog.log\n");
+		printf("Changes file saved to addon_changelog.txt\n");
 	}
 	else
 	{
-		printf("Cannot download changelog file: %i (Error code: %i)\n", res, GetLastError());
-	}
-
-	if(install)
-	{
-		printf("SAMP-Addon was installed!\n");
-
-		Sleep(5000);
+		printf("Cannot download changelog file: %i (Error code: %i)\n", download, GetLastError());
+		system("pause");
 		exit(EXIT_SUCCESS);
 	}
 
-	printf("Launching samp.exe with parameters: %s\n", cmdline.c_str());
-
-	STARTUPINFO updaterStart;
-	PROCESS_INFORMATION updaterStartInfo;
-
-	ZeroMemory(&updaterStart, sizeof(updaterStart));
-	updaterStart.cb = sizeof(updaterStart);
-
-	ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
-	path += "samp.exe";
-
-	if(!CreateProcess(path.c_str(), (LPSTR)cmdline.c_str(), NULL, NULL, FALSE, DETACHED_PROCESS, NULL, NULL, &updaterStart, &updaterStartInfo))
-	{
-		printf("Error while creating process samp.exe: %i\n", GetLastError());
-
-		Sleep(5000);
-		exit(EXIT_SUCCESS);
-	}
-
-	printf("Update completed!\n");
-
-	Sleep(5000);
+	printf("Installation completed!\n");
+	system("pause");
 
 	return 1;
 }

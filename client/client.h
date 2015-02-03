@@ -6,8 +6,27 @@
 
 
 
-#define ADDON_STRING_VERSION	"2013.11.15"
-#define ADDON_NUMERIC_VERSION	(20131115)
+#define ADDON_STRING_VERSION	"2015.02.03"
+#define ADDON_NUMERIC_VERSION	(20150203)
+
+
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h> // Windows-only, alright?
+//#include <WinSock2.h>
+
+
+
+//#include <boost/archive/text_iarchive.hpp>
+//#include <boost/archive/text_oarchive.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/chrono.hpp>
+#include <boost/filesystem.hpp>
+//#include <boost/serialization/serialization.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
+#include <boost/unordered_map.hpp>
 
 
 
@@ -23,19 +42,7 @@
 #include <sstream>
 #include <string>
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h> // Windows-only, alright?
 
-//#include <boost/archive/text_iarchive.hpp>
-//#include <boost/archive/text_oarchive.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/chrono.hpp>
-#include <boost/filesystem.hpp>
-//#include <boost/serialization/serialization.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
-#include <boost/unordered_map.hpp>
 
 #include "ProxyIDirect3D9.h"
 #include "ProxyIDirect3DDevice9.h"

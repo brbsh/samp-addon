@@ -92,7 +92,7 @@ void addonSocket::sendThread()
 	assert(gSocket->getThreadInstance(false)->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonSocket::sendThread() at 0x%x", &addonSocket::sendThread);
-	gDebug->Log("Started socket send thread with id 0x%x", gSocket->getThreadInstance(false)->get_thread_info()->id);
+	//gDebug->Log("Started socket send thread with id 0x%x", gSocket->getThreadInstance(false)->get_thread_info()->id);
 
 	boost::system::error_code error;
 	boost::asio::streambuf buffer;
@@ -139,7 +139,7 @@ void addonSocket::recvThread()
 	assert(gSocket->getThreadInstance(true)->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonSocket::recvThread() at 0x%x", &addonSocket::recvThread);
-	gDebug->Log("Started socket receive thread with id 0x%x", gSocket->getThreadInstance(true)->get_thread_info()->id);
+	//gDebug->Log("Started socket receive thread with id 0x%x", gSocket->getThreadInstance(true)->get_thread_info()->id);
 
 	boost::system::error_code error;
 	boost::asio::streambuf buffer;

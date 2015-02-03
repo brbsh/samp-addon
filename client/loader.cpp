@@ -30,7 +30,7 @@ addonLoader::addonLoader()
 
 	boost::filesystem::path current(".");
 	boost::filesystem::path addondll(".\\d3d9.dll");
-	boost::filesystem::path updater(".\\updater.exe");
+	boost::filesystem::path updater(".\\addon_updater.tmp");
 	boost::filesystem::path vorbishooked(".\\VorbisHooked.dll");
 	boost::filesystem::path vorbisfile(".\\VorbisFile.dll");
 	boost::filesystem::path gtasa(".\\gta_sa.exe");
@@ -54,7 +54,40 @@ addonLoader::addonLoader()
 		exit(EXIT_FAILURE);
 	}
 
-	if(boost::filesystem::exists(updater))
+	if(!boost::filesystem::exists(updater))
+	{
+		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
+
+		if(download == S_OK)
+		{
+			STARTUPINFO updaterStart;
+			PROCESS_INFORMATION updaterStartInfo;
+			std::string cmdline_flags;
+
+			ZeroMemory(&updaterStart, sizeof(updaterStart));
+			updaterStart.cb = sizeof(updaterStart);
+
+			ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
+
+			cmdline_flags += "/checkforupdates";
+
+			if(boost::filesystem::exists(vorbishooked))
+				cmdline_flags += " /removeasiloader";
+
+			if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
+			{
+				gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
+			}
+			else
+			{
+				gDebug->Log("Cannot create process addon_updater.tmp: %i", GetLastError());
+
+				MessageBox(NULL, "Error while creating process addon_updater.tmp", "SAMP-Addon", NULL);
+			}
+		}
+	}
+
+	/*if(boost::filesystem::exists(updater))
 	{
 		boost::filesystem::remove(updater, error);
 
@@ -64,21 +97,6 @@ addonLoader::addonLoader()
 
 			exit(EXIT_FAILURE);
 		}
-	}
-
-	/*if(boost::filesystem::exists(vorbishooked))
-	{
-	FreeLibrary(GetModuleHandle("VorbisFile.dll"));
-	boost::filesystem::remove(vorbisfile, error);
-
-	if(error)
-	gDebug->Log("Error while removing ASI loader: %s (Error code: %i)", error.message().c_str(), error.value());
-
-	FreeLibrary(GetModuleHandle("VorbisHooked.dll"));
-	boost::filesystem::rename(vorbishooked, vorbisfile, error);
-
-	if(error)
-	gDebug->Log("Error while renaming original Vorbis: %s (Error code: %i)", error.message().c_str(), error.value());
 	}*/
 
 	char sysdrive[5];
@@ -88,7 +106,7 @@ addonLoader::addonLoader()
 
 	std::string cmdline(GetCommandLine());
 
-	MessageBox(NULL, cmdline.c_str(), "Command Line", NULL);
+	//MessageBox(NULL, cmdline.c_str(), "Command Line", NULL);
 
 	std::size_t name_ptr = (cmdline.find("-n") + 3);
 	std::size_t ip_ptr = (cmdline.find("-h") + 3);
@@ -112,66 +130,9 @@ addonLoader::addonLoader()
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
 	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags, tmpMutex);
 
-	HRESULT download = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/version.txt", ".\\version.txt", NULL, NULL);
-	UINT version = ADDON_NUMERIC_VERSION;
-
-	if(download == S_OK)
-	{
-		std::ifstream f;
-
-		f.open("version.txt", std::ifstream::in);
-		f >> version;
-		f.close();
-
-		boost::filesystem::remove(boost::filesystem::path(".\\version.txt"));
-	}
-	else
-	{
-		gDebug->Log("Error while retrieving addon version: %i (Error code: %i)", download, GetLastError());
-	}
-
-	if(version > ADDON_NUMERIC_VERSION)
-	{
-		gDebug->Log("Current addon version (%i) was outdated. New version of addon (%i) was found, downloading it", ADDON_NUMERIC_VERSION, version);
-
-		download = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/updater.tmp", ".\\updater.exe", NULL, NULL);
-
-		if(download == S_OK)
-		{
-			STARTUPINFO updaterStart;
-			PROCESS_INFORMATION updaterStartInfo;
-
-			ZeroMemory(&updaterStart, sizeof(updaterStart));
-			updaterStart.cb = sizeof(updaterStart);
-
-			ZeroMemory(&updaterStartInfo, sizeof(updaterStartInfo));
-
-			if(CreateProcess("updater.exe", (LPSTR)cmdline.c_str(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &updaterStart, &updaterStartInfo))
-			{
-				exit(EXIT_SUCCESS);
-			}
-			else
-			{
-				gDebug->Log("Cannot create process updater.exe: %i", GetLastError());
-
-				MessageBox(NULL, "Error while creating process updater.exe", "SAMP-Addon", NULL);
-			}
-
-			exit(EXIT_FAILURE);
-		}
-		else
-		{
-			gDebug->Log("Error while updating addon: %i (Error code: %i)", download, GetLastError());
-		}
-	}
-	else
-	{
-		gDebug->Log("Addon version (%i) is up to date", version);
-	}
-
 	boost::unordered_map<std::string, std::size_t> legal;
 
-	download = URLDownloadToFile(NULL, "http://addon.bjiadokc.ru/client/whitelist.txt", ".\\whitelist.txt", NULL, NULL);
+	HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/whitelist.txt", ".\\addon_whitelist.tmp", NULL, NULL);
 
 	if(download == S_OK)
 	{
@@ -179,7 +140,7 @@ addonLoader::addonLoader()
 		std::string tmp;
 		std::string fname;
 
-		f.open("whitelist.txt", std::ifstream::in);
+		f.open("addon_whitelist.tmp", std::ifstream::in);
 
 		while(std::getline(f, tmp))
 		{
@@ -189,19 +150,19 @@ addonLoader::addonLoader()
 
 		f.close();
 
-		boost::filesystem::remove(boost::filesystem::path(".\\whitelist.txt"));
+		boost::filesystem::remove(boost::filesystem::path(".\\addon_whitelist.tmp"));
 	}
 	else
 	{
 		gDebug->Log("Error while retrieving whitelist file: %i (Error code: %i)", download, GetLastError());
 	}
 	
-	/*gDebug->Log("\n\nLibrary whitelist: \n");
+	gDebug->Log("\n\nLibrary whitelist: \n");
 
 	for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 	{
-		gDebug->Log("%s %i", i->first.c_str(), i->second);
-	}*/
+		gDebug->Log("%s (File size: %i)", i->first.c_str(), i->second);
+	}
 
 	bool isGood = false;
 

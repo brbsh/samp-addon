@@ -294,10 +294,10 @@ void addonDebug::traceLastFunction(char *format, ...)
 
 void addonDebug::Thread()
 {
-	assert(gDebug->getThreadInstance->get_id() == boost::this_thread::get_id());
+	assert(gDebug->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonDebug::Thread() at 0x%x", &addonDebug::Thread);
-	gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->get_thread_info()->id);
+	//gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->get_thread_info()->id);
 
 	char timeform[16];
 	struct tm *timeinfo;

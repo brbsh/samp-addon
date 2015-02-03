@@ -28,7 +28,6 @@ addonCore::addonCore()
 	gFunctions = boost::shared_ptr<addonFunctions>(new addonFunctions());
 	gPool = boost::shared_ptr<addonPool>(new addonPool());
 	gSocket = boost::shared_ptr<addonSocket>(new addonSocket());
-	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
 	gDebug->traceLastFunction("addonCore::addonCore() at 0x?????");
 	gDebug->Log("Core constructor called");
@@ -55,7 +54,7 @@ void addonCore::Thread()
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonCore::Thread() at 0x%x", &addonCore::Thread);
-	gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->get_thread_info()->id);
+	//gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->get_thread_info()->id);
 
 	boost::this_thread::sleep_for(boost::chrono::seconds(5));
 
@@ -65,9 +64,11 @@ void addonCore::Thread()
 		boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gCore->getMutexInstance()->unlock();
+
+
 	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
 
-	boost::this_thread::sleep_for(boost::chrono::seconds(1));
+	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
 	gD3Device->stopLastRender(gCore->getMutexInstance());
 	gD3Device->renderText("Loading SAMP-Addon... OK!", 10, 10, 255, 255, 255, 127, gCore->getMutexInstance());
@@ -120,10 +121,10 @@ void addonCore::Thread()
 			gCore->pendingQueue.pop();
 			gCore->getMutexInstance()->unlock();
 
-			switch(data.first)
+			/*switch(data.first)
 			{
 
-			}
+			}*/
 
 			boost::this_thread::restore_interruption re(di);
 			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
