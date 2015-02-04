@@ -13,8 +13,6 @@ class addonDebug
 
 public:
 
-	std::queue<std::string> logQueue;
-	boost::mutex lwrMutex;
 	std::list<std::string> funcTrace;
 
 	addonDebug();
@@ -22,6 +20,7 @@ public:
 
 	void Log(char *format, ...);
 	void traceLastFunction(char *format, ...);
+	void processFW();
 
 	boost::thread *getThreadInstance() const
 	{
@@ -33,6 +32,8 @@ public:
 
 private:
 
+	std::queue<std::string> logQueue;
+	boost::mutex lwrMutex;
 	boost::mutex ftrMutex;
 	boost::shared_ptr<boost::thread> threadInstance;
 };

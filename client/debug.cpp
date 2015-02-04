@@ -57,7 +57,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 	processingException = true;
 
-	boost::filesystem::path log(".\\addon_crashreport.txt");
+	/*boost::filesystem::path log(".\\addon_crashreport.txt");
 
 	if(boost::filesystem::exists(log))
 	{
@@ -67,7 +67,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 		if(error)
 			gDebug->Log("Cannot remove old crashreport file: %s (Error code: %i)", error.message().c_str(), error.value());
-	}
+	}*/
 
 	std::ofstream report;
 
@@ -254,9 +254,18 @@ void addonDebug::Log(char *format, ...)
 
 	va_start(args, format);
 
-	boost::unique_lock<boost::mutex> lockit(this->lwrMutex);
-	this->logQueue.push(addonString::vprintf(format, args));
-	lockit.unlock();
+	try_lock_mutex:
+
+	if(this->lwrMutex.try_lock())
+	{
+		this->logQueue.push(addonString::vprintf(format, args));
+		this->lwrMutex.unlock();
+	}
+	else
+	{
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		goto try_lock_mutex;
+	}
 
 	va_end(args);
 }
@@ -285,13 +294,8 @@ void addonDebug::traceLastFunction(char *format, ...)
 
 
 
-void addonDebug::Thread()
+void addonDebug::processFW()
 {
-	assert(gDebug->getThreadInstance()->get_id() == boost::this_thread::get_id());
-
-	gDebug->traceLastFunction("addonDebug::Thread() at 0x%x", &addonDebug::Thread);
-	//gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->get_thread_info()->id);
-
 	char timeform[16];
 	struct tm *timeinfo;
 	time_t rawtime;
@@ -301,27 +305,60 @@ void addonDebug::Thread()
 
 	while(true)
 	{
-		while(!gDebug->logQueue.empty())
+		this->lwrMutex.lock();
+
+		if(this->logQueue.empty())
 		{
-			boost::this_thread::disable_interruption di;
+			this->lwrMutex.unlock();
 
-			boost::unique_lock<boost::mutex> lockit(gDebug->lwrMutex);
-			data = gDebug->logQueue.front();
-			gDebug->logQueue.pop();
-			lockit.unlock();
-
-			time(&rawtime);
-			timeinfo = localtime(&rawtime);
-			strftime(timeform, sizeof timeform, "%X", timeinfo);
-
-			file.open(".\\addon_log.txt", (std::ofstream::out | std::ofstream::app));
-			file << "[" << timeform << "] " << data << std::endl;
-			file.close();
-
-			boost::this_thread::restore_interruption re(di);
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			break;
 		}
 
+		data = this->logQueue.front();
+		this->lwrMutex.unlock();
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+		strftime(timeform, sizeof timeform, "%X", timeinfo);
+
+		file.open(".\\addon_log.txt", (std::ofstream::out | std::ofstream::app));
+		file << "[" << timeform << "] " << data << std::endl;
+		file.close();
+
+		try_lock_mutex:
+
+		if(this->lwrMutex.try_lock())
+		{
+			this->logQueue.pop();
+			this->lwrMutex.unlock();
+		}
+		else
+		{
+			gDebug->Log("Cannot lock debug queue mutex, continuing anyway");
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			goto try_lock_mutex;
+		}
+
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+	}
+}
+
+
+
+void addonDebug::Thread()
+{
+	assert(gDebug->getThreadInstance()->get_id() == boost::this_thread::get_id());
+
+	gDebug->traceLastFunction("addonDebug::Thread() at 0x%x", &addonDebug::Thread);
+	//gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->get_thread_info()->id);
+
+	while(true)
+	{
+		boost::this_thread::disable_interruption di;
+
+		gDebug->processFW();
+
+		boost::this_thread::restore_interruption re(di);
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }

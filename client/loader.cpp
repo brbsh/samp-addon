@@ -142,7 +142,7 @@ addonLoader::addonLoader()
 		MessageBox(NULL, "Error while creating process addon_updater.tmp", "SAMP-Addon", NULL);
 	}
 
-	char sysdrive[5];
+	char sysdrive[32];
 
 	DWORD serial = NULL;
 	DWORD flags = NULL;
@@ -171,7 +171,10 @@ addonLoader::addonLoader()
 	strcat_s(sysdrive, "\\");
 
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
+	sprintf(sysdrive, "%i", serial + flags);
+
 	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags);
+	gPool->setVar("playerSerial10", sysdrive);
 
 	boost::unordered_map<std::string, std::size_t> legal;
 	boost::unordered_map<std::string, HMODULE> loaded;

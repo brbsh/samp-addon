@@ -13,14 +13,12 @@ class addonCore
 
 public:
 
-	std::queue<std::pair<UINT, std::string>> outputQueue;
-	std::queue<std::pair<UINT, std::string>> pendingQueue;
-	boost::mutex pqMutex;
-
 	addonCore();
 	virtual ~addonCore();
 
-	void Queue(std::pair<UINT, std::string> set);
+	void processFunc();
+	void queueIN(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
+	void queueOUT(boost::shared_ptr<boost::asio::ip::tcp::socket> sock);
 
 	boost::thread *getThreadInstance() const
 	{
@@ -30,6 +28,12 @@ public:
 	static void Thread();
 
 private:
+
+	boost::mutex pqMutex;
+	boost::mutex ouMutex;
+
+	std::queue<std::pair<UINT, std::string>> outputQueue;
+	std::queue<std::pair<UINT, std::string>> pendingQueue;
 
 	boost::shared_ptr<boost::thread> threadInstance;
 };

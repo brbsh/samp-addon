@@ -2,6 +2,9 @@
 
 
 
+#ifndef DEBUG_H
+#define DEBUG_H
+
 #include "server.h"
 
 
@@ -13,27 +16,29 @@ class amxDebug
 
 public:
 
-	std::queue<std::string> logQueue;
-
 	amxDebug();
 	virtual ~amxDebug();
 
+	void processFW();
 	void Log(char *format, ...);
-
-	boost::mutex *getMutexInstance() const
-	{
-		return mutexInstance.get();
-	}
 
 	boost::thread *getThreadInstance() const
 	{
 		return threadInstance.get();
 	}
 
+	static void RemoteLog(char *format, ...);
 	static void Thread();
 
 private:
 
-	boost::shared_ptr<boost::mutex> mutexInstance;
+	std::queue<std::string> logQueue;
+	boost::mutex lwMutex;
 	boost::shared_ptr<boost::thread> threadInstance;
 };
+
+
+
+
+
+#endif

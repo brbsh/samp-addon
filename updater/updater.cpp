@@ -127,62 +127,34 @@ int main()
 	boost::filesystem::path dllfile(".\\d3d9.dll");
 	boost::filesystem::path tmpfile(".\\d3d9.tmp");
 
-	if(cmdline.find("/createverfile") != std::string::npos)
-	{
-		boost::filesystem::path version_af("..\\build\\client\\client_version.txt");
-		boost::filesystem::path version_uf("..\\build\\client\\updater_version.txt");
-		boost::filesystem::path version_wsf("..\\build\\server\\windows_server_version.txt");
-		boost::filesystem::path version_lsf("..\\build\\server\\linux_server_version.txt");
-
-		std::ofstream f;
-
-		//updaterLog("DEBUG: Requested version files generate, processing...");
-
-		if(boost::filesystem::exists(version_af))
-			boost::filesystem::remove(version_af);
-
-		if(boost::filesystem::exists(version_uf))
-			boost::filesystem::remove(version_uf);
-
-		if(boost::filesystem::exists(version_wsf))
-			boost::filesystem::remove(version_wsf);
-
-		if(boost::filesystem::exists(version_lsf))
-			boost::filesystem::remove(version_lsf);
-		
-		f.open("..\\build\\client\\client_version.txt", std::ofstream::out);
-		f << crc32_file("..\\build\\client\\d3d9.dll");
-		f.close();
-
-		f.open("..\\build\\client\\updater_version.txt", std::ofstream::out);
-		f << crc32_file("..\\build\\client\\updater.exe");
-		f.close();
-
-		f.open("..\\build\\server\\windows_server_version.txt", std::ofstream::out);
-		f << crc32_file("..\\build\\server\\windows\\addon.dll");
-		f.close();
-
-		f.open("..\\build\\server\\linux_server_version.txt", std::ofstream::out);
-		f << crc32_file("..\\build\\server\\linux\\addon.so");
-		f.close();
-
-		//updaterLog("DEBUG: Version files generation completed.");
-
-		return 0;
-	}
-
 	SetCurrentDirectory(path.c_str());
 
-	if(boost::filesystem::exists(updaterlog))
-		boost::filesystem::remove(updaterlog);
-
+	try
+	{
+		if(boost::filesystem::exists(updaterlog))
+			boost::filesystem::remove(updaterlog);
+	}
+	catch(boost::filesystem::filesystem_error &err)
+	{
+		updaterLog("Error while removing file 'addon_updater_log.txt' (What: %s)", err.what());
+	}
+	
 	if(cmdline.find("/uninstall") != std::string::npos)
 	{
 		updaterLog("Uninstalling SAMP-Addon...");
 
-		boost::filesystem::remove(dllfile);
-		boost::filesystem::remove(changelog);
-		boost::filesystem::remove(boost::filesystem::path(".\\addon_updater.tmp"));
+		try
+		{
+			boost::filesystem::remove(dllfile);
+			boost::filesystem::remove(changelog);
+			boost::filesystem::remove(boost::filesystem::path(".\\addon_updater.tmp"));
+		}
+		catch(boost::filesystem::filesystem_error &err)
+		{
+			updaterLog("Error while uninstalling SAMP-Addon (What: %s)", err.what());
+
+			return 1;
+		}
 
 		return 0;
 	}
@@ -206,11 +178,19 @@ int main()
 
 			updaterLog("Found: Remove ASI loader flag, processing...");
 
-			if(boost::filesystem::exists(vorbishooked))
+			try
 			{
-				boost::filesystem::remove(vorbisfile);
+				if(boost::filesystem::exists(vorbishooked))
+				{
+					boost::filesystem::remove(vorbisfile);
+					boost::filesystem::rename(vorbishooked, vorbisfile);
+				}
+			}
+			catch(boost::filesystem::filesystem_error &err)
+			{
+				updaterLog("Error while removing ASI loader (What: %s)", err.what());
 
-				boost::filesystem::rename(vorbishooked, vorbisfile);
+				return 1;
 			}
 		}
 
@@ -226,7 +206,16 @@ int main()
 			f >> hashcheck_remote;
 			f.close();
 
-			boost::filesystem::remove(boost::filesystem::path(".\\addon_version.tmp"));
+			try
+			{
+				boost::filesystem::remove(boost::filesystem::path(".\\addon_version.tmp"));
+			}
+			catch(boost::filesystem::filesystem_error &err)
+			{
+				updaterLog("Error while removing file 'addon_version.tmp' (What: %s)", err.what());
+
+				return 1;
+			}
 		}
 		else
 		{
@@ -253,13 +242,31 @@ int main()
 				return 1;
 			}
 
-			boost::filesystem::remove(dllfile);
-			boost::filesystem::rename(tmpfile, dllfile);
+			try
+			{
+				boost::filesystem::remove(dllfile);
+				boost::filesystem::rename(tmpfile, dllfile);
+			}
+			catch(boost::filesystem::filesystem_error &err)
+			{
+				updaterLog("Error while replacing 'd3d9.dll' by 'd3d9.tmp' (What: %s)", err.what());
+
+				return 1;
+			}
 
 			updaterLog("Downloading changelog file...");
 
-			if(boost::filesystem::exists(changelog))
-				boost::filesystem::remove(changelog);
+			try
+			{
+				if(boost::filesystem::exists(changelog))
+					boost::filesystem::remove(changelog);
+			}
+			catch(boost::filesystem::filesystem_error &err)
+			{
+				updaterLog("Error while removing file 'addon_changelog.txt' (What: %s)", err.what());
+
+				return 1;
+			}
 
 			download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", ".\\addon_changelog.txt", NULL, NULL);
 
@@ -299,26 +306,44 @@ int main()
 		return 1;
 	}
 
-	if(boost::filesystem::exists(dllfile))
+	try
 	{
-		if(crc32_file(".\\d3d9.dll") == crc32_file(".\\d3d9.tmp"))
+		if(boost::filesystem::exists(dllfile))
 		{
-			boost::filesystem::remove(tmpfile);
+			if(crc32_file(".\\d3d9.dll") == crc32_file(".\\d3d9.tmp"))
+			{
+				boost::filesystem::remove(tmpfile);
 
-			updaterLog("Latest version of SAMP-Addon already installed, terminating...");
+				updaterLog("Latest version of SAMP-Addon already installed, terminating...");
 
-			return 1;
+				return 1;
+			}
+
+			boost::filesystem::remove(dllfile);
 		}
 
-		boost::filesystem::remove(dllfile);
+		boost::filesystem::rename(tmpfile, dllfile);
 	}
+	catch(boost::filesystem::filesystem_error &err)
+	{
+		updaterLog("Error while placing addon files (What: %s)", err.what());
 
-	boost::filesystem::rename(tmpfile, dllfile);
+		return 1;
+	}
 
 	updaterLog("Downloading changelog file...");
 
-	if(boost::filesystem::exists(changelog))
-		boost::filesystem::remove(changelog);
+	try
+	{
+		if(boost::filesystem::exists(changelog))
+			boost::filesystem::remove(changelog);
+	}
+	catch(boost::filesystem::filesystem_error &err)
+	{
+		updaterLog("Error while removing file 'addon_changelog.txt' (What: %s)", err.what());
+
+		return 1;
+	}
 
 	download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/changelog.txt", ".\\addon_changelog.txt", NULL, NULL);
 

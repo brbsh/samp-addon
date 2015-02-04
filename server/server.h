@@ -1,6 +1,30 @@
 #pragma once
-#pragma warning(disable:4996)
+#pragma warning(disable:4996 4700)
 
+
+
+#ifndef SERVER_H
+#define SERVER_H
+
+#if defined(WIN32) || defined(_WIN32) || defined(WIN64)
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
+
+
+//#include <boost/archive/text_iarchive.hpp>
+//#include <boost/archive/text_oarchive.hpp>
+#include <boost/asio.hpp>
+//#include <boost/atomic.hpp>
+#include <boost/bind.hpp>
+#include <boost/chrono.hpp>
+#include <boost/crc.hpp>
+#include <boost/filesystem.hpp>
+//#include <boost/serialization/serialization.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
+#include <boost/unordered_map.hpp>
 
 
 #include <algorithm>
@@ -13,19 +37,6 @@
 #include <queue>
 #include <sstream>
 #include <string>
-
-//#include <boost/archive/text_iarchive.hpp>
-//#include <boost/archive/text_oarchive.hpp>
-#include <boost/asio.hpp>
-#include <boost/atomic.hpp>
-#include <boost/bind.hpp>
-#include <boost/chrono.hpp>
-#include <boost/crc.hpp>
-#include <boost/filesystem.hpp>
-//#include <boost/serialization/serialization.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
-#include <boost/unordered_map.hpp>
 
 #define HAVE_STDINT_H
 
@@ -43,3 +54,9 @@
 
 
 typedef void (*logprintf_t)(char *format, ...);
+
+
+
+
+
+#endif

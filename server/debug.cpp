@@ -8,7 +8,10 @@
 
 
 
-boost::shared_ptr<amxDebug> gDebug;
+amxDebug *gDebug;
+
+
+extern logprintf_t logprintf;
 
 
 
@@ -16,7 +19,6 @@ boost::shared_ptr<amxDebug> gDebug;
 
 amxDebug::amxDebug()
 {
-	this->mutexInstance = boost::shared_ptr<boost::mutex>(new boost::mutex());
 	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxDebug::Thread)));
 }
 
@@ -25,7 +27,6 @@ amxDebug::amxDebug()
 amxDebug::~amxDebug()
 {
 	this->threadInstance->interruption_requested();
-	//this->mutexInstance->destroy();
 }
 
 
@@ -33,17 +34,78 @@ amxDebug::~amxDebug()
 void amxDebug::Log(char *format, ...)
 {
 	va_list args;
-	boost::mutex logMutex;
 
 	va_start(args, format);
 
-	logMutex.lock();
-	this->logQueue.push(amxString::vprintf(format, args));
-	logMutex.unlock();
+	try_lock_mutex:
+
+	if(this->lwMutex.try_lock())
+	{
+		this->logQueue.push(amxString::vprintf(format, args));
+		this->lwMutex.unlock();
+	}
+	else
+	{
+		logprintf("Cannot lock debug queue mutex, trying to lock it anyway...");
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		goto try_lock_mutex;
+	}
 
 	va_end(args);
+}
 
-	//logMutex.destroy();
+
+
+void amxDebug::RemoteLog(char *format, ...)
+{
+	va_list args;
+	std::string result;
+
+	va_start(args, format);
+	result = amxString::vprintf(format, args);
+	va_end(args);
+
+	gDebug->Log((char *)result.c_str());
+}
+
+
+
+void amxDebug::processFW()
+{
+	char timeform[16];
+	struct tm *timeinfo;
+	time_t rawtime;
+
+	std::ofstream file;
+	std::string data;
+
+	while(true)
+	{
+		this->lwMutex.lock();
+
+		if(this->logQueue.empty())
+		{
+			this->lwMutex.unlock();
+			break;
+		}
+
+		data = this->logQueue.front();
+		this->lwMutex.unlock();
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+		strftime(timeform, sizeof timeform, "%X", timeinfo);
+
+		file.open(".\\addon.log", (std::ofstream::out | std::ofstream::app));
+		file << "[" << timeform << "] " << data << std::endl;
+		file.close();
+
+		this->lwMutex.lock();
+		this->logQueue.pop();
+		this->lwMutex.unlock();
+
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+	}
 }
 
 
@@ -54,36 +116,13 @@ void amxDebug::Thread()
 
 	gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->native_handle());
 
-	char timeform[16];
-	struct tm *timeinfo;
-	time_t rawtime;
-
-	std::ofstream file;
-	std::string data;
-
 	while(true)
 	{
-		while(!gDebug->logQueue.empty())
-		{
-			boost::this_thread::disable_interruption di;
+		boost::this_thread::disable_interruption di;
 
-			gDebug->getMutexInstance()->lock();
-			data = gDebug->logQueue.front();
-			gDebug->logQueue.pop();
-			gDebug->getMutexInstance()->unlock();
+		gDebug->processFW();
 
-			time(&rawtime);
-			timeinfo = localtime(&rawtime);
-			strftime(timeform, sizeof timeform, "%X", timeinfo);
-
-			file.open("addon.log", (std::ofstream::out | std::ofstream::app));
-			file << "[" << timeform << "] " << data << std::endl;
-			file.close();
-
-			boost::this_thread::restore_interruption re(di);
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
-		}
-
+		boost::this_thread::restore_interruption re(di);
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }

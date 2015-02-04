@@ -40,6 +40,7 @@
     <OutDir>$(SolutionDir)build\client\</OutDir>
     <TargetName>d3d9</TargetName>
     <GenerateManifest>false</GenerateManifest>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -68,7 +69,7 @@
       <ModuleDefinitionFile>client.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>$(SolutionDir)build\client\updater.exe /createverfiles</Command>
+      <Command>$(SolutionDir)maker\maker.exe /crcgen /cleanup</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

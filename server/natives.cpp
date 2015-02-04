@@ -19,11 +19,11 @@ extern boost::shared_ptr<amxSocket> gSocket;
 
 const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 {
-	{"InitAddon", amxNatives::InitAddon},
-	{"IsClientConnected", amxNatives::IsClientConnected},
-	{"KickClient", amxNatives::KickClient},
-	{"GetClientSerial", amxNatives::GetClientSerial},
-	//{"GetClientScreenshot", amxNatives::GetClientScreenshot},
+	{"Addon_Init", amxNatives::InitAddon},
+	{"Addon_IsClientConnected", amxNatives::IsClientConnected},
+	{"Addon_KickClient", amxNatives::KickClient},
+	{"Addon_GetClientSerial", amxNatives::GetClientSerial},
+	//{"Addon_GetClientScreenshot", amxNatives::GetClientScreenshot},
 	//{"TransferLocalFile", amxNatives::TransferLocalFile},
 	//{"TransferRemoteFile", amxNatives::TransferRemoteFile},
 
@@ -32,7 +32,7 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 
 
 
-// native InitAddon(ip[], port, maxplayers);
+// native Addon_Init(ip[], port = 7777, maxplayers = MAX_PLAYERS);
 cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 {
 	if(!arguments(3))
@@ -67,7 +67,7 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	if(gPool->pluginInit)
+	if(gPool->getPluginStatus())
 	{
 		logprintf("SAMP-Addon: Duplicate init interrupted");
 
@@ -79,22 +79,22 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 	char destbuf[12];
 	boost::mutex *cMutex = new boost::mutex();
 
-	gPool->setServerVar("serverIP", ip, cMutex);
+	gPool->setServerVar("serverIP", ip);
 
 	sprintf(destbuf, "%i", port);
-	gPool->setServerVar("serverPort", destbuf, cMutex);
+	gPool->setServerVar("serverPort", destbuf);
 
 	sprintf(destbuf, "%i", maxplayers);
-	gPool->setServerVar("maxClients", destbuf, cMutex);
+	gPool->setServerVar("maxClients", destbuf);
 
-	gPool->pluginInit.store(true);
+	gPool->setPluginStatus(true);
 	
 	return 1;
 }
 
 
 
-// native IsClientConnected(clientid)
+// native Addon_IsClientConnected(clientid);
 cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 {
 	if(!arguments(1))
@@ -109,7 +109,7 @@ cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
 
 
 
-// native KickClient(clientid)
+// native Addon_KickClient(clientid);
 cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 {
 	if(!arguments(1))
@@ -126,7 +126,7 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 
 
 
-// native GetClientSerial(clientid);
+// native Addon_GetClientSerial(clientid);
 cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 {
 	if(!arguments(1))
@@ -141,14 +141,14 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	int ret = gPool->clientPool.find(clientid)->second.sID;
+	amxPool::clientPoolS struc = gPool->getClientPool(clientid);
 
-	return ret;
+	return struc.sID;
 }
 
 
 
-// native GetClientScreenshot(clientid, remote_filename[]);
+// native Addon_GetClientScreenshot(clientid, remote_filename[]);
 /*cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
 {
 	if(!arguments(2))

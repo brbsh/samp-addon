@@ -37,8 +37,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)build\server\</OutDir>
+    <OutDir>$(SolutionDir)build\server\windows\</OutDir>
     <TargetName>addon</TargetName>
+    <GenerateManifest>false</GenerateManifest>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -56,12 +58,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>server.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)maker\maker.exe /crcgen /cleanup</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="core.h" />
@@ -73,6 +81,7 @@
     <ClInclude Include="tcpsocket.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\build\server\SDK\amxplugin.cpp" />
     <ClCompile Include="core.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="natives.cpp" />

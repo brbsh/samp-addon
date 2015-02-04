@@ -46,9 +46,142 @@ addonCore::~addonCore()
 
 
 
-void addonCore::Queue(std::pair<UINT, std::string> set)
+void addonCore::queueIN(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
 {
-	boost::unique_lock<boost::mutex> lockit(this->pqMutex);
+	boost::asio::streambuf buffer;
+	std::size_t length;
+
+	try
+	{
+		length = boost::asio::read_until(*sock.get(), buffer, "\n.\n.\n.");
+	}
+	catch(boost::system::system_error &err)
+	{
+		gDebug->Log("Cannot read from socket (What: %s)", err.what());
+	}
+
+	if(length > 0)
+	{
+		std::istream response(&buffer);
+		std::pair<UINT, std::string> pushData;
+
+		response >> pushData.first;
+		std::getline(response, pushData.second);
+
+		try_lock_mutex:
+
+		if(this->pqMutex.try_lock())
+		{
+			this->pendingQueue.push(pushData);
+			this->pqMutex.unlock();
+		}
+		else
+		{
+			gDebug->Log("Cannot lock pending queue mutex, continuing anyway");
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			goto try_lock_mutex;
+		}
+	}
+	else
+	{
+		gDebug->Log("Invalid length (%i) returned by socket read function", length);
+	}
+}
+
+
+
+void addonCore::queueOUT(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
+{
+	boost::asio::streambuf buffer;
+	std::size_t length;
+
+	while(true)
+	{
+		this->ouMutex.lock();
+
+		if(this->outputQueue.empty())
+		{
+			this->ouMutex.unlock();
+
+			break;
+		}
+
+		std::ostream request(&buffer);
+		std::pair<UINT, std::string> sendData = this->outputQueue.front();
+		this->ouMutex.unlock();
+
+		request << "TCPQUERY CLIENT_CALL" << " " << sendData.first << std::endl;
+		request << "DATA" << " " << sendData.second << "\n.\n.\n.";
+
+		try
+		{
+			length = boost::asio::write(*sock.get(), buffer);
+		}
+		catch(boost::system::system_error &err)
+		{
+			gDebug->Log("Cannot write to socket (What: %s)", err.what());
+		}
+
+		if(length < 1)
+			gDebug->Log("Invalid length (%i) returned by socket write function", length);
+
+		try_lock_mutex:
+
+		if(this->ouMutex.try_lock())
+		{
+			this->pendingQueue.pop();
+			this->ouMutex.unlock();
+		}
+		else
+		{
+			gDebug->Log("Cannot lock output queue mutex, continuing anyway");
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			goto try_lock_mutex;
+		}
+
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+	}
+}
+
+
+
+void addonCore::processFunc()
+{
+	while(true)
+	{
+		this->pqMutex.lock();
+
+		if(this->pendingQueue.empty())
+		{
+			this->pqMutex.unlock();
+
+			break;
+		}
+
+		std::pair<UINT, std::string> data = this->pendingQueue.front();
+		this->pqMutex.unlock();
+
+		/*switch(data.first)
+		{
+
+		}*/
+
+		try_lock_mutex:
+
+		if(this->pqMutex.try_lock())
+		{
+			this->pendingQueue.pop();
+			this->pqMutex.unlock();
+		}
+		else
+		{
+			gDebug->Log("Cannot lock pending queue mutex, continuing anyway");
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			goto try_lock_mutex;
+		}
+
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+	}
 }
 
 
@@ -101,25 +234,7 @@ void addonCore::Thread()
 
 	while(true)
 	{
-		while(!gCore->pendingQueue.empty())
-		{
-			boost::this_thread::disable_interruption di;
-
-			std::pair<UINT, std::string> data;
-
-			boost::unique_lock<boost::mutex> lockit(gCore->pqMutex);
-			data = gCore->pendingQueue.front();
-			gCore->pendingQueue.pop();
-			lockit.unlock();
-
-			/*switch(data.first)
-			{
-
-			}*/
-
-			boost::this_thread::restore_interruption re(di);
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-		}
+		gCore->processFunc();
 
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}

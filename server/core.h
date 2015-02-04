@@ -2,6 +2,9 @@
 
 
 
+#ifndef CORE_H
+#define CORE_H
+
 #include "server.h"
 
 
@@ -18,10 +21,7 @@ public:
 	amxCore();
 	virtual ~amxCore();
 
-	boost::mutex *getMutexInstance() const
-	{
-		return mutexInstance.get();
-	}
+	void processFunc();
 
 	boost::thread *getThreadInstance() const
 	{
@@ -32,6 +32,11 @@ public:
 
 private:
 
-	boost::shared_ptr<boost::mutex> mutexInstance;
 	boost::shared_ptr<boost::thread> threadInstance;
 };
+
+
+
+
+
+#endif

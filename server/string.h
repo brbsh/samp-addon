@@ -1,7 +1,9 @@
 #pragma once
-#pragma warning(disable:4700)
 
 
+
+#ifndef STRING_H
+#define STRING_H
 
 #include "server.h"
 
@@ -38,3 +40,9 @@ protected:
 
     std::stringstream m_stream;
 };
+
+
+
+
+
+#endif

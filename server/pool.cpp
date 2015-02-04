@@ -11,7 +11,7 @@
 boost::shared_ptr<amxPool> gPool;
 
 
-extern boost::shared_ptr<amxDebug> gDebug;
+extern amxDebug *gDebug;
 
 
 
@@ -21,7 +21,7 @@ amxPool::amxPool()
 {
 	gDebug->Log("Pool constructor called");
 
-	this->pluginInit.store(false);
+	this->pluginState = false;
 
 	this->clientPool.clear();
 	this->serverPool.clear();
@@ -33,23 +33,69 @@ amxPool::~amxPool()
 {
 	gDebug->Log("Pool destructor called");
 
-	this->pluginInit.store(false);
+	this->pluginState = false;
 }
 
 
 
-void amxPool::setServerVar(std::string key, std::string value, boost::mutex *mutex)
+void amxPool::setPluginStatus(bool status)
 {
-	mutex->lock();
+	boost::unique_lock<boost::shared_mutex> lockit(this->pstMutex);
+	this->pluginState = status;
+}
+
+
+
+bool amxPool::getPluginStatus()
+{
+	boost::shared_lock<boost::shared_mutex> lockit(this->pstMutex);
+	return this->pluginState;
+}
+
+
+
+void amxPool::setServerVar(std::string key, std::string value)
+{
+	boost::unique_lock<boost::shared_mutex> lockit(this->spMutex);
 	this->serverPool[key] = value;
-	mutex->unlock();
 }
 
 
 
-std::string amxPool::getServerVar(std::string key, boost::mutex *mutex)
+std::string amxPool::getServerVar(std::string key)
 {
-	boost::mutex::scoped_lock lock(*mutex);
-
+	boost::shared_lock<boost::shared_mutex> lockit(this->spMutex);
 	return this->serverPool.find(key)->second;
+}
+
+
+
+void amxPool::resetOwnPool(unsigned int clientid)
+{
+	boost::unique_lock<boost::shared_mutex> lockit(this->cpMutex);
+	this->clientPool.erase(clientid);
+}
+
+
+
+bool amxPool::hasOwnPool(unsigned int clientid)
+{
+	boost::shared_lock<boost::shared_mutex> lockit(this->cpMutex);
+	return !(!this->clientPool.count(clientid));
+}
+
+
+
+void amxPool::setClientPool(unsigned int clientid, amxPool::clientPoolS struc)
+{
+	boost::unique_lock<boost::shared_mutex> lockit(this->cpMutex);
+	this->clientPool[clientid] = struc;
+}
+
+
+
+amxPool::clientPoolS amxPool::getClientPool(unsigned int clientid)
+{
+	boost::shared_lock<boost::shared_mutex> lockit(this->cpMutex);
+	return this->clientPool.find(clientid)->second;
 }

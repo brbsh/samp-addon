@@ -9,7 +9,7 @@
 extern void *pAMXFunctions;
 
 extern boost::shared_ptr<amxCore> gCore;
-extern boost::shared_ptr<amxDebug> gDebug;
+extern amxDebug *gDebug;
 extern boost::shared_ptr<amxPool> gPool;
 extern boost::shared_ptr<amxSocket> gSocket;
 
@@ -32,12 +32,14 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 
-	gCore = boost::shared_ptr<amxCore>(new amxCore());
+	gDebug = new amxDebug();
 
 	gDebug->Log("\tDebugging started\n");
 	gDebug->Log("-----------------------------------------------------------------");
-	gDebug->Log("Called plugin load | amx data: 0x%x | logprintf address: 0x%x", ppData[PLUGIN_DATA_AMX_EXPORTS], ppData[PLUGIN_DATA_LOGPRINTF]);
+	gDebug->Log("Called plugin load | amx data: 0x%x | logprintf address: 0x%x", ppData[PLUGIN_DATA_AMX_EXPORTS], logprintf);
 	gDebug->Log("-----------------------------------------------------------------\n");
+
+	gCore = boost::shared_ptr<amxCore>(new amxCore());
 
 	logprintf(" SAMP-Addon was loaded");
 
@@ -53,7 +55,9 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	gDebug->Log("-----------------------------------------------------------------");
 	gDebug->Log("\tDebugging stopped");
 
-	gPool->pluginInit.store(false);
+	gPool->setPluginStatus(false);
+
+	delete gDebug;
 
     logprintf(" SAMP-Addon was unloaded");
 }
