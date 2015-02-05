@@ -2,7 +2,7 @@
 
 
 
-#include "string.h"
+#include "server.h"//#include "string.h"
 
 
 
@@ -10,7 +10,7 @@
 
 void amxString::Set(AMX *amx, cell param, std::string data)
 {
-	cell *destination;
+	cell *destination = NULL;
 
 	amx_GetAddr(amx, param, &destination);
 	amx_SetString(destination, data.c_str(), NULL, NULL, data.length());

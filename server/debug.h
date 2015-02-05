@@ -2,9 +2,6 @@
 
 
 
-#ifndef DEBUG_H
-#define DEBUG_H
-
 #include "server.h"
 
 
@@ -27,7 +24,6 @@ public:
 		return threadInstance.get();
 	}
 
-	static void RemoteLog(char *format, ...);
 	static void Thread();
 
 private:
@@ -36,9 +32,3 @@ private:
 	boost::mutex lwMutex;
 	boost::shared_ptr<boost::thread> threadInstance;
 };
-
-
-
-
-
-#endif

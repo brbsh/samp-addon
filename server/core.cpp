@@ -2,7 +2,7 @@
 
 
 
-#include "core.h"
+#include "server.h"//#include "core.h"
 
 
 
@@ -24,7 +24,7 @@ amxCore::amxCore()
 	gDebug->Log("Core constructor called");
 
 	gPool = boost::shared_ptr<amxPool>(new amxPool());
-	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxCore::Thread)));
+	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxCore::Thread)));
 }
 
 
@@ -33,7 +33,7 @@ amxCore::~amxCore()
 {
 	gDebug->Log("Core destructor called");
 
-	this->threadInstance->interruption_requested();
+	threadInstance->interruption_requested();
 }
 
 
@@ -49,14 +49,21 @@ void amxCore::Thread()
 {
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
-	gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->native_handle());
+	gDebug->Log("Thread amxCore::Thread() successfuly started");
 
 	while(!gPool->getPluginStatus())
 		boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
-	std::string ip = gPool->getServerVar("serverIP");
-	unsigned int port = atoi(gPool->getServerVar("serverPort").c_str());
-	unsigned int maxclients = atoi(gPool->getServerVar("maxClients").c_str());
+	amxPool::svrData data = gPool->getServerVar("ip");
+	std::string ip = data.string;
+
+	data.reset();
+	data = gPool->getServerVar("port");
+	unsigned short port = data.integer;
+
+	data.reset();
+	data = gPool->getServerVar("maxclients");
+	unsigned int maxclients = data.integer;
 
 	gSocket = boost::shared_ptr<amxSocket>(new amxSocket(ip, port, maxclients));
 

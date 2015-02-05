@@ -2,9 +2,6 @@
 
 
 
-#ifndef POOL_H
-#define POOL_H
-
 #include "server.h"
 
 
@@ -18,17 +15,33 @@ public:
 
 	static struct clientPoolS
 	{
-		//boost::asio::ip::tcp::socket sockid;
+		clientPoolS(boost::asio::io_service& io_service) : sock(io_service)
+		{
 
-		std::queue<std::pair<unsigned int, std::string>> pendingQueue;
-		std::queue<std::pair<unsigned int, std::string>> outputQueue;
+		}
 
-		boost::shared_ptr<boost::mutex> sockMutex;
+		boost::asio::ip::tcp::socket sock;
+
+		std::queue<std::string> pendingQueue;
 		boost::shared_ptr<boost::mutex> pqMutex;
-		boost::shared_ptr<boost::mutex> oqMutex;
 
 		long int sID;
 		std::string ip;
+		char buffer[2048];
+	};
+
+	static struct svrData
+	{
+		long integer;
+		double floating;
+		std::string string;
+
+		void reset()
+		{
+			integer = 0;
+			floating = 0.0f;
+			string.clear();
+		}
 	};
 
 	amxPool();
@@ -37,27 +50,22 @@ public:
 	void setPluginStatus(bool status);
 	bool getPluginStatus();
 
-	void setServerVar(std::string key, std::string value);
-	std::string getServerVar(std::string key);
+	void setServerVar(std::string key, svrData struc);
+	svrData getServerVar(std::string key);
 
-	void resetOwnPool(unsigned int clientid);
-	bool hasOwnPool(unsigned int clientid);
-	void setClientPool(unsigned int clientid, amxPool::clientPoolS struc);
-	amxPool::clientPoolS getClientPool(unsigned int clientid);
+	void resetOwnSession(unsigned int clientid);
+	bool hasOwnSession(unsigned int clientid);
+	void setClientSession(unsigned int clientid, amxAsyncSession *session);
+	amxAsyncSession *getClientSession(unsigned int clientid);
 
 private:
 
 	bool pluginState;
 	boost::shared_mutex pstMutex;
 
-	boost::unordered_map<std::string, std::string> serverPool;
+	boost::unordered_map<std::string, svrData> serverPool;
 	boost::shared_mutex spMutex;
-	boost::unordered_map<unsigned int, amxPool::clientPoolS> clientPool;
+
+	boost::unordered_map<unsigned int, amxAsyncSession *> clientPool;
 	boost::shared_mutex cpMutex;
 };
-
-
-
-
-
-#endif

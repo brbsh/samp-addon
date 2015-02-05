@@ -2,7 +2,7 @@
 
 
 
-#include "debug.h"
+#include "server.h"//#include "debug.h"
 
 
 
@@ -19,14 +19,14 @@ extern logprintf_t logprintf;
 
 amxDebug::amxDebug()
 {
-	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxDebug::Thread)));
+	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxDebug::Thread)));
 }
 
 
 
 amxDebug::~amxDebug()
 {
-	this->threadInstance->interruption_requested();
+	threadInstance->interruption_requested();
 }
 
 
@@ -39,33 +39,18 @@ void amxDebug::Log(char *format, ...)
 
 	try_lock_mutex:
 
-	if(this->lwMutex.try_lock())
+	if(lwMutex.try_lock())
 	{
-		this->logQueue.push(amxString::vprintf(format, args));
-		this->lwMutex.unlock();
+		logQueue.push(amxString::vprintf(format, args));
+		lwMutex.unlock();
 	}
 	else
 	{
-		logprintf("Cannot lock debug queue mutex, trying to lock it anyway...");
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
 		goto try_lock_mutex;
 	}
 
 	va_end(args);
-}
-
-
-
-void amxDebug::RemoteLog(char *format, ...)
-{
-	va_list args;
-	std::string result;
-
-	va_start(args, format);
-	result = amxString::vprintf(format, args);
-	va_end(args);
-
-	gDebug->Log((char *)result.c_str());
 }
 
 
@@ -81,16 +66,16 @@ void amxDebug::processFW()
 
 	while(true)
 	{
-		this->lwMutex.lock();
+		lwMutex.lock();
 
-		if(this->logQueue.empty())
+		if(logQueue.empty())
 		{
-			this->lwMutex.unlock();
+			lwMutex.unlock();
 			break;
 		}
 
-		data = this->logQueue.front();
-		this->lwMutex.unlock();
+		data = logQueue.front();
+		lwMutex.unlock();
 
 		time(&rawtime);
 		timeinfo = localtime(&rawtime);
@@ -100,9 +85,9 @@ void amxDebug::processFW()
 		file << "[" << timeform << "] " << data << std::endl;
 		file.close();
 
-		this->lwMutex.lock();
-		this->logQueue.pop();
-		this->lwMutex.unlock();
+		lwMutex.lock();
+		logQueue.pop();
+		lwMutex.unlock();
 
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
 	}
@@ -114,7 +99,7 @@ void amxDebug::Thread()
 {
 	assert(gDebug->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
-	gDebug->Log("Started file debug thread with id 0x%x", gDebug->getThreadInstance()->native_handle());
+	gDebug->Log("Thread amxDebug::Thread() successfuly started");
 
 	while(true)
 	{

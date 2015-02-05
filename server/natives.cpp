@@ -2,7 +2,7 @@
 
 
 
-#include "natives.h"
+#include "server.h"//#include "natives.h"
 
 
 
@@ -76,16 +76,19 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 
 	logprintf("\nSAMP-Addon: Requested init with address: %s:%i, max clients is %i\n", ip.c_str(), ++port, maxplayers);
 
-	char destbuf[12];
-	boost::mutex *cMutex = new boost::mutex();
+	amxPool::svrData push;
 
-	gPool->setServerVar("serverIP", ip);
+	push.reset();
+	push.string = ip;
+	gPool->setServerVar("ip", push);
 
-	sprintf(destbuf, "%i", port);
-	gPool->setServerVar("serverPort", destbuf);
+	push.reset();
+	push.integer = port;
+	gPool->setServerVar("port", push);
 
-	sprintf(destbuf, "%i", maxplayers);
-	gPool->setServerVar("maxClients", destbuf);
+	push.reset();
+	push.integer = maxplayers;
+	gPool->setServerVar("maxclients", push);
 
 	gPool->setPluginStatus(true);
 	
@@ -141,9 +144,9 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	amxPool::clientPoolS struc = gPool->getClientPool(clientid);
+	amxAsyncSession *session = gPool->getClientSession(clientid);
 
-	return struc.sID;
+	return session->pool().sID;
 }
 
 

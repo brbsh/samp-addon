@@ -2,7 +2,7 @@
 
 
 
-#include "pool.h"
+#include "server.h"//#include "pool.h"
 
 
 
@@ -21,10 +21,10 @@ amxPool::amxPool()
 {
 	gDebug->Log("Pool constructor called");
 
-	this->pluginState = false;
+	pluginState = false;
 
-	this->clientPool.clear();
-	this->serverPool.clear();
+	clientPool.clear();
+	serverPool.clear();
 }
 
 
@@ -33,69 +33,79 @@ amxPool::~amxPool()
 {
 	gDebug->Log("Pool destructor called");
 
-	this->pluginState = false;
+	pluginState = false;
 }
 
 
 
 void amxPool::setPluginStatus(bool status)
 {
-	boost::unique_lock<boost::shared_mutex> lockit(this->pstMutex);
-	this->pluginState = status;
+	boost::unique_lock<boost::shared_mutex> lockit(pstMutex);
+	pluginState = status;
 }
 
 
 
 bool amxPool::getPluginStatus()
 {
-	boost::shared_lock<boost::shared_mutex> lockit(this->pstMutex);
-	return this->pluginState;
+	boost::shared_lock<boost::shared_mutex> lockit(pstMutex);
+	return pluginState;
 }
 
 
 
-void amxPool::setServerVar(std::string key, std::string value)
+void amxPool::setServerVar(std::string key, amxPool::svrData struc)
 {
-	boost::unique_lock<boost::shared_mutex> lockit(this->spMutex);
-	this->serverPool[key] = value;
+	boost::unique_lock<boost::shared_mutex> lockit(spMutex);
+	serverPool[key] = struc;
 }
 
 
 
-std::string amxPool::getServerVar(std::string key)
+amxPool::svrData amxPool::getServerVar(std::string key)
 {
-	boost::shared_lock<boost::shared_mutex> lockit(this->spMutex);
-	return this->serverPool.find(key)->second;
+	boost::shared_lock<boost::shared_mutex> lockit(spMutex);
+	return serverPool.find(key)->second;
 }
 
 
 
-void amxPool::resetOwnPool(unsigned int clientid)
+void amxPool::resetOwnSession(unsigned int clientid)
 {
-	boost::unique_lock<boost::shared_mutex> lockit(this->cpMutex);
-	this->clientPool.erase(clientid);
+	boost::unique_lock<boost::shared_mutex> lockit(cpMutex);
+
+	amxAsyncSession *session = clientPool.find(clientid)->second;
+
+	session->pool().sock.cancel();
+	session->pool().sock.shutdown(boost::asio::socket_base::shutdown_both);
+	session->pool().sock.close();
+
+	gDebug->Log("Client %i disconnected", clientid);
+
+	delete session;
+	clientPool.erase(clientid);
 }
 
 
 
-bool amxPool::hasOwnPool(unsigned int clientid)
+bool amxPool::hasOwnSession(unsigned int clientid)
 {
-	boost::shared_lock<boost::shared_mutex> lockit(this->cpMutex);
-	return !(!this->clientPool.count(clientid));
+	boost::shared_lock<boost::shared_mutex> lockit(cpMutex);
+	return !(!clientPool.count(clientid));
 }
 
 
 
-void amxPool::setClientPool(unsigned int clientid, amxPool::clientPoolS struc)
+void amxPool::setClientSession(unsigned int clientid, amxAsyncSession *session)
 {
-	boost::unique_lock<boost::shared_mutex> lockit(this->cpMutex);
-	this->clientPool[clientid] = struc;
+	boost::unique_lock<boost::shared_mutex> lockit(cpMutex);
+	clientPool[clientid] = session;
 }
 
 
 
-amxPool::clientPoolS amxPool::getClientPool(unsigned int clientid)
+amxAsyncSession *amxPool::getClientSession(unsigned int clientid)
 {
-	boost::shared_lock<boost::shared_mutex> lockit(this->cpMutex);
-	return this->clientPool.find(clientid)->second;
+	boost::shared_lock<boost::shared_mutex> lockit(cpMutex);
+	return clientPool.find(clientid)->second;
 }

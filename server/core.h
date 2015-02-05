@@ -2,9 +2,6 @@
 
 
 
-#ifndef CORE_H
-#define CORE_H
-
 #include "server.h"
 
 
@@ -34,9 +31,3 @@ private:
 
 	boost::shared_ptr<boost::thread> threadInstance;
 };
-
-
-
-
-
-#endif

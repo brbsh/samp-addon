@@ -96,6 +96,7 @@ std::size_t crc32_file(std::string filename)
 int main()
 {
 	HKEY rKey;
+	HRESULT download;
 	char rString[512] = {NULL};
 	DWORD rLen = sizeof(rString);
 
@@ -194,7 +195,7 @@ int main()
 			}
 		}
 
-		HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);
+		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);
 		std::size_t hashcheck = crc32_file(".\\d3d9.dll");
 		std::size_t hashcheck_remote = hashcheck;
 
@@ -233,7 +234,7 @@ int main()
 
 			if(download == S_OK)
 			{
-				updaterLog("Downloaded update package");
+				updaterLog("Downloaded update package (%i bytes)", boost::filesystem::file_size(tmpfile));
 			}
 			else
 			{
@@ -293,7 +294,7 @@ int main()
 	updaterLog("Found GTA:SA at '%s'", path.c_str());
 	updaterLog("Downloading SAMP-Addon files...");
 
-	HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", ".\\d3d9.tmp", NULL, NULL);
+	download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/d3d9.dll", ".\\d3d9.tmp", NULL, NULL);
 
 	if(download == S_OK)
 	{

@@ -1,10 +1,7 @@
 #pragma once
-#pragma warning(disable:4996 4700)
+#pragma warning(disable:4996 4700 4244)
 
 
-
-#ifndef SERVER_H
-#define SERVER_H
 
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64)
 #define WIN32_LEAN_AND_MEAN
@@ -42,6 +39,7 @@
 
 #include "../build/server/SDK/plugin.h"
 
+#include "classes.h"
 #include "core.h"
 #include "debug.h"
 #include "natives.h"
@@ -54,9 +52,3 @@
 
 
 typedef void (*logprintf_t)(char *format, ...);
-
-
-
-
-
-#endif

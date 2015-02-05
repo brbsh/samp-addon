@@ -2,10 +2,10 @@
 
 
 
-#ifndef NATIVES_H
-#define NATIVES_H
-
 #include "server.h"
+
+
+
 
 
 #define arguments(a) \
@@ -30,9 +30,3 @@ public:
 	static cell AMX_NATIVE_CALL TransferLocalFile(AMX *amx, cell *params);
 	static cell AMX_NATIVE_CALL TransferRemoteFile(AMX *amx, cell *params);
 };
-
-
-
-
-
-#endif
