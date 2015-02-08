@@ -42,18 +42,18 @@
 
 
 
-#include "ProxyIDirect3D9.h"
-#include "ProxyIDirect3DDevice9.h"
+#include "ProxyIDirect3D9.hpp"
+#include "ProxyIDirect3DDevice9.hpp"
 
-#include "addrpool.h"
-#include "core.h"
-#include "d3device.h"
-#include "debug.h"
-#include "functions.h"
-#include "loader.h"
-#include "pool.h"
-#include "string.h"
-#include "tcpsocket.h"
+#include "addrpool.hpp"
+#include "core.hpp"
+#include "d3device.hpp"
+#include "debug.hpp"
+#include "functions.hpp"
+#include "loader.hpp"
+#include "pool.hpp"
+#include "string.hpp"
+#include "tcpsocket.hpp"
 
 
 

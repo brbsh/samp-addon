@@ -19,8 +19,8 @@ Section
                  "DisplayName" "SAMP-Addon"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SAMP-Addon" \
                  "UninstallString" "$\"$TEMP\SAMP-Addon\uninstall.exe$\""
-	CreateShortCut "$SMPROGRAMS\SAMP-Addon\Update (Manual).lnk" "$TEMP\SAMP-Addon\updater.exe"
-	CreateShortCut "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk" "$TEMP\SAMP-Addon\uninstall.exe"
+	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk" "$TEMP\SAMP-Addon\uninstall.exe"
+	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Manual Updater.lnk" "$TEMP\SAMP-Addon\updater.exe"
 SectionEnd
 
 Section "uninstall"
@@ -30,9 +30,9 @@ Section "uninstall"
 	DetailPrint "$1"
 	DetailPrint "Uninstaller exited with return code $0 (0 = OK, Non-0 = FAIL)"
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SAMP-Addon"
-	Delete "$SMPROGRAMS\SAMP-Addon\Update (Manual).lnk"
-	Delete "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk"
-	RMDir "$SMPROGRAMS\SAMP-Addon"
+	#Delete "$SMPROGRAMS\SAMP-Addon\Manual Updater.lnk"
+	#Delete "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk"
+	#RMDir "$SMPROGRAMS\SAMP-Addon"
 	Delete "$TEMP\SAMP-Addon\updater.exe"
 	Delete "$TEMP\SAMP-Addon\uninstall.exe"
 	RMDir "$TEMP\SAMP-Addon"

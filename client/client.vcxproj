@@ -73,18 +73,18 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="addrpool.h" />
-    <ClInclude Include="client.h" />
-    <ClInclude Include="core.h" />
-    <ClInclude Include="d3device.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="functions.h" />
-    <ClInclude Include="loader.h" />
-    <ClInclude Include="pool.h" />
-    <ClInclude Include="ProxyIDirect3D9.h" />
-    <ClInclude Include="ProxyIDirect3DDevice9.h" />
-    <ClInclude Include="string.h" />
-    <ClInclude Include="tcpsocket.h" />
+    <ClInclude Include="addrpool.hpp" />
+    <ClInclude Include="client.hpp" />
+    <ClInclude Include="core.hpp" />
+    <ClInclude Include="d3device.hpp" />
+    <ClInclude Include="debug.hpp" />
+    <ClInclude Include="functions.hpp" />
+    <ClInclude Include="loader.hpp" />
+    <ClInclude Include="pool.hpp" />
+    <ClInclude Include="ProxyIDirect3D9.hpp" />
+    <ClInclude Include="ProxyIDirect3DDevice9.hpp" />
+    <ClInclude Include="string.hpp" />
+    <ClInclude Include="tcpsocket.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />

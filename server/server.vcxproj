@@ -74,14 +74,14 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="classes.h" />
-    <ClInclude Include="core.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="natives.h" />
-    <ClInclude Include="pool.h" />
-    <ClInclude Include="server.h" />
-    <ClInclude Include="string.h" />
-    <ClInclude Include="tcpsocket.h" />
+    <ClInclude Include="classes.hpp" />
+    <ClInclude Include="core.hpp" />
+    <ClInclude Include="debug.hpp" />
+    <ClInclude Include="natives.hpp" />
+    <ClInclude Include="pool.hpp" />
+    <ClInclude Include="server.hpp" />
+    <ClInclude Include="string.hpp" />
+    <ClInclude Include="tcpsocket.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\build\server\SDK\amxplugin.cpp" />

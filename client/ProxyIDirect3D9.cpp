@@ -2,7 +2,7 @@
 
 
 
-#include "ProxyIDirect3D9.h"
+#include "ProxyIDirect3D9.hpp"
 
 
 

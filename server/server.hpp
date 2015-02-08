@@ -39,13 +39,13 @@
 
 #include "../build/server/SDK/plugin.h"
 
-#include "classes.h"
-#include "core.h"
-#include "debug.h"
-#include "natives.h"
-#include "pool.h"
-#include "string.h"
-#include "tcpsocket.h"
+#include "classes.hpp"
+#include "core.hpp"
+#include "debug.hpp"
+#include "natives.hpp"
+#include "pool.hpp"
+#include "string.hpp"
+#include "tcpsocket.hpp"
 
 
 

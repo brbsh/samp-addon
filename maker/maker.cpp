@@ -2,7 +2,7 @@
 
 
 
-#include "maker.h"
+#include "maker.hpp"
 
 
 
@@ -33,6 +33,9 @@ std::size_t crc32_file(std::string filename)
 
 int main()
 {
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
+
 	std::string cmdline(GetCommandLine());
 
 	if(cmdline.find("/crcgen") != std::string::npos)
@@ -41,8 +44,8 @@ int main()
 
 		boost::filesystem::path version_af("..\\build\\client\\client_version.txt");
 		boost::filesystem::path version_uf("..\\build\\client\\updater_version.txt");
-		boost::filesystem::path version_wsf("..\\build\\server\\windows_server_version.txt");
-		boost::filesystem::path version_lsf("..\\build\\server\\linux_server_version.txt");
+		boost::filesystem::path version_wsf("..\\build\\server\\windows\\server_version.txt");
+		boost::filesystem::path version_lsf("..\\build\\server\\linux\\server_version.txt");
 
 		std::ofstream f;
 		std::size_t fcrc;
@@ -126,5 +129,5 @@ int main()
 		std::cout << "Cleanup process finished" << std::endl;
 	}
 
-	return 1;
+	return 0;
 }

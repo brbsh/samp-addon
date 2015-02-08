@@ -75,7 +75,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="maker.h" />
+    <ClInclude Include="maker.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="maker.cpp" />

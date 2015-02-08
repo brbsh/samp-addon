@@ -2,7 +2,7 @@
 
 
 
-#include "updater.h"
+#include "updater.hpp"
 
 
 
@@ -30,10 +30,11 @@ void updaterLog(char *format, ...)
 	time_t rawtime;
 	va_list args;
 
+	va_start(args, format);
+
 	std::ofstream file;
 	std::string data = strvprintf(format, args);
 
-	va_start(args, format);
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
 	strftime(timeform, sizeof timeform, "%X", timeinfo);
@@ -142,13 +143,32 @@ int main()
 	
 	if(cmdline.find("/uninstall") != std::string::npos)
 	{
+		boost::filesystem::path tmpupdater(".\\addon_updater.tmp");
+		boost::filesystem::path mainlog(".\\addon_log.txt");
+		boost::filesystem::path crashreport(".\\addon_crashreport.txt");
+
 		updaterLog("Uninstalling SAMP-Addon...");
 
 		try
 		{
-			boost::filesystem::remove(dllfile);
-			boost::filesystem::remove(changelog);
-			boost::filesystem::remove(boost::filesystem::path(".\\addon_updater.tmp"));
+			if(boost::filesystem::exists(dllfile))
+				boost::filesystem::remove(dllfile);
+
+			if(boost::filesystem::exists(tmpfile))
+				boost::filesystem::remove(tmpfile);
+
+			if(boost::filesystem::exists(tmpupdater))
+				boost::filesystem::remove(tmpupdater);
+
+			if(boost::filesystem::exists(changelog))
+				boost::filesystem::remove(changelog);
+
+			if(boost::filesystem::exists(mainlog))
+				boost::filesystem::remove(mainlog);
+
+			if(boost::filesystem::exists(crashreport))
+				boost::filesystem::remove(crashreport);
+
 		}
 		catch(boost::filesystem::filesystem_error &err)
 		{
@@ -156,6 +176,8 @@ int main()
 
 			return 1;
 		}
+
+		boost::filesystem::remove(updaterlog);
 
 		return 0;
 	}
@@ -173,9 +195,8 @@ int main()
 
 		if(cmdline.find("/removeasiloader") != std::string::npos)
 		{
-			boost::filesystem::path vorbisfile(path + "VorbisFile.dll");
-			boost::filesystem::path vorbishooked(path + "VorbisHooked.dll");
-
+			boost::filesystem::path vorbisfile(".\\VorbisFile.dll");
+			boost::filesystem::path vorbishooked(".\\VorbisHooked.dll");
 
 			updaterLog("Found: Remove ASI loader flag, processing...");
 
@@ -193,6 +214,8 @@ int main()
 
 				return 1;
 			}
+
+			updaterLog("ASI loader was successfully removed");
 		}
 
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);

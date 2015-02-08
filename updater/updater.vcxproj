@@ -67,7 +67,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="updater.h" />
+    <ClInclude Include="updater.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="updater.cpp" />

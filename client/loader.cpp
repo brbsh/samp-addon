@@ -2,7 +2,7 @@
 
 
 
-#include "loader.h"
+#include "loader.hpp"
 
 
 
@@ -72,7 +72,7 @@ addonLoader::addonLoader()
 	else
 	{
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
-		std::size_t hashcheck = this->crc32_file(".\\addon_updater.tmp");
+		std::size_t hashcheck = crc32_file(".\\addon_updater.tmp");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -139,7 +139,8 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("Cannot create process addon_updater.tmp: %i", GetLastError());
 
-		MessageBox(NULL, "Error while creating process addon_updater.tmp", "SAMP-Addon", NULL);
+		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		exit(EXIT_FAILURE);
 	}
 
 	char sysdrive[32];
@@ -211,7 +212,7 @@ addonLoader::addonLoader()
 		gDebug->Log("   %s   (CRC32: %i)", i->first.c_str(), i->second);
 	}
 
-	bool isGood = false;
+	bool isGood;
 
 	for(boost::filesystem::directory_iterator file(current); file != end; file++)
 	{
@@ -224,7 +225,7 @@ addonLoader::addonLoader()
 
 			for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 			{
-				if((file->path().filename().string() == i->first) && (this->crc32_file(file->path().filename().string()) == i->second))
+				if((file->path().filename().string() == i->first) && (crc32_file(file->path().filename().string()) == i->second))
 				{
 					isGood = true;
 
