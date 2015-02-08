@@ -213,6 +213,7 @@ addonLoader::addonLoader()
 	}
 
 	bool isGood;
+	std::string filename;
 
 	for(boost::filesystem::directory_iterator file(current); file != end; file++)
 	{
@@ -225,7 +226,9 @@ addonLoader::addonLoader()
 
 			for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 			{
-				if((file->path().filename().string() == i->first) && (crc32_file(file->path().filename().string()) == i->second))
+				filename = file->path().filename().string();
+
+				if((filename == i->first) && (crc32_file(filename) == i->second))
 				{
 					isGood = true;
 
@@ -235,7 +238,7 @@ addonLoader::addonLoader()
 
 			if(!isGood)
 			{
-				// bad file
+				gDebug->Log(" %s -> %i", filename.c_str(), crc32_file(filename));
 			}
 			else
 			{
@@ -243,11 +246,11 @@ addonLoader::addonLoader()
 				{
 					HMODULE addr = NULL;
 
-					if((addr = LoadLibrary(file->path().filename().string().c_str())))
+					if((addr = LoadLibrary(filename.c_str())))
 					{
-						gDebug->Log("Plugin %s got loaded", file->path().filename().string().c_str());
+						gDebug->Log("ASI plugin %s got loaded", filename.c_str());
 
-						loaded[file->path().filename().string()] = addr;
+						loaded[filename] = addr;
 					}
 					else
 					{
