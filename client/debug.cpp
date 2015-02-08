@@ -20,30 +20,33 @@ addonDebug::addonDebug()
 
 	boost::filesystem::path log(".\\addon_log.txt");
 
-	if(boost::filesystem::exists(log))
+	try
 	{
-		boost::system::error_code error;
-
-		boost::filesystem::remove(log, error);
-
-		//if(error)
-			//gDebug->Log("Cannot remove old log file: %s (Error code: %i)", error.message().c_str(), error.value());
+		if(boost::filesystem::exists(log))
+			boost::filesystem::remove(log);
+	}
+	catch(boost::filesystem::filesystem_error& err)
+	{
+		gDebug->Log("Cannot remove old log file (What: %s)", err.what());
 	}
 
-	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonDebug::Thread)));
+	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonDebug::Thread)));
 
-	this->traceLastFunction("addonDebug::addonDebug() at 0x?????");
-	this->Log("Called debug constructor");
+	traceLastFunction("addonDebug::addonDebug() at 0x?????");
+	Log("Called debug constructor");
 }
 
 
 
 addonDebug::~addonDebug()
 {
-	this->traceLastFunction("addonDebug::~addonDebug() at 0x?????");
-	this->Log("Called debug destructor");
+	traceLastFunction("addonDebug::~addonDebug() at 0x?????");
+	Log("Called debug destructor");
 
-	this->threadInstance->interruption_requested();
+	threadInstance->interruption_requested();
+	threadInstance.reset();
+
+	lwrMutex.destroy();
 }
 
 
@@ -226,21 +229,22 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 	report << std::endl;
 	report << "Backtrace:" << std::endl << std::endl;
 
-	for(std::list<std::string>::iterator i = gDebug->funcTrace.begin(); i != gDebug->funcTrace.end(); i++)
+	/*for(std::list<std::string>::iterator i = gDebug->funcTrace.begin(); i != gDebug->funcTrace.end(); i++)
 	{
 		if(i == gDebug->funcTrace.begin())
 			report << (*i) << std::endl;
 		else
 			report << "<= " << (*i) << std::endl;
-	}
+	}*/
+
+	gDebug->printBackTrace(report);
 
 	report << std::endl << std::endl;
-
 	report.close();
 
 	gDebug->Log("Exception 0x%08x at address 0x%08x. Addon was terminated. See 'addon_crashreport.log'", ExceptionInfo->ExceptionRecord->ExceptionCode, ExceptionInfo->ExceptionRecord->ExceptionAddress);
 
-	boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
+	boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
 	exit(EXIT_FAILURE);
 
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -256,10 +260,10 @@ void addonDebug::Log(char *format, ...)
 
 	try_lock_mutex:
 
-	if(this->lwrMutex.try_lock())
+	if(lwrMutex.try_lock())
 	{
-		this->logQueue.push(addonString::vprintf(format, args));
-		this->lwrMutex.unlock();
+		logQueue.push(addonString::vprintf(format, args));
+		lwrMutex.unlock();
 	}
 	else
 	{
@@ -276,19 +280,28 @@ void addonDebug::traceLastFunction(char *format, ...)
 {
 	va_list args;
 
+	boost::unique_lock<boost::shared_mutex> lockit(ftrMutex);
+
 	va_start(args, format);
-
-	boost::unique_lock<boost::mutex> lockit(this->ftrMutex);
-	this->funcTrace.push_front(addonString::vprintf(format, args));
-	lockit.unlock();
-
+	funcTrace.push_front(addonString::vprintf(format, args));
 	va_end(args);
 
-	if(this->funcTrace.size() > 20)
+	if(funcTrace.size() > 20)
+		funcTrace.pop_back();
+}
+
+
+
+void addonDebug::printBackTrace(std::ofstream& ref)
+{
+	boost::shared_lock<boost::shared_mutex> lockit(ftrMutex);
+
+	for(std::list<std::string>::iterator i = funcTrace.begin(); i != funcTrace.end(); i++)
 	{
-		lockit.lock();
-		this->funcTrace.pop_back();
-		lockit.unlock();
+		if(i == funcTrace.begin())
+			ref << (*i) << std::endl;
+		else
+			ref << "<= " << (*i) << std::endl;
 	}
 }
 
@@ -305,17 +318,17 @@ void addonDebug::processFW()
 
 	while(true)
 	{
-		this->lwrMutex.lock();
+		lwrMutex.lock();
 
-		if(this->logQueue.empty())
+		if(logQueue.empty())
 		{
-			this->lwrMutex.unlock();
+			lwrMutex.unlock();
 
 			break;
 		}
 
-		data = this->logQueue.front();
-		this->lwrMutex.unlock();
+		data = logQueue.front();
+		lwrMutex.unlock();
 
 		time(&rawtime);
 		timeinfo = localtime(&rawtime);
@@ -327,10 +340,10 @@ void addonDebug::processFW()
 
 		try_lock_mutex:
 
-		if(this->lwrMutex.try_lock())
+		if(lwrMutex.try_lock())
 		{
-			this->logQueue.pop();
-			this->lwrMutex.unlock();
+			logQueue.pop();
+			lwrMutex.unlock();
 		}
 		else
 		{

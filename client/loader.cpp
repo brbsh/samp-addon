@@ -205,11 +205,11 @@ addonLoader::addonLoader()
 		gDebug->Log("Error while retrieving whitelist file: %i (Error code: %i)", download, GetLastError());
 	}
 	
-	gDebug->Log("      Library whitelist:");
+	gDebug->Log("\tLibrary whitelist:");
 
 	for(boost::unordered_map<std::string, std::size_t>::iterator i = legal.begin(); i != legal.end(); i++)
 	{
-		gDebug->Log("   %s   (CRC32: %i)", i->first.c_str(), i->second);
+		gDebug->Log("   %s\t(CRC32: %i)", i->first.c_str(), i->second);
 	}
 
 	bool isGood;
@@ -238,7 +238,7 @@ addonLoader::addonLoader()
 
 			if(!isGood)
 			{
-				gDebug->Log(" %s -> %i", filename.c_str(), crc32_file(filename));
+				//gDebug->Log(" %s -> %i", filename.c_str(), crc32_file(filename));
 			}
 			else
 			{
@@ -248,19 +248,21 @@ addonLoader::addonLoader()
 
 					if((addr = LoadLibrary(filename.c_str())))
 					{
-						gDebug->Log("ASI plugin %s got loaded", filename.c_str());
+						gDebug->Log(" ASI plugin %s got loaded", filename.c_str());
 
 						loaded[filename] = addr;
 					}
 					else
 					{
-						gDebug->Log("Failed to load plugin %s", file->path().filename().string().c_str());
+						gDebug->Log(" Failed to load plugin %s (What: %i)", filename.c_str(), GetLastError());
 					}
 				}
 			}
 		}
 		else if(boost::filesystem::is_directory(file->status()))
 		{
+			isGood = false;
+
 			if(file->path().filename().string() == "cleo")
 			{
 				// cleo dir found
@@ -272,9 +274,11 @@ addonLoader::addonLoader()
 		}
 	}
 
+	gDebug->Log("\tLoaded plugins:");
+
 	for(boost::unordered_map<std::string, HMODULE>::iterator i = loaded.begin(); i != loaded.end(); i++)
 	{
-		gDebug->Log("  %s -> %08x", (*i).first.c_str(), (*i).second);
+		gDebug->Log("   %s -> 0x%08x", (*i).first.c_str(), (*i).second);
 	}
 }
 

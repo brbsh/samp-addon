@@ -68,7 +68,14 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved
 			}
 
 			if(hookCount > 0)
+			{
+				gCore.reset();
+				gD3Device.reset();
+				gDebug.reset();
+
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
 				exit(EXIT_SUCCESS);
+			}
 		}
 		break;
 	}
@@ -133,7 +140,7 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 
 void singlePlayerRender()
 {
-	gDebug->traceLastFunction("singlePlayerRender() at 0x%x", &addonD3Device::Screenshot);
+	gDebug->traceLastFunction("singlePlayerRender() at 0x%x", &singlePlayerRender);
 
 	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
 		boost::this_thread::sleep_for(boost::chrono::seconds(1));

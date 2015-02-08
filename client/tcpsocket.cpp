@@ -20,14 +20,14 @@ extern boost::shared_ptr<addonPool> gPool;
 
 
 
-addonSocket::addonSocket()
+addonSocket::addonSocket() : socket(io_s)
 {
 	gDebug->traceLastFunction("addonSocket::addonSocket() at 0x?????");
 	gDebug->Log("Called socket constructor");
 
 	try
 	{
-		this->io_s.run();
+		io_s.run();
 	}
 	catch(boost::system::system_error &err)
 	{
@@ -42,33 +42,28 @@ addonSocket::~addonSocket()
 	gDebug->traceLastFunction("addonSocket::~addonSocket() at 0x?????");
 	gDebug->Log("Called socket destructor");
 
-	this->sendThreadInstance->interruption_requested();
-	this->recvThreadInstance->interruption_requested();
+	//this->sendThreadInstance->interruption_requested();
+	//this->recvThreadInstance->interruption_requested();
 
-	this->socket->shutdown(boost::asio::socket_base::shutdown_both);
-	this->socket->close();
+	//socket.cancel();												//
+	//socket.shutdown(boost::asio::socket_base::shutdown_both);		// CRASHING ON EXIT, WTF?!
+	//socket.close();												//
 
-	this->io_s.stop();
+	io_s.stop();
 }
 
 
 
-bool addonSocket::Connect(std::string host, UINT port)
+bool addonSocket::Connect(std::string host, unsigned short port)
 {
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonSocket::Connect(host = '%s', port = 0x%x) at 0x%x", host.c_str(), port, &addonSocket::Connect);
 	gDebug->Log("Attempting to connect to %s:%i trough TCP", host.c_str(), port);
-	
-	boost::unique_lock<boost::shared_mutex> lockit(this->sockMutex);
-	this->socket = boost::shared_ptr<boost::asio::ip::tcp::socket>(new boost::asio::ip::tcp::socket(this->io_s));
-	lockit.unlock();
 
 	try
 	{
-		lockit.lock();
-		this->socket->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(host), port));
-		lockit.unlock();
+		socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(host), port));
 	}
 	catch(boost::system::system_error &err)
 	{
@@ -80,15 +75,15 @@ bool addonSocket::Connect(std::string host, UINT port)
 	gDebug->Log("Connected to %s:%i trough TCP", host.c_str(), port);
 
 	std::string initial;
-	initial += "SAMPADDON";
+
+	initial += "SAMPADDON:";
 	initial += gPool->getVar("playerSerial");
-	initial += "j";
+
 	gDebug->Log("Sending data %s", initial.c_str());
+	socket.write_some(boost::asio::buffer(initial, initial.length()));
 
-	this->socket->write_some(boost::asio::buffer(initial, initial.length()));
-
-	this->sendThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::recvThread, this->socket)));
-	this->recvThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::sendThread, this->socket)));
+	//this->sendThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::recvThread, this->socket)));
+	//this->recvThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::sendThread, this->socket)));
 
 	return true;
 }

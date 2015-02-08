@@ -16,13 +16,13 @@ public:
 	addonSocket();
 	virtual ~addonSocket();
 
-	bool Connect(std::string ip, UINT port);
+	bool Connect(std::string ip, unsigned short port);
 	void Send(std::string data);
 
-	boost::asio::ip::tcp::socket *getSocket()
+	boost::asio::ip::tcp::socket& getSocket()
 	{
 		boost::shared_lock<boost::shared_mutex> lockit(sockMutex);
-		return socket.get();
+		return socket;
 	}
 
 	boost::thread *getThreadInstance(bool recv)
@@ -41,5 +41,5 @@ private:
 	boost::shared_ptr<boost::thread> recvThreadInstance;
 
 	boost::shared_mutex sockMutex;
-	boost::shared_ptr<boost::asio::ip::tcp::socket> socket;
+	boost::asio::ip::tcp::socket socket;
 };

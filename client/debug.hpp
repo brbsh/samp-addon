@@ -20,6 +20,7 @@ public:
 
 	void Log(char *format, ...);
 	void traceLastFunction(char *format, ...);
+	void printBackTrace(std::ofstream& ref);
 	void processFW();
 
 	boost::thread *getThreadInstance() const
@@ -34,6 +35,6 @@ private:
 
 	std::queue<std::string> logQueue;
 	boost::mutex lwrMutex;
-	boost::mutex ftrMutex;
+	boost::shared_mutex ftrMutex;
 	boost::shared_ptr<boost::thread> threadInstance;
 };

@@ -16,8 +16,13 @@ public:
 	addonFunctions();
 	virtual ~addonFunctions();
 
-	void ToggleMotionBlur(bool status);
-	void ToggleGrassRendering(bool status);
+	void ToggleMotionBlur(bool toggle);
+	void ToggleGrassRendering(bool toggle);
+	void ToggleHUD(bool toggle);
+	void ToggleSeaWays(bool toggle);
+
+	void SetGameSpeed(float speed);
+	float GetGameSpeed();
 
 private:
 

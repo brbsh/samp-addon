@@ -19,6 +19,15 @@
 #define GTA_GRASS_ADDR_4				(*(BYTE *)0x53C15C)
 #define GTA_GRASS_ADDR_5				(*(BYTE *)0x53C15D)
 
+// HUD toggle
+#define GTA_HUD_ADDR					(*(BYTE *)0xA444A0)
+
+// SeaWays :D (riding on water)
+#define GTA_SEAWAYS_ADDR				(*(BYTE *)0x969152)
+
+// Game speed
+#define GTA_GAME_SPEED_ADDR				(*(float *)0xB7CB64)
+
 
 // Queues to server
 #define ADDON_PENDING_CONNECT_QUEUE		(0x2374BA1)

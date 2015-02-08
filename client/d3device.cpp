@@ -22,14 +22,12 @@ addonD3Device::addonD3Device()
 	gDebug->traceLastFunction("addonD3Device::addonD3Device() at 0x?????");
 	gDebug->Log("Called D3Device constructor");
 
-	this->originalRender = NULL;
-	this->hookedRender = NULL;
-	this->originalDevice = NULL;
-	this->hookedDevice = NULL;
+	originalRender = NULL;
+	hookedRender = NULL;
+	originalDevice = NULL;
+	hookedDevice = NULL;
 
-	this->renderInstance = NULL;
-
-	//this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonD3Device::Thread)));
+	renderInstance = NULL;
 }
 
 
@@ -46,14 +44,12 @@ void addonD3Device::setRender(IDirect3D9 *render, bool original)
 {
 	//gDebug->traceLastFunction("addonD3Device::setRender(render = 0x%x, original = %s) at 0x%x", (int)render, ((original) ? ("true") : ("false")), &addonD3Device::setRender);
 
-	boost::unique_lock<boost::shared_mutex> lockit(this->renMutex);
+	boost::unique_lock<boost::shared_mutex> lockit(renMutex);
 
 	if(original)
-		this->originalRender = render;
+		originalRender = render;
 	else
-		this->hookedRender = render;
-
-	lockit.unlock();
+		hookedRender = render;
 }
 
 
@@ -62,14 +58,12 @@ void addonD3Device::setDevice(IDirect3DDevice9 *device, bool original)
 {
 	//gDebug->traceLastFunction("addonD3Device::setDevice(device = 0x%x) at 0x%x", (int)device, ((original) ? ("true") : ("false")), &addonD3Device::setDevice);
 
-	boost::unique_lock<boost::shared_mutex> lockit(this->devMutex);
+	boost::unique_lock<boost::shared_mutex> lockit(devMutex);
 
 	if(original)
-		this->originalDevice = device;
+		originalDevice = device;
 	else
-		this->hookedDevice = device;
-
-	lockit.unlock();
+		hookedDevice = device;
 }
 
 
@@ -92,12 +86,10 @@ void addonD3Device::Screenshot(std::string filename)
 
 	IDirect3DSurface9 *pSurface;
 
-	boost::shared_lock<boost::shared_mutex> lockit(this->devMutex);
+	boost::shared_lock<boost::shared_mutex> lockit(devMutex);
 
-	this->originalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
-	this->originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
-
-	lockit.unlock();
+	originalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
+	originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
 
 	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
 	pSurface->Release();
@@ -107,30 +99,28 @@ void addonD3Device::Screenshot(std::string filename)
 
 void addonD3Device::initRender()
 {
-	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
+	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
 
-	if(!this->renderInstance)
+	if(!renderInstance)
 	{
-		D3DXCreateFont(this->hookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &this->renderInstance);
+		D3DXCreateFont(hookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &renderInstance);
 	}
 	else
 	{
-		this->renderInstance->OnLostDevice();
-		this->renderInstance->OnResetDevice();
+		renderInstance->OnLostDevice();
+		renderInstance->OnResetDevice();
 	}
-
-	lockit.unlock();
 }
 
 
 
 void addonD3Device::processRender()
 {
-	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
+	boost::upgrade_lock<boost::shared_mutex> lockit(d3Mutex);
 
-	if(!this->renderList.empty())
+	if(!renderList.empty())
 	{
-		for(std::list<renderData>::iterator i = this->renderList.begin(); i != this->renderList.end(); i++)
+		for(std::list<renderData>::iterator i = renderList.begin(); i != renderList.end(); i++)
 		{
 			RECT rText;
 
@@ -139,11 +129,10 @@ void addonD3Device::processRender()
 			rText.right = 1680;
 			rText.bottom = ((*i).y + 200);
 
-			this->renderInstance->DrawText(NULL, (*i).text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB((*i).a, (*i).r, (*i).g, (*i).b));
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockit_(lockit);
+			renderInstance->DrawText(NULL, (*i).text.c_str(), -1, &rText, NULL, D3DCOLOR_ARGB((*i).a, (*i).r, (*i).g, (*i).b));
 		}
 	}
-
-	lockit.unlock();
 }
 
 
@@ -162,9 +151,8 @@ void addonD3Device::renderText(std::string text, int x, int y, int r, int g, int
 	struct_push.b = b;
 	struct_push.a = a;
 
-	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
-	this->renderList.push_back(struct_push);
-	lockit.unlock();
+	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
+	renderList.push_back(struct_push);
 }
 
 
@@ -173,9 +161,8 @@ void addonD3Device::stopLastRender()
 {
 	gDebug->traceLastFunction("addonD3Device::stopLastRender() at 0x%x", &addonD3Device::stopLastRender);
 
-	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
-	this->renderList.pop_back();
-	lockit.unlock();
+	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
+	renderList.pop_back();
 }
 
 
@@ -184,7 +171,6 @@ void addonD3Device::clearRender()
 {
 	gDebug->traceLastFunction("addonD3Device::clearRender() at 0x%x", &addonD3Device::clearRender);
 
-	boost::unique_lock<boost::mutex> lockit(this->d3Mutex);
-	this->renderList.clear();
-	lockit.unlock();
+	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
+	renderList.clear();
 }

@@ -70,7 +70,7 @@ private:
 
 	ID3DXFont *renderInstance;
 
-	boost::mutex d3Mutex;
+	boost::shared_mutex d3Mutex;
 	boost::shared_mutex renMutex;
 	boost::shared_mutex devMutex;
 	boost::shared_mutex txtMutex;

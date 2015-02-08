@@ -22,7 +22,7 @@ addonPool::addonPool()
 	gDebug->traceLastFunction("addonPool::addonPool() at 0x?????");
 	gDebug->Log("Pool constructor called");
 
-	this->privPool.clear();
+	privPool.clear();
 }
 
 
@@ -37,18 +37,16 @@ addonPool::~addonPool()
 
 void addonPool::setVar(std::string key, std::string value)
 {
-	boost::unique_lock<boost::shared_mutex> lockit(this->mapMutex);
+	boost::unique_lock<boost::shared_mutex> lockit(mapMutex);
 
-	this->privPool[key] = value;
-
-	lockit.unlock();
+	privPool[key] = value;
 }
 
 
 
 std::string addonPool::getVar(std::string key)
 {
-	boost::shared_lock<boost::shared_mutex> lockit(this->mapMutex);
+	boost::shared_lock<boost::shared_mutex> lockit(mapMutex);
 
-	return this->privPool.find(key)->second;
+	return privPool.find(key)->second;
 }

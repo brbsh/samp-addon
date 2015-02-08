@@ -31,7 +31,7 @@ addonCore::addonCore()
 	gDebug->traceLastFunction("addonCore::addonCore() at 0x?????");
 	gDebug->Log("Core constructor called");
 
-	this->threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonCore::Thread)));
+	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonCore::Thread)));
 }
 
 
@@ -41,7 +41,16 @@ addonCore::~addonCore()
 	gDebug->traceLastFunction("addonCore::~addonCore() at 0x?????");
 	gDebug->Log("Core destructor called");
 
-	this->threadInstance->interruption_requested();
+	threadInstance->interruption_requested();
+	threadInstance.reset();
+
+	pqMutex.destroy();
+	ouMutex.destroy();
+
+	gLoader.reset();
+	gSocket.reset();
+	gPool.reset();
+	gFunctions.reset();
 }
 
 
@@ -70,10 +79,10 @@ void addonCore::queueIN(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
 
 		try_lock_mutex:
 
-		if(this->pqMutex.try_lock())
+		if(pqMutex.try_lock())
 		{
-			this->pendingQueue.push(pushData);
-			this->pqMutex.unlock();
+			pendingQueue.push(pushData);
+			pqMutex.unlock();
 		}
 		else
 		{
@@ -97,18 +106,18 @@ void addonCore::queueOUT(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
 
 	while(true)
 	{
-		this->ouMutex.lock();
+		ouMutex.lock();
 
-		if(this->outputQueue.empty())
+		if(outputQueue.empty())
 		{
-			this->ouMutex.unlock();
+			ouMutex.unlock();
 
 			break;
 		}
 
 		std::ostream request(&buffer);
-		std::pair<UINT, std::string> sendData = this->outputQueue.front();
-		this->ouMutex.unlock();
+		std::pair<UINT, std::string> sendData = outputQueue.front();
+		ouMutex.unlock();
 
 		request << "TCPQUERY CLIENT_CALL" << " " << sendData.first << std::endl;
 		request << "DATA" << " " << sendData.second << "\n.\n.\n.";
@@ -127,10 +136,10 @@ void addonCore::queueOUT(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
 
 		try_lock_mutex:
 
-		if(this->ouMutex.try_lock())
+		if(ouMutex.try_lock())
 		{
-			this->pendingQueue.pop();
-			this->ouMutex.unlock();
+			pendingQueue.pop();
+			ouMutex.unlock();
 		}
 		else
 		{
@@ -149,17 +158,17 @@ void addonCore::processFunc()
 {
 	while(true)
 	{
-		this->pqMutex.lock();
+		pqMutex.lock();
 
-		if(this->pendingQueue.empty())
+		if(pendingQueue.empty())
 		{
-			this->pqMutex.unlock();
+			pqMutex.unlock();
 
 			break;
 		}
 
-		std::pair<UINT, std::string> data = this->pendingQueue.front();
-		this->pqMutex.unlock();
+		std::pair<UINT, std::string> data = pendingQueue.front();
+		pqMutex.unlock();
 
 		/*switch(data.first)
 		{
@@ -168,10 +177,10 @@ void addonCore::processFunc()
 
 		try_lock_mutex:
 
-		if(this->pqMutex.try_lock())
+		if(pqMutex.try_lock())
 		{
-			this->pendingQueue.pop();
-			this->pqMutex.unlock();
+			pendingQueue.pop();
+			pqMutex.unlock();
 		}
 		else
 		{
@@ -232,10 +241,18 @@ void addonCore::Thread()
 
 	gD3Device->clearRender();
 
+	gFunctions->ToggleGrassRendering(true);
+	gFunctions->ToggleMotionBlur(true);
+	gFunctions->ToggleHUD(false);
+	gFunctions->ToggleSeaWays(true);
+
 	while(true)
 	{
+		boost::this_thread::disable_interruption di;
+
 		gCore->processFunc();
 
+		boost::this_thread::restore_interruption re(di);
 		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }
