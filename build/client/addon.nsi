@@ -7,24 +7,24 @@ InstallDir $EXEDIR
 
 Section
 	MessageBox MB_OK "SAMP-Addon will be installed to your PC"
-	SetOutPath "$TEMP\SAMP-Addon\"
+	SetOutPath "$APPDATA\SAMP-Addon\"
 	File updater.exe
-	nsExec::ExecToLog /OEM '"$TEMP\SAMP-Addon\updater.exe"'
+	nsExec::ExecToLog /OEM '"$APPDATA\SAMP-Addon\updater.exe"'
 	Pop $0
 	Pop $1
 	DetailPrint "$1"
 	DetailPrint "Installer exited with return code $0 (0 = OK, Non-0 = FAIL)"
-	WriteUninstaller "$TEMP\SAMP-Addon\uninstall.exe"
+	WriteUninstaller "$APPDATA\SAMP-Addon\uninstall.exe"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SAMP-Addon" \
                  "DisplayName" "SAMP-Addon"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SAMP-Addon" \
-                 "UninstallString" "$\"$TEMP\SAMP-Addon\uninstall.exe$\""
-	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk" "$TEMP\SAMP-Addon\uninstall.exe"
-	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Manual Updater.lnk" "$TEMP\SAMP-Addon\updater.exe"
+                 "UninstallString" "$\"$APPDATA\SAMP-Addon\uninstall.exe$\""
+	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk" "$APPDATA\SAMP-Addon\uninstall.exe"
+	#CreateShortCut "$SMPROGRAMS\SAMP-Addon\Manual Updater.lnk" "$APPDATA\SAMP-Addon\updater.exe"
 SectionEnd
 
 Section "uninstall"
-	nsExec::ExecToLog /OEM '"$TEMP\SAMP-Addon\updater.exe" /uninstall'
+	nsExec::ExecToLog /OEM '"$APPDATA\SAMP-Addon\updater.exe" /uninstall'
 	Pop $0
 	Pop $1
 	DetailPrint "$1"
@@ -33,8 +33,8 @@ Section "uninstall"
 	#Delete "$SMPROGRAMS\SAMP-Addon\Manual Updater.lnk"
 	#Delete "$SMPROGRAMS\SAMP-Addon\Uninstall.lnk"
 	#RMDir "$SMPROGRAMS\SAMP-Addon"
-	Delete "$TEMP\SAMP-Addon\updater.exe"
-	Delete "$TEMP\SAMP-Addon\uninstall.exe"
-	RMDir "$TEMP\SAMP-Addon"
+	Delete "$APPDATA\SAMP-Addon\updater.exe"
+	Delete "$APPDATA\SAMP-Addon\uninstall.exe"
+	RMDir "$APPDATA\SAMP-Addon"
 	MessageBox MB_OK "SAMP-Addon was uninstalled"
 SectionEnd
