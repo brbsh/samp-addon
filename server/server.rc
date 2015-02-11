@@ -28,8 +28,8 @@ LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,2013,11,15
- PRODUCTVERSION 0,2013,11,15
+ FILEVERSION 0,2015,02,12
+ PRODUCTVERSION 0,2015,02,12
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -44,13 +44,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "FileDescription", "SAMP-Addon server DLL"
-            VALUE "FileVersion", "2013.11.15"
+            VALUE "FileDescription", "SAMP-Addon Server DLL"
+            VALUE "FileVersion", "2015.02.12"
             VALUE "InternalName", "SAMP-Addon"
             VALUE "LegalCopyright", "(c) BJIADOKC"
             VALUE "OriginalFileName", "addon.dll"
             VALUE "ProductName", "SAMP-Addon"
-            VALUE "ProductVersion", "2013.11.15"
+            VALUE "ProductVersion", "2015.02.12"
         END
     END
     BLOCK "VarFileInfo"

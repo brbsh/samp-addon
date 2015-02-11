@@ -1,0 +1,9 @@
+You can get latest boost includes via:
+
+apt-get update
+apt-get install libboost-all-dev
+
+OR
+
+yum update
+yum install boost-devel
