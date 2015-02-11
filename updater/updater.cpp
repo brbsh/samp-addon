@@ -75,8 +75,10 @@ int main()
 {
 	HKEY rKey;
 	HRESULT download;
-	char rString[512] = {NULL};
+	char rString[512];
 	DWORD rLen = sizeof(rString);
+
+	memset(rString, NULL, sizeof rString);
 
 	RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\SAMP", NULL, KEY_QUERY_VALUE, &rKey);
 	RegQueryValueEx(rKey, "gta_sa_exe", NULL, NULL, (BYTE *)rString, &rLen);
@@ -166,7 +168,7 @@ int main()
 		updaterLog("Waiting for GTA:SA process terminate...");
 
 		while(IsProcessRunning("gta_sa.exe"))
-				Sleep(5000);
+			Sleep(5000);
 
 		updaterLog("GTA:SA process terminated, processing...");
 
@@ -196,8 +198,8 @@ int main()
 		}
 
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);
-		std::size_t hashcheck = addonHash::crc32_file(".\\d3d9.dll");
-		std::size_t hashcheck_remote = hashcheck;
+		int hashcheck = addonHash::crc32_file(".\\d3d9.dll");
+		int hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
 		{
