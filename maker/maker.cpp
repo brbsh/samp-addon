@@ -8,7 +8,7 @@
 
 
 
-std::size_t crc32_file(std::string filename)
+int crc32_file(std::string filename)
 {
 	boost::crc_32_type result;
 	std::ifstream i;
@@ -48,7 +48,7 @@ int main()
 		boost::filesystem::path version_lsf("..\\build\\server\\linux\\server_version.txt");
 
 		std::ofstream f;
-		std::size_t fcrc;
+		int fcrc;
 
 		if(boost::filesystem::exists(version_af))
 			boost::filesystem::remove(version_af);

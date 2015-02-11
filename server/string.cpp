@@ -8,12 +8,12 @@
 
 
 
-void amxString::Set(AMX *amx, cell param, std::string data)
+void amxString::Set(AMX *amx, cell param, std::string data, std::size_t size)
 {
 	cell *destination = NULL;
 
 	amx_GetAddr(amx, param, &destination);
-	amx_SetString(destination, data.c_str(), NULL, NULL, data.length());
+	amx_SetString(destination, data.c_str(), NULL, NULL, size);
 }
 
 
@@ -41,4 +41,33 @@ std::string amxString::vprintf(const char *format, va_list args)
 	delete[] chars;
 
 	return result;
+}
+
+
+
+bool amxString::isDecimial(const char *data, unsigned int size)
+{
+	for(unsigned int i = 0; i < size; i++)
+	{
+		if((i == 0) && (data[i] == '-'))
+			continue;
+
+		if(!isdigit(data[i]))
+			return false;
+	}
+
+	return true;
+}
+
+
+
+bool amxString::isHexDecimial(const char *data, unsigned int size)
+{
+	for(unsigned int i = 0; i < size; i++)
+	{
+		if(!isxdigit(data[i]))
+			return false;
+	}
+
+	return true;
 }

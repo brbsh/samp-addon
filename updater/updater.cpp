@@ -70,29 +70,6 @@ bool IsProcessRunning(const char *const processName)
 
 
 
-std::size_t crc32_file(std::string filename)
-{
-	boost::crc_32_type result;
-	std::ifstream i;
-
-	i.open(filename, std::fstream::binary);
-		
-	do
-	{
-		char block[2048];
-		
-		i.read(block, sizeof block);
-		result.process_bytes(block, i.gcount());
-	}
-	while(i);
-
-	i.close();
-
-	return result.checksum();
-}
-
-
-
 //INT __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow)
 int main()
 {
@@ -219,7 +196,7 @@ int main()
 		}
 
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/client_version.txt", ".\\addon_version.tmp", NULL, NULL);
-		std::size_t hashcheck = crc32_file(".\\d3d9.dll");
+		std::size_t hashcheck = addonHash::crc32_file(".\\d3d9.dll");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -334,7 +311,7 @@ int main()
 	{
 		if(boost::filesystem::exists(dllfile))
 		{
-			if(crc32_file(".\\d3d9.dll") == crc32_file(".\\d3d9.tmp"))
+			if(addonHash::crc32_file(".\\d3d9.dll") == addonHash::crc32_file(".\\d3d9.tmp"))
 			{
 				boost::filesystem::remove(tmpfile);
 

@@ -25,10 +25,12 @@ public:
 	void KickClient(unsigned int clientid);
 
 	static void acceptThread(std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID);
+	static void deadlineThread(unsigned int maxclients);
 
 private:
 
 	boost::shared_ptr<boost::thread> threadInstance;
+	boost::shared_ptr<boost::thread> deadlineThreadInstance;
 	//boost::shared_ptr<boost::thread_group> threadGroup;
 };
 
@@ -42,6 +44,13 @@ public:
 	amxAsyncSession(boost::asio::io_service& io_service) : poolHandle(io_service)
 	{
 
+	}
+
+	~amxAsyncSession()
+	{
+		//poolHandle.sock.cancel();
+		poolHandle.sock.shutdown(boost::asio::socket_base::shutdown_both);
+		poolHandle.sock.close();
 	}
 
 	amxPool::clientPoolS& pool()

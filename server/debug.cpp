@@ -8,7 +8,7 @@
 
 
 
-amxDebug *gDebug;
+boost::shared_ptr<amxDebug> gDebug;
 
 
 extern logprintf_t logprintf;

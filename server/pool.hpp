@@ -17,6 +17,14 @@ public:
 	{
 		clientPoolS(boost::asio::io_service& io_service) : sock(io_service)
 		{
+			connstate = NULL;
+			sID.clear();
+			ip.clear();
+			memset(buffer, NULL, sizeof buffer);
+		}
+
+		~clientPoolS()
+		{
 
 		}
 
@@ -25,8 +33,15 @@ public:
 		std::queue<std::string> pendingQueue;
 		boost::shared_ptr<boost::mutex> pqMutex;
 
-		long int sID;
+		unsigned short connstate;
+		unsigned short remote_port;
+		int addon_version_crc;
+
+		std::clock_t last_response;
+		std::string sID;
 		std::string ip;
+		std::string name;
+
 		char buffer[2048];
 	};
 
@@ -53,6 +68,7 @@ public:
 	void setServerVar(std::string key, svrData struc);
 	svrData getServerVar(std::string key);
 
+	unsigned int activeSessions();
 	void resetOwnSession(unsigned int clientid);
 	bool hasOwnSession(unsigned int clientid);
 	void setClientSession(unsigned int clientid, amxAsyncSession *session);

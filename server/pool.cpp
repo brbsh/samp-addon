@@ -11,7 +11,7 @@
 boost::shared_ptr<amxPool> gPool;
 
 
-extern amxDebug *gDebug;
+extern boost::shared_ptr<amxDebug> gDebug;
 
 
 
@@ -70,15 +70,22 @@ amxPool::svrData amxPool::getServerVar(std::string key)
 
 
 
+unsigned int amxPool::activeSessions()
+{
+	boost::shared_lock<boost::shared_mutex> lockit(cpMutex);
+	return clientPool.size();
+}
+
+
+
 void amxPool::resetOwnSession(unsigned int clientid)
 {
+	if(!hasOwnSession(clientid))
+		return;
+
 	boost::unique_lock<boost::shared_mutex> lockit(cpMutex);
 
 	amxAsyncSession *session = clientPool.find(clientid)->second;
-
-	session->pool().sock.cancel();
-	session->pool().sock.shutdown(boost::asio::socket_base::shutdown_both);
-	session->pool().sock.close();
 
 	gDebug->Log("Client %i disconnected", clientid);
 

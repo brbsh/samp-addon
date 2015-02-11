@@ -77,6 +77,7 @@
     <ClInclude Include="classes.hpp" />
     <ClInclude Include="core.hpp" />
     <ClInclude Include="debug.hpp" />
+    <ClInclude Include="hash.hpp" />
     <ClInclude Include="natives.hpp" />
     <ClInclude Include="pool.hpp" />
     <ClInclude Include="server.hpp" />
@@ -87,6 +88,7 @@
     <ClCompile Include="..\build\server\SDK\amxplugin.cpp" />
     <ClCompile Include="core.cpp" />
     <ClCompile Include="debug.cpp" />
+    <ClCompile Include="hash.cpp" />
     <ClCompile Include="natives.cpp" />
     <ClCompile Include="pool.cpp" />
     <ClCompile Include="server.cpp" />

@@ -129,10 +129,10 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 
 
 
-// native Addon_GetClientSerial(clientid);
+// native Addon_GetClientSerial(clientid, buffer[], size = sizeof(buffer));
 cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 {
-	if(!arguments(1))
+	if(!arguments(3))
 	{
 		logprintf("samp-addon: Invalid argument count in native 'GetClientSerial' (%i)", (params[0] >> 2));
 
@@ -145,8 +145,9 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 		return NULL;
 
 	amxAsyncSession *session = gPool->getClientSession(clientid);
+	amxString::Set(amx, params[2], session->pool().sID, params[3]);
 
-	return session->pool().sID;
+	return 1;
 }
 
 

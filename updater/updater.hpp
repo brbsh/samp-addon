@@ -18,3 +18,7 @@
 #include <TlHelp32.h>
 #include <UrlMon.h>
 
+
+
+#include "hash.hpp"
+
