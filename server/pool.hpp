@@ -30,8 +30,8 @@ public:
 
 		boost::asio::ip::tcp::socket sock;
 
-		std::queue<std::string> pendingQueue;
-		boost::shared_ptr<boost::mutex> pqMutex;
+		std::queue<std::vector<std::string> > pendingQueue;
+		boost::mutex pqMutex;
 
 		unsigned short connstate;
 		unsigned short remote_port;

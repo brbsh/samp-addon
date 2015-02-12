@@ -13,12 +13,19 @@ class amxCore
 
 public:
 
+	static struct amxPush
+	{
+		std::string callback;
+		std::string pushDataFirst;
+		std::string pushDataSecond;
+	};
+
 	std::list<AMX *> amxList;
 
 	amxCore();
 	virtual ~amxCore();
 
-	void processFunc();
+	void processFunc(unsigned int maxclients);
 
 	boost::thread *getThreadInstance() const
 	{
@@ -30,4 +37,6 @@ public:
 private:
 
 	boost::shared_ptr<boost::thread> threadInstance;
+	std::queue<std::pair<unsigned int, amxPush> > amxQueue;
+	boost::mutex qMutex;
 };

@@ -22,11 +22,13 @@ public:
 
 	static const AMX_NATIVE_INFO addonNatives[];
 
-	static cell AMX_NATIVE_CALL InitAddon(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL IsClientConnected(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL KickClient(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL GetClientSerial(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL GetClientScreenshot(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL TransferLocalFile(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL TransferRemoteFile(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_Init(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_IsClientConnected(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_KickClient(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_GetClientSerial(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_TakeClientScreenshot(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_SetClientAddr(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_GetClientAddr(AMX *amx, cell *params);
+	//static cell AMX_NATIVE_CALL TransferLocalFile(AMX *amx, cell *params);
+	//static cell AMX_NATIVE_CALL TransferRemoteFile(AMX *amx, cell *params);
 };

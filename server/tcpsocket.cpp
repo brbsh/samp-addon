@@ -26,6 +26,7 @@ amxSocket::amxSocket(std::string ip, unsigned short port, unsigned int maxclient
 
 	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxSocket::acceptThread, ip, port, maxclients, worker_count)));
 	deadlineThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxSocket::deadlineThread, maxclients)));
+
 	/*threadGroup = boost::shared_ptr<boost::thread_group>(new boost::thread_group());
 
 	for(short i = 0; i < worker_count; i++)
@@ -40,6 +41,7 @@ amxSocket::~amxSocket()
 
 	threadInstance->interruption_requested();
 	deadlineThreadInstance->interruption_requested();
+
 	//threadGroup->interrupt_all();
 }
 
@@ -120,7 +122,7 @@ void amxSocket::deadlineThread(unsigned int maxclients)
 
 void amxAsyncServer::asyncAcceptor(unsigned int maxclients)
 {
-	amxAsyncSession *new_session = new amxAsyncSession(io_s);
+	amxAsyncSession *new_session = new amxAsyncSession(io_s, this);
 	acceptor.async_accept(new_session->pool().sock, boost::bind(&amxAsyncServer::asyncHandler, this, new_session, boost::asio::placeholders::error, maxclients));
 }
 
@@ -128,6 +130,20 @@ void amxAsyncServer::asyncAcceptor(unsigned int maxclients)
 
 void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::system::error_code& error, unsigned int maxclients)
 {
+	for(std::list<boost::asio::ip::address>::iterator i = connectedIPS.begin(); i != connectedIPS.end(); i++)
+	{
+		if(*i == new_session->pool().sock.remote_endpoint().address())
+		{
+			gDebug->Log("Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
+
+			delete new_session;
+		}
+	}
+
+	cIPMutex.lock();
+	connectedIPS.push_back(new_session->pool().sock.remote_endpoint().address());
+	cIPMutex.unlock();
+
 	if(!error)
 	{
 		unsigned int clientid = maxclients;
@@ -144,14 +160,14 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 
 		if(clientid == maxclients)
 		{
-			gDebug->Log("Cannot accept connection from %s: Server is full", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
+			gDebug->Log("Cannot accept connection from %s (What: Server is full)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
 
 			// server is full
 			delete new_session;
 
 			// sleep here if 'full DoS' damages cpu
-			asyncAcceptor(maxclients);
-			return;
+			
+			return asyncAcceptor(maxclients);
 		}
 
 		new_session->startSession(clientid);
@@ -164,6 +180,15 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 	}
 
 	asyncAcceptor(maxclients);
+}
+
+
+
+void amxAsyncServer::sessionRemove(boost::asio::ip::address ip)
+{
+	cIPMutex.lock();
+	connectedIPS.remove(ip);
+	cIPMutex.unlock();
 }
 
 
@@ -208,12 +233,8 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 
 		remote_packet_crc = atoi(output.c_str());
 
-		gDebug->Log("Remote packet CRC is %i (%s)", remote_packet_crc, output.c_str());
-
 		std::getline(input, output);
 		packet_crc = amxHash::crc32(output, output.length());
-
-		gDebug->Log("Local packet CRC is %i (%s)", packet_crc, output.c_str());
 
 		if(remote_packet_crc != packet_crc)
 		{
@@ -319,25 +340,19 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 				}
 			}
 
-			poolHandle.connstate++; // must be 2
+			poolHandle.connstate = 2; // must be 2
 
 			// SEND TEMPLATE: "*HERE IS CLIENT REMOTE IP CRC*|*HERE IS CLIENT REMOTE PORT*"
 			writeTo(clientid, boost::str(boost::format("%1%|%2%") % amxHash::crc32(poolHandle.ip, poolHandle.ip.length()) % poolHandle.remote_port));
 
 			return;
 		}
-		else if(poolHandle.connstate == 2) // we want to receive data with length , same as "SAMPADDON:*ADDON VERSION HERE*:*PLAYER'S NAME HERE*"
-		{
-			// next step
-		}
 
-		poolHandle.pqMutex->lock();
-		poolHandle.pendingQueue.push(buffer);
-		poolHandle.pqMutex->unlock();
+		poolHandle.pqMutex.lock();
+		poolHandle.pendingQueue.push(args);
+		poolHandle.pqMutex.unlock();
 
 		gDebug->Log("Got '%s' (length: %i) from client %i", buffer, bytes_rx, clientid);
-
-		writeTo(clientid, "The quick brown fox jumps over the lazy dog");
 	}
 	else
 	{

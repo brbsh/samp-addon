@@ -19,11 +19,13 @@ extern boost::shared_ptr<amxSocket> gSocket;
 
 const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 {
-	{"Addon_Init", amxNatives::InitAddon},
-	{"Addon_IsClientConnected", amxNatives::IsClientConnected},
-	{"Addon_KickClient", amxNatives::KickClient},
-	{"Addon_GetClientSerial", amxNatives::GetClientSerial},
-	//{"Addon_GetClientScreenshot", amxNatives::GetClientScreenshot},
+	{"Addon_Init", amxNatives::Addon_Init},
+	{"Addon_IsClientConnected", amxNatives::Addon_IsClientConnected},
+	{"Addon_KickClient", amxNatives::Addon_KickClient},
+	{"Addon_GetClientSerial", amxNatives::Addon_GetClientSerial},
+	{"Addon_TakeClientScreenshot", amxNatives::Addon_TakeClientScreenshot},
+	{"Addon_SetClientAddr", amxNatives::Addon_SetClientAddr},
+	{"Addon_GetClientAddr", amxNatives::Addon_GetClientAddr},
 	//{"TransferLocalFile", amxNatives::TransferLocalFile},
 	//{"TransferRemoteFile", amxNatives::TransferRemoteFile},
 
@@ -33,11 +35,11 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 
 
 // native Addon_Init(ip[], port = 7777, maxplayers = MAX_PLAYERS);
-cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::Addon_Init(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 	{
-		logprintf("SAMP-Addon: Invalid argument count in native 'InitAddon' (%i)", (params[0] >> 4));
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_Init' (%i)", (params[0] >> 4));
 
 		return NULL;
 	}
@@ -98,26 +100,26 @@ cell AMX_NATIVE_CALL amxNatives::InitAddon(AMX *amx, cell *params)
 
 
 // native Addon_IsClientConnected(clientid);
-cell AMX_NATIVE_CALL amxNatives::IsClientConnected(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::Addon_IsClientConnected(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
-		logprintf("SAMP-Addon: Invalid argument count in native 'IsClientConnected' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_IsClientConnected' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
 
-	return (gSocket->IsClientConnected(params[1])) ? 1 : 0;
+	return (cell)gSocket->IsClientConnected(params[1]);
 }
 
 
 
 // native Addon_KickClient(clientid);
-cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::Addon_KickClient(AMX *amx, cell *params)
 {
 	if(!arguments(1))
 	{
-		logprintf("SAMP-Addon: Invalid argument count in native 'KickClient' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_KickClient' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
@@ -130,11 +132,11 @@ cell AMX_NATIVE_CALL amxNatives::KickClient(AMX *amx, cell *params)
 
 
 // native Addon_GetClientSerial(clientid, buffer[], size = sizeof(buffer));
-cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
+cell AMX_NATIVE_CALL amxNatives::Addon_GetClientSerial(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'GetClientSerial' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_GetClientSerial' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
@@ -144,20 +146,19 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	amxAsyncSession *session = gPool->getClientSession(clientid);
-	amxString::Set(amx, params[2], session->pool().sID, params[3]);
+	amxString::Set(amx, params[2], gPool->getClientSession(clientid)->pool().sID, params[3]);
 
 	return 1;
 }
 
 
 
-// native Addon_GetClientScreenshot(clientid, remote_filename[]);
-/*cell AMX_NATIVE_CALL amxNatives::GetClientScreenshot(AMX *amx, cell *params)
+// native Addon_TakeClientScreenshot(clientid, remote_filename[]);
+cell AMX_NATIVE_CALL amxNatives::Addon_TakeClientScreenshot(AMX *amx, cell *params)
 {
 	if(!arguments(2))
 	{
-		logprintf("samp-addon: Invalid argument count in native 'TakePlayerScreenshot' (%i)", (params[0] >> 2));
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_TakeClientScreenshot' (%i)", (params[0] >> 2));
 
 		return NULL;
 	}
@@ -169,22 +170,70 @@ cell AMX_NATIVE_CALL amxNatives::GetClientSerial(AMX *amx, cell *params)
 
 	std::string filename = amxString::Get(amx, params[2]);
 
-	if(!filename.length() || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)))
+	if((filename.find("|") != std::string::npos) || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)) || boost::regex_search(filename, boost::regex("[.:%]{1,2}[/\\]+")))
 	{
 		logprintf("SAMP-Addon: Invalid file name format");
 
 		return NULL;
 	}
 
-	gSocket->Send(clientid, strFormat() << "TCPQUERY SERVER_CALL" << " " << 1003 << " " << filename);
+	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%") % ADDON_CMD_QUERY_SCREENSHOT % filename));
 
 	return 1;
 }
 
 
 
-// native TransferLocalFile(file[], toclient, remote_filename[]);
-cell AMX_NATIVE_CALL amxNatives::TransferLocalFile(AMX *amx, cell *params)
+// native Addon_SetClientAddr(clientid, addr, type, value[]);
+cell AMX_NATIVE_CALL amxNatives::Addon_SetClientAddr(AMX *amx, cell *params)
+{
+	if(!arguments(4))
+	{
+		return NULL;
+	}
+
+	int clientid = params[1];
+
+	if(!gSocket->IsClientConnected(clientid))
+		return NULL;
+
+	int addr = params[2];
+	int type = params[3]; // 0 = integer, 1 = floating, 2 = string
+
+	std::string value = amxString::Get(amx, params[4]);
+
+	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%|%4%") % ADDON_CMD_QUERY_SETADDR % addr % type % value));
+
+	return 1;
+}
+
+
+
+// native Addon_GetClientAddr(clientid, addr, type);
+cell AMX_NATIVE_CALL amxNatives::Addon_GetClientAddr(AMX *amx, cell *params)
+{
+	if(!arguments(3))
+	{
+		return NULL;
+	}
+
+	int clientid = params[1];
+
+	if(!gSocket->IsClientConnected(clientid))
+		return NULL;
+
+	int addr = params[2];
+	int type = params[3];
+
+	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%") % ADDON_CMD_QUERY_GETADDR % addr % type));
+
+	return 1;
+}
+
+
+
+/*// native Addon_TransferLocalFile(file[], toclient, remote_filename[]);
+cell AMX_NATIVE_CALL amxNatives::Addon_TransferLocalFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
 		return NULL;
