@@ -29,7 +29,7 @@ int amxHash::crc32_file(std::string filename)
 	boost::crc_32_type result;
 	std::ifstream i;
 
-	i.open(filename, std::fstream::binary);
+	i.open(filename.c_str(), std::fstream::binary); // c_str() for g++ support
 		
 	do
 	{

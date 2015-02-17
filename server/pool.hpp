@@ -13,7 +13,7 @@ class amxPool
 
 public:
 
-	static struct clientPoolS
+	struct clientPoolS
 	{
 		clientPoolS(boost::asio::io_service& io_service) : sock(io_service)
 		{
@@ -45,7 +45,7 @@ public:
 		char buffer[2048];
 	};
 
-	static struct svrData
+	struct svrData
 	{
 		long integer;
 		double floating;

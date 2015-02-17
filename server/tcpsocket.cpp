@@ -105,7 +105,7 @@ void amxSocket::deadlineThread(unsigned int maxclients)
 
 			amxAsyncSession *sess = gPool->getClientSession(i);
 
-			if((sess->pool().last_response + (30 * CLOCKS_PER_SEC)) < clock()) // 30 seconds
+			if((sess->pool().last_response + (ADDON_CLIENT_TIMEOUT_SECONDS * CLOCKS_PER_SEC)) < clock()) // 30 seconds
 			{
 				gDebug->Log("Client %i was kicked (What: 30 seconds timeout)", i);
 				// 30 sec timeout
@@ -137,6 +137,8 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 			gDebug->Log("Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
 
 			delete new_session;
+
+			return asyncAcceptor(maxclients);
 		}
 	}
 
@@ -371,7 +373,12 @@ void amxAsyncSession::writeTo(unsigned int clientid, std::string data)
 	int packet_crc = amxHash::crc32(data, data.length());
 	char p_crc[15];
 
+	#if defined LINUX
+	snprintf(p_crc, sizeof p_crc, "%i", packet_crc);
+	#else
 	itoa(packet_crc, p_crc, 10);
+	#endif
+
 	strcat(p_crc, "|");
 	data.insert(0, p_crc);
 

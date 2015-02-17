@@ -37,7 +37,9 @@
 #include <list>
 #include <queue>
 #include <sstream>
+#include <stdlib.h>
 #include <string>
+#include <vector>
 
 #define HAVE_STDINT_H
 

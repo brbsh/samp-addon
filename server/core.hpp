@@ -13,7 +13,7 @@ class amxCore
 
 public:
 
-	static struct amxPush
+	struct amxPush
 	{
 		std::string callback;
 		std::string pushDataFirst;
