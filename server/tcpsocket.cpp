@@ -70,6 +70,7 @@ void amxSocket::KickClient(unsigned int clientid, std::string reason)
 	gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
 	gDebug->Log("Client %i was kicked (Reason: %s)", clientid, reason.c_str());
 
+	sess->pool().sock.shutdown(boost::asio::socket_base::shutdown_both);
 	gPool->resetOwnSession(clientid);
 }
 
@@ -83,12 +84,11 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 
 	while(gPool->getPluginStatus())
 	{
+		amxAsyncServer *server = new amxAsyncServer(io_service, ip, port, maxclients);
 		amxCore::amxPush toAMX;
 
 		try
 		{
-			amxAsyncServer server(io_service, ip, port, maxclients);
-
 			toAMX.clientid = workerID;
 
 			gCore->pushToPT(ADDON_CALLBACK_OTWS, toAMX); // Addon_OnTCPWorkerStarted(workerID);
@@ -99,6 +99,8 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 		{
 			io_service.stop();
 			io_service.reset();
+			delete server;
+
 			gDebug->Log("Error while processing TCP worker #%i execution (What: %s)", workerID, err.what());
 
 			toAMX.clientid = workerID;
@@ -153,21 +155,21 @@ void amxAsyncServer::asyncAcceptor(unsigned int maxclients)
 
 void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::system::error_code& error, unsigned int maxclients)
 {
-	for(std::list<boost::asio::ip::address>::iterator i = connectedIPS.begin(); i != connectedIPS.end(); i++)
+	boost::unique_lock<boost::mutex> lockit(sMutex);
+
+	for(std::list<amxAsyncSession *>::iterator i = sessions.begin(); i != sessions.end(); i++)
 	{
-		if(*i == new_session->pool().ip)
+		if((*i)->pool().sock.remote_endpoint().address() == new_session->pool().sock.remote_endpoint().address())
 		{
-			gDebug->Log("[RAW-NET] Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
+			gDebug->Log("[RAW-NET] Cannot accept connection from %s: (What: IP already connected)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
 
 			delete new_session;
-
 			return asyncAcceptor(maxclients);
 		}
 	}
 
-	cIPMutex.lock();
-	connectedIPS.push_back(new_session->pool().ip);
-	cIPMutex.unlock();
+	sessions.push_back(new_session);
+	lockit.unlock();
 
 	if(!error)
 	{
@@ -223,11 +225,10 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 
 
 
-void amxAsyncServer::sessionRemove(boost::asio::ip::address ip)
+void amxAsyncServer::sessionRemove(amxAsyncSession *session)
 {
-	cIPMutex.lock();
-	connectedIPS.remove(ip);
-	cIPMutex.unlock();
+	boost::unique_lock<boost::mutex> lockit(sMutex);
+	sessions.remove(session);
 }
 
 

@@ -48,19 +48,19 @@ public:
 
 	~amxAsyncServer()
 	{
-
+		// delete all sessions assigned to worker here
 	}
 
 	void asyncAcceptor(unsigned int maxclients);
 	void asyncHandler(amxAsyncSession *new_session, const boost::system::error_code& error, unsigned int maxclients);
-	void sessionRemove(boost::asio::ip::address ip);
+	void sessionRemove(amxAsyncSession *session);
 
 private:
 
 	boost::asio::io_service& io_s;
 	boost::asio::ip::tcp::acceptor acceptor;
-	std::list<boost::asio::ip::address> connectedIPS;
-	boost::mutex cIPMutex;
+	std::list<amxAsyncSession *> sessions;
+	boost::mutex sMutex;
 };
 
 
@@ -77,8 +77,9 @@ public:
 
 	~amxAsyncSession()
 	{
+		parentWorker->sessionRemove(this);
 		//poolHandle.sock.cancel();
-		poolHandle.sock.shutdown(boost::asio::socket_base::shutdown_both);
+		//poolHandle.sock.shutdown(boost::asio::socket_base::shutdown_both);
 		poolHandle.sock.close();
 	}
 

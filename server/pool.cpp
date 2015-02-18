@@ -86,7 +86,6 @@ void amxPool::resetOwnSession(unsigned int clientid)
 	boost::unique_lock<boost::shared_mutex> lockit(cpMutex);
 	amxAsyncSession *session = clientPool.find(clientid)->second;
 
-	session->worker()->sessionRemove(session->pool().ip);
 	delete session;
 	clientPool.erase(clientid);
 }
