@@ -4,7 +4,7 @@ GCC = gcc
 OUTFILE = "../build/server/linux/addon.so"
 
 COMPILE_FLAGS = -c -O2 -fPIC -w -DLINUX -Wall -I../build/server/SDK/amx/
-LIBS = ../build/lib/linux/boost_static/libboost_atomic.a ../build/lib/linux/boost_static/libboost_chrono.a ../build/lib/linux/boost_static/libboost_filesystem.a #../build/lib/linux/boost_static/libboost_system.a ../build/lib/linux/boost_static/libboost_thread.a
+LIBS = -lboost_chrono -lboost_filesystem -lboost_regex -lboost_system -lboost_thread
 
 all:
 	$(GCC) $(COMPILE_FLAGS) ../build/server/SDK/amx/*.c
