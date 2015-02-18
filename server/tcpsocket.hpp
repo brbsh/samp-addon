@@ -77,8 +77,6 @@ public:
 
 	~amxAsyncSession()
 	{
-		parentWorker->sessionRemove(poolHandle.sock.remote_endpoint().address());
-
 		//poolHandle.sock.cancel();
 		poolHandle.sock.shutdown(boost::asio::socket_base::shutdown_both);
 		poolHandle.sock.close();
@@ -87,6 +85,11 @@ public:
 	amxPool::clientPoolS& pool()
 	{
 		return poolHandle;
+	}
+
+	amxAsyncServer *worker() const
+	{
+		return parentWorker;
 	}
 
 	void startSession(unsigned int binded_clid);

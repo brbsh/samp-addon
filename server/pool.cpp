@@ -84,11 +84,9 @@ void amxPool::resetOwnSession(unsigned int clientid)
 		return;
 
 	boost::unique_lock<boost::shared_mutex> lockit(cpMutex);
-
 	amxAsyncSession *session = clientPool.find(clientid)->second;
 
-	gDebug->Log("Client %i disconnected", clientid);
-
+	session->worker()->sessionRemove(session->pool().sock.remote_endpoint().address());
 	delete session;
 	clientPool.erase(clientid);
 }
