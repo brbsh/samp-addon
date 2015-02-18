@@ -81,7 +81,7 @@ void amxDebug::processFW()
 		timeinfo = localtime(&rawtime);
 		strftime(timeform, sizeof timeform, "%X", timeinfo);
 
-		file.open(".\\addon.log", (std::ofstream::out | std::ofstream::app));
+		file.open("addon.log", (std::ofstream::out | std::ofstream::app));
 		file << "[" << timeform << "] " << data << std::endl;
 		file.close();
 

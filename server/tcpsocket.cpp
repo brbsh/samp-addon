@@ -97,10 +97,6 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 		}
 		catch(boost::system::system_error& err)
 		{
-			io_service.stop();
-			io_service.reset();
-			delete server;
-
 			gDebug->Log("Error while processing TCP worker #%i execution (What: %s)", workerID, err.what());
 
 			toAMX.clientid = workerID;
@@ -108,6 +104,10 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 
 			gCore->pushToPT(ADDON_CALLBACK_OTWE, toAMX); // Addon_OnTCPWorkerError(workerID, err.what());
 		}
+
+		io_service.stop();
+		io_service.reset();
+		delete server;
 
 		gDebug->Log("Restarting TCP worker #%i due to stop detected...", workerID);
 
