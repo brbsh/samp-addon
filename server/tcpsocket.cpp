@@ -11,6 +11,7 @@
 boost::shared_ptr<amxSocket> gSocket;
 
 
+extern boost::shared_ptr<amxCore> gCore;
 extern boost::shared_ptr<amxDebug> gDebug;
 extern boost::shared_ptr<amxPool> gPool;
 
@@ -54,13 +55,22 @@ bool amxSocket::IsClientConnected(unsigned int clientid)
 
 
 
-void amxSocket::KickClient(unsigned int clientid)
+void amxSocket::KickClient(unsigned int clientid, std::string reason)
 {
 	if(!IsClientConnected(clientid))
 		return;
 
+	amxCore::amxPush toAMX;
+	amxAsyncSession *sess = gPool->getClientSession(clientid);
+
+	toAMX.clientid = clientid;
+	toAMX.pushDataFirst.assign(sess->pool().ip);
+	toAMX.pushDataSecond.assign(boost::str(boost::format("1488|%1%") % reason));
+
+	gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
+	gDebug->Log("Client %i was kicked (Reason: %s)", clientid, reason.c_str());
+
 	gPool->resetOwnSession(clientid);
-	gDebug->Log("Client %i was kicked", clientid);
 }
 
 
@@ -73,15 +83,26 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 
 	while(gPool->getPluginStatus())
 	{
+		amxCore::amxPush toAMX;
+
 		try
 		{
 			amxAsyncServer server(io_service, ip, port, maxclients);
+
+			toAMX.clientid = workerID;
+
+			gCore->pushToPT(ADDON_CALLBACK_OTWS, toAMX); // Addon_OnTCPWorkerStarted(workerID);
 			gDebug->Log("TCP worker #%i started on %s:%i with max connections: %i", workerID, ip.c_str(), port, maxclients);
-			io_service.run();
+			io_service.run(); // blocking thread, releasing when error occurs
 		}
 		catch(boost::system::system_error& err)
 		{
 			gDebug->Log("Error while processing TCP worker #%i execution (What: %s)", workerID, err.what());
+
+			toAMX.clientid = workerID;
+			toAMX.pushDataFirst.assign(err.what());
+
+			gCore->pushToPT(ADDON_CALLBACK_OTWE, toAMX); // Addon_OnTCPWorkerError(workerID, err.what());
 		}
 
 		gDebug->Log("Restarting TCP worker #%i due to stop detected...", workerID);
@@ -107,9 +128,7 @@ void amxSocket::deadlineThread(unsigned int maxclients)
 
 			if((sess->pool().last_response + (ADDON_CLIENT_TIMEOUT_SECONDS * CLOCKS_PER_SEC)) < clock()) // 30 seconds
 			{
-				gDebug->Log("Client %i was kicked (What: 30 seconds timeout)", i);
-				// 30 sec timeout
-				gSocket->KickClient(i);
+				gSocket->KickClient(i, "boost::asio::deadline_timer: Timeout");
 			}
 		}
 
@@ -134,7 +153,7 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 	{
 		if(*i == new_session->pool().sock.remote_endpoint().address())
 		{
-			gDebug->Log("Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
+			gDebug->Log("[RAW-NET] Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
 
 			delete new_session;
 
@@ -162,7 +181,14 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 
 		if(clientid == maxclients)
 		{
-			gDebug->Log("Cannot accept connection from %s (What: Server is full)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
+			gDebug->Log("[RAW-NET] Cannot accept connection from %s (What: Server is full)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
+
+			amxCore::amxPush toAMX;
+
+			toAMX.pushDataFirst.assign(new_session->pool().sock.remote_endpoint().address().to_string());
+			toAMX.pushDataSecond.assign("boost::asio::async_acceptor: Server is full");
+
+			gCore->pushToPT(ADDON_CALLBACK_OCCE, toAMX); // Addon_OnClientConnectError(remote_endpoint().address(), "Server is full");
 
 			// server is full
 			delete new_session;
@@ -177,6 +203,13 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 	else
 	{
 		gDebug->Log("Incoming connection from %s failed (What: %s)", new_session->pool().sock.remote_endpoint().address().to_string().c_str(), error.message().c_str());
+
+		amxCore::amxPush toAMX;
+
+		toAMX.pushDataFirst.assign(new_session->pool().sock.remote_endpoint().address().to_string());
+		toAMX.pushDataSecond.assign(error.message());
+
+		gCore->pushToPT(ADDON_CALLBACK_OCCE, toAMX); // Addon_OnClientConnectError(remote_endpoint().address(), error.message());
 
 		delete new_session;
 	}
@@ -205,6 +238,13 @@ void amxAsyncSession::startSession(unsigned int binded_clid)
 	gPool->setClientSession(binded_clid, this);
 	gDebug->Log("Incoming connection from %s (binded clientid: %i)", poolHandle.ip.c_str(), binded_clid);
 
+	amxCore::amxPush toAMX;
+
+	toAMX.clientid = binded_clid;
+	toAMX.pushDataFirst.assign(poolHandle.ip);
+
+	gCore->pushToPT(ADDON_CALLBACK_OCC, toAMX); // Addon_OnClientConnect(binded_clid, poolHandle.ip);
+
 	poolHandle.sock.async_read_some(boost::asio::buffer(poolHandle.buffer, sizeof poolHandle.buffer), boost::bind(&amxAsyncSession::readHandle, this, binded_clid, poolHandle.buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
 
@@ -228,7 +268,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 		if(!amxString::isDecimial(output.c_str(), output.length()))
 		{
 			gDebug->Log("Client %i sent wrong/malformed packet (What: CRC is non-numeric)", clientid);
-			gSocket->KickClient(clientid);
+			gSocket->KickClient(clientid, "boost::asio::async_reader: Invalid packet CRC, NaN");
 
 			return;
 		}
@@ -241,12 +281,11 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 		if(remote_packet_crc != packet_crc)
 		{
 			gDebug->Log("Client %i sent wrong/malformed packet (What: CRC check failed [R:%i != L:%i])", clientid, remote_packet_crc, packet_crc);
-			gSocket->KickClient(clientid);
+			gSocket->KickClient(clientid, boost::str(boost::format("boost::asio::async_reader: Packet CRC check failed, [R:%1% != L:%2%]") % remote_packet_crc % packet_crc));
 
 			return;
 		}
 
-		gDebug->Log("CRC check passed (R:%i = L:%i)", remote_packet_crc, packet_crc);
 		boost::split(args, output, boost::is_any_of("|"));
 
 		if(poolHandle.connstate == 1) // RECEIVE TEMPLATE: "*HERE IS THE SERIAL*|*HERE IS ADDON VERSION*|*HERE IS SERVER IP CRC*|*HERE IS SERVER PORT*|*HERE IS CLIENT NAME*"
@@ -254,7 +293,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 			if(args.size() != 5)
 			{
 				gDebug->Log("Client %i sent wrong/malformed packet (What: Invalid argument count in connstate operation (%i))", clientid, args.size());
-				gSocket->KickClient(clientid);
+				gSocket->KickClient(clientid, boost::str(boost::format("boost::split::arg_parser: Invalid argument count while (connstate != 2) (%1%)") % args.size()));
 
 				return;
 			}
@@ -268,7 +307,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					if((i->length() != 16) || !amxString::isHexDecimial(i->c_str(), i->length()))
 					{
 						gDebug->Log("Client %i sent wrong/malformed packet (What: Invalid serial ID)", clientid);
-						gSocket->KickClient(clientid);
+						gSocket->KickClient(clientid, "boost::split::arg_parser: Invalid serial ID");
 
 						return;
 					}
@@ -281,7 +320,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					if(!amxString::isDecimial(i->c_str(), i->length()))
 					{
 						gDebug->Log("Client %i sent wrong/malformed packet (What: Invalid addon version CRC, non-numeric)", clientid);
-						gSocket->KickClient(clientid);
+						gSocket->KickClient(clientid, "boost::split::arg_parser: Invalid CRC format");
 
 						return;
 					}
@@ -294,7 +333,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					if(!amxString::isDecimial(i->c_str(), i->length()))
 					{
 						gDebug->Log("Client %i sent wrong/malformed packet (What: Invalid server IP CRC, non-numeric)", clientid);
-						gSocket->KickClient(clientid);
+						gSocket->KickClient(clientid, "boost::split::arg_parser: Invalid CRC format");
 
 						return;
 					}
@@ -307,7 +346,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					if(!amxString::isDecimial(i->c_str(), i->length()))
 					{
 						gDebug->Log("Client %i sent wrong/malformed packet (What: Invalid server port, non-numeric)", clientid);
-						gSocket->KickClient(clientid);
+						gSocket->KickClient(clientid, "boost::split::arg_parser: Invalid port format");
 
 						return;
 					}
@@ -359,6 +398,14 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 	else
 	{
 		gDebug->Log("Cannot read data from client %i (What: %i %s)", clientid, error.value(), error.message().c_str());
+
+		amxCore::amxPush toAMX;
+
+		toAMX.clientid = clientid;
+		toAMX.pushDataFirst.assign(poolHandle.ip);
+		toAMX.pushDataSecond.assign(boost::str(boost::format("%1%|%2%") % error.value() % error.message()));
+
+		gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
 		gPool->resetOwnSession(clientid);
 	}
 }
@@ -394,12 +441,22 @@ void amxAsyncSession::writeHandle(unsigned int clientid, const boost::system::er
 {
 	if(!error)
 	{
+		gDebug->Log("Sent %i bytes to client %i", bytes_tx, clientid);
+
 		memset(poolHandle.buffer, NULL, sizeof poolHandle.buffer);
 		poolHandle.sock.async_read_some(boost::asio::buffer(poolHandle.buffer, sizeof poolHandle.buffer), boost::bind(&amxAsyncSession::readHandle, this, clientid, poolHandle.buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 	}
 	else
 	{
 		gDebug->Log("Cannot send data to client %i (What: %i %s)", clientid, error.value(), error.message().c_str());
+
+		amxCore::amxPush toAMX;
+
+		toAMX.clientid = clientid;
+		toAMX.pushDataFirst.assign(poolHandle.ip);
+		toAMX.pushDataSecond.assign(boost::str(boost::format("%1%|%2%") % error.value() % error.message()));
+
+		gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
 		gPool->resetOwnSession(clientid);
 	}
 }

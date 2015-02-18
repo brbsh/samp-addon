@@ -30,7 +30,7 @@ public:
 
 		boost::asio::ip::tcp::socket sock;
 
-		std::queue<std::vector<std::string> > pendingQueue;
+		std::queue< std::vector<std::string> > pendingQueue;
 		boost::mutex pqMutex;
 
 		unsigned short connstate;

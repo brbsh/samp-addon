@@ -26,8 +26,8 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 	{"Addon_TakeClientScreenshot", amxNatives::Addon_TakeClientScreenshot},
 	{"Addon_SetClientAddr", amxNatives::Addon_SetClientAddr},
 	{"Addon_GetClientAddr", amxNatives::Addon_GetClientAddr},
-	//{"TransferLocalFile", amxNatives::TransferLocalFile},
-	//{"TransferRemoteFile", amxNatives::TransferRemoteFile},
+	//{"Addon_TransferLocalFile", amxNatives::Addon_TransferLocalFile},
+	//{"Addon_TransferRemoteFile", amxNatives::Addon_TransferRemoteFile},
 
 	{NULL, NULL}
 };
@@ -124,7 +124,7 @@ cell AMX_NATIVE_CALL amxNatives::Addon_KickClient(AMX *amx, cell *params)
 		return NULL;
 	}
 
-	gSocket->KickClient(params[1]);
+	gSocket->KickClient(params[1], "amxServer::AMX: Kicked from AMX");
 
 	return 1;
 }

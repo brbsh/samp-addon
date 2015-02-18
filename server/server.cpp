@@ -92,5 +92,132 @@ PLUGIN_EXPORT int PLUGIN_CALL AmxUnload(AMX *amx)
 
 PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 {
+	if(gCore->isPTEmpty())
+		return;
 
+	int idx = NULL;
+	cell amxAddr[2];
+	std::pair<unsigned int, amxCore::amxPush> data = gCore->getFromPT();
+
+	for(std::list<AMX *>::iterator i = gCore->amxList.begin(); i != gCore->amxList.end(); i++)
+	{
+		switch(data.first)
+		{
+			case ADDON_CALLBACK_OTWS: // Addon_OnTCPWorkerStarted(workerid);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnTCPWorkerStarted", &idx))
+				{
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OTWE: // Addon_OnTCPWorkerError(workerid, error[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnTCPWorkerError", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCC: // Addon_OnClientConnect(clientid, client_ip[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnClientConnect", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCCE: // Addon_OnClientConnectError(client_ip[], error[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnClientConnectError", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataSecond.c_str(), NULL, NULL);
+					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCD: // Addon_OnClientDisconnect(clientid, client_ip[], reason_code, reason[]);
+			{
+				std::vector<std::string> tokens;
+				boost::split(tokens, data.second.pushDataSecond, boost::is_any_of("|"));
+
+				if(tokens.size() != 2)
+					break;
+
+				if(!amx_FindPublic(*i, "Addon_OnClientDisconnect", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, tokens.at(1).c_str(), NULL, NULL);
+					amx_Push(*i, atoi(tokens.at(0).c_str()));
+					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCST: // Addon_OnClientScreenshotTaken(clientid, remote_filename[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnClientScreenshotTaken", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCSE: // Addon_OnClientScreenshotError(clientid, remote_filename[], error[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnClientScreenshotError", &idx))
+				{
+					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataSecond.c_str(), NULL, NULL);
+					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					amx_Push(*i, data.second.clientid);
+
+					amx_Exec(*i, NULL, idx);
+
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OCAR: // Addon_OnClientAddressRequest(clientid, address, type, value[]);
+			{
+				if(!amx_FindPublic(*i, "Addon_OnClientAddressRequest", &idx))
+				{
+					//todo
+				}
+			}
+			break;
+		}
+	}
 }

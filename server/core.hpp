@@ -15,7 +15,8 @@ public:
 
 	struct amxPush
 	{
-		std::string callback;
+		unsigned int clientid;
+
 		std::string pushDataFirst;
 		std::string pushDataSecond;
 	};
@@ -27,6 +28,26 @@ public:
 
 	void processFunc(unsigned int maxclients);
 
+	void pushToPT(unsigned short callback_id, amxPush data)
+	{
+		boost::unique_lock<boost::mutex> lockit(qMutex);
+		amxQueue.push(std::make_pair(callback_id, data));
+	}
+
+	std::pair<unsigned short, amxPush> getFromPT()
+	{
+		boost::unique_lock<boost::mutex> lockit(qMutex);
+		std::pair<unsigned short, amxCore::amxPush> res = amxQueue.front();
+		amxQueue.pop();
+
+		return res;
+	}
+
+	bool isPTEmpty() const
+	{
+		return amxQueue.empty();
+	}
+
 	boost::thread *getThreadInstance() const
 	{
 		return threadInstance.get();
@@ -37,6 +58,6 @@ public:
 private:
 
 	boost::shared_ptr<boost::thread> threadInstance;
-	std::queue<std::pair<unsigned int, amxPush> > amxQueue;
+	std::queue< std::pair<unsigned short, amxPush> > amxQueue;
 	boost::mutex qMutex;
 };

@@ -22,7 +22,7 @@ public:
 	}
 
 	bool IsClientConnected(unsigned int clientid);
-	void KickClient(unsigned int clientid);
+	void KickClient(unsigned int clientid, std::string reason);
 
 	static void acceptThread(std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID);
 	static void deadlineThread(unsigned int maxclients);

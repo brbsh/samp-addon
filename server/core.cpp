@@ -56,26 +56,25 @@ void amxCore::processFunc(unsigned int maxclients)
 		if(session->pool().connstate != 2)
 			continue;
 
-		try_lock_mutex:
+		boost::unique_lock<boost::mutex> lockit(session->pool().pqMutex);
 
-		if(session->pool().pqMutex.try_lock())
+		if(session->pool().pendingQueue.empty())
 		{
-			data = session->pool().pendingQueue.front();
-			session->pool().pqMutex.unlock();
+			lockit.unlock();
+			continue;
 		}
-		else
-		{
-			gDebug->Log("Cannot lock core thread mutex, continuing anyway");
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-			goto try_lock_mutex;
-		}
+
+		data = session->pool().pendingQueue.front();
+		session->pool().pendingQueue.pop();
+
+		lockit.unlock();
 
 		if(data.at(0).compare("CMDRESPONSE") != std::string::npos) // response from client on server query success/fail
 		{
 			if(!amxString::isDecimial(data.at(1).c_str(), data.at(1).length()))
 			{
 				gDebug->Log("Client %i sent crafted response (What: Response code is non-numeric)", clientid);
-				gSocket->KickClient(clientid);
+				gSocket->KickClient(clientid, "amxCore::processFunc: Response code NaN");
 
 				continue;
 			}
@@ -95,26 +94,22 @@ void amxCore::processFunc(unsigned int maxclients)
 
 					amxCore::amxPush toAMX;
 
+					toAMX.clientid = clientid;
+
 					if(data.at(2).compare("OK") == std::string::npos)
 					{
 						// error occured, push to amx
-						toAMX.callback.assign("Addon_OnScreenshotTakeError");
-						toAMX.pushDataFirst.assign(data.at(2));
+						toAMX.pushDataFirst.assign(data.at(3));
+						toAMX.pushDataSecond.assign(data.at(2));
 
-						qMutex.lock();
-						amxQueue.push(std::make_pair(clientid, toAMX));
-						qMutex.unlock();
+						pushToPT(ADDON_CALLBACK_OCSE, toAMX); // Addon_OnClientScreenshotError(clientid, data.at(3), data.at(2));
 
 						continue;
 					}
 
-					toAMX.callback.assign("Addon_OnClientScreenshotTaken");
 					toAMX.pushDataFirst.assign(data.at(3));
 
-					qMutex.lock();
-					amxQueue.push(std::make_pair(clientid, toAMX));
-					qMutex.unlock();
-					// push result to amx
+					pushToPT(ADDON_CALLBACK_OCST, toAMX); // Addon_OnClientScreenshotTaken(clientid, data.at(3));
 				}
 				break;
 
@@ -136,7 +131,7 @@ void amxCore::processFunc(unsigned int maxclients)
 			continue;
 		}
 
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 	}
 }
 
