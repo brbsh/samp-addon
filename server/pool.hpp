@@ -19,7 +19,6 @@ public:
 		{
 			connstate = NULL;
 			sID.clear();
-			ip.clear();
 			memset(buffer, NULL, sizeof buffer);
 		}
 
@@ -29,6 +28,7 @@ public:
 		}
 
 		boost::asio::ip::tcp::socket sock;
+		boost::asio::ip::address ip;
 
 		std::queue< std::vector<std::string> > pendingQueue;
 		boost::mutex pqMutex;
@@ -39,7 +39,6 @@ public:
 
 		std::clock_t last_response;
 		std::string sID;
-		std::string ip;
 		std::string name;
 
 		char buffer[2048];

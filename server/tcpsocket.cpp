@@ -64,7 +64,7 @@ void amxSocket::KickClient(unsigned int clientid, std::string reason)
 	amxAsyncSession *sess = gPool->getClientSession(clientid);
 
 	toAMX.clientid = clientid;
-	toAMX.pushDataFirst.assign(sess->pool().ip);
+	toAMX.pushDataFirst.assign(sess->pool().ip.to_string());
 	toAMX.pushDataSecond.assign(boost::str(boost::format("1488|%1%") % reason));
 
 	gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
@@ -97,6 +97,7 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 		}
 		catch(boost::system::system_error& err)
 		{
+			io_service.stop();
 			io_service.reset();
 			gDebug->Log("Error while processing TCP worker #%i execution (What: %s)", workerID, err.what());
 
@@ -154,7 +155,7 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 {
 	for(std::list<boost::asio::ip::address>::iterator i = connectedIPS.begin(); i != connectedIPS.end(); i++)
 	{
-		if(*i == new_session->pool().sock.remote_endpoint().address())
+		if(*i == new_session->pool().ip)
 		{
 			gDebug->Log("[RAW-NET] Cannot accept connection from %s: (What: IP already connected)", (*i).to_string().c_str());
 
@@ -165,7 +166,7 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 	}
 
 	cIPMutex.lock();
-	connectedIPS.push_back(new_session->pool().sock.remote_endpoint().address());
+	connectedIPS.push_back(new_session->pool().ip);
 	cIPMutex.unlock();
 
 	if(!error)
@@ -233,18 +234,18 @@ void amxAsyncServer::sessionRemove(boost::asio::ip::address ip)
 
 void amxAsyncSession::startSession(unsigned int binded_clid)
 {
-	poolHandle.ip = poolHandle.sock.remote_endpoint().address().to_string();
+	poolHandle.ip = poolHandle.sock.remote_endpoint().address();
 	poolHandle.remote_port = poolHandle.sock.remote_endpoint().port();
 	poolHandle.connstate = 1;
 	poolHandle.last_response = clock();
 
 	gPool->setClientSession(binded_clid, this);
-	gDebug->Log("Incoming connection from %s (binded clientid: %i)", poolHandle.ip.c_str(), binded_clid);
+	gDebug->Log("Incoming connection from %s (binded clientid: %i)", poolHandle.ip.to_string().c_str(), binded_clid);
 
 	amxCore::amxPush toAMX;
 
 	toAMX.clientid = binded_clid;
-	toAMX.pushDataFirst.assign(poolHandle.ip);
+	toAMX.pushDataFirst.assign(poolHandle.ip.to_string());
 
 	gCore->pushToPT(ADDON_CALLBACK_OCC, toAMX); // Addon_OnClientConnect(binded_clid, poolHandle.ip);
 
@@ -387,7 +388,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 			poolHandle.connstate = 2; // must be 2
 
 			// SEND TEMPLATE: "*HERE IS CLIENT REMOTE IP CRC*|*HERE IS CLIENT REMOTE PORT*"
-			writeTo(clientid, boost::str(boost::format("%1%|%2%") % amxHash::crc32(poolHandle.ip, poolHandle.ip.length()) % poolHandle.remote_port));
+			writeTo(clientid, boost::str(boost::format("%1%|%2%") % amxHash::crc32(poolHandle.ip.to_string(), poolHandle.ip.to_string().length()) % poolHandle.remote_port));
 
 			return;
 		}
@@ -405,7 +406,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 		amxCore::amxPush toAMX;
 
 		toAMX.clientid = clientid;
-		toAMX.pushDataFirst.assign(poolHandle.ip);
+		toAMX.pushDataFirst.assign(poolHandle.ip.to_string());
 		toAMX.pushDataSecond.assign(boost::str(boost::format("%1%|%2%") % error.value() % error.message()));
 
 		gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
@@ -456,7 +457,7 @@ void amxAsyncSession::writeHandle(unsigned int clientid, const boost::system::er
 		amxCore::amxPush toAMX;
 
 		toAMX.clientid = clientid;
-		toAMX.pushDataFirst.assign(poolHandle.ip);
+		toAMX.pushDataFirst.assign(poolHandle.ip.to_string());
 		toAMX.pushDataSecond.assign(boost::str(boost::format("%1%|%2%") % error.value() % error.message()));
 
 		gCore->pushToPT(ADDON_CALLBACK_OCD, toAMX);
