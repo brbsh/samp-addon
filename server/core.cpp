@@ -144,7 +144,7 @@ void amxCore::Thread()
 	gDebug->Log("Thread amxCore::Thread() successfuly started");
 
 	while(!gPool->getPluginStatus())
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	amxPool::svrData data = gPool->getServerVar("ip");
 	std::string ip = data.string;
@@ -166,7 +166,7 @@ void amxCore::Thread()
 		gCore->processFunc(maxclients);
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
 	}
 	while(gPool->getPluginStatus());
 }

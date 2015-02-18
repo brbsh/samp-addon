@@ -3,7 +3,7 @@ GCC = gcc
 
 OUTFILE = "../build/server/linux/addon.so"
 
-COMPILE_FLAGS = -c -O2 -fPIC -w -DLINUX -Wall -I../build/server/SDK/amx/
+COMPILE_FLAGS = -c -O2 -fPIC -w -DLINUX -m32 -Wall -I../build/server/SDK/amx/
 LIBS = -lboost_chrono -lboost_filesystem -lboost_regex -lboost_system -lboost_thread
 
 all:

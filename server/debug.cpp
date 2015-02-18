@@ -46,7 +46,7 @@ void amxDebug::Log(char *format, ...)
 	}
 	else
 	{
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 		goto try_lock_mutex;
 	}
 
@@ -89,7 +89,7 @@ void amxDebug::processFW()
 		logQueue.pop();
 		lwMutex.unlock();
 
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 	}
 }
 
@@ -108,6 +108,6 @@ void amxDebug::Thread()
 		gDebug->processFW();
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }

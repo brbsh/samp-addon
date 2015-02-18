@@ -133,7 +133,7 @@ void amxSocket::deadlineThread(unsigned int maxclients)
 		}
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep_for(boost::chrono::seconds(5));
+		boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
 	}
 }
 
