@@ -34,7 +34,9 @@
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
+#include <istream>
 #include <list>
+#include <ostream>
 #include <queue>
 #include <sstream>
 #include <stdlib.h>
@@ -49,10 +51,13 @@
 #include "core.hpp"
 #include "debug.hpp"
 #include "hash.hpp"
+#include "httpclient.hpp"
 #include "natives.hpp"
 #include "pool.hpp"
 #include "string.hpp"
 #include "tcpsocket.hpp"
+#include "transfer.hpp"
+#include "updater.hpp"
 
 
 

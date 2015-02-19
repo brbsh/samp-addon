@@ -41,6 +41,50 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 
 	gCore = boost::shared_ptr<amxCore>(new amxCore());
 
+	#if defined LINUX
+	boost::filesystem::path tmppath("plugins/_addon_tmp.so");
+	boost::filesystem::path libpath("plugins/addon.so");
+	boost::filesystem::path curcfg("server.cfg");
+	boost::filesystem::path tmpcfg("server.cfg.bak");
+	#else
+	boost::filesystem::path tmppath(".\\plugins\\_addon_tmp.dll");
+	boost::filesystem::path libpath(".\\plugins\\addon.dll");
+	boost::filesystem::path curcfg(".\\server.cfg");
+	boost::filesystem::path tmpcfg(".\\server.cfg.bak");
+	#endif
+
+	if(boost::filesystem::exists(tmppath) && boost::filesystem::exists(tmpcfg))
+	{
+		try
+		{
+			boost::filesystem::remove(libpath);
+			boost::filesystem::copy_file(tmppath, libpath);
+
+			boost::filesystem::remove(curcfg);
+			boost::filesystem::rename(tmpcfg, curcfg);
+		}
+		catch(boost::filesystem::filesystem_error& error)
+		{
+			logprintf("SAMP-Addon warning: When updating addon binary: %s", error.what());
+		}
+
+		logprintf("SAMP-Addon warning: Addon binary was updated. Start server again.");
+		exit(EXIT_SUCCESS);
+	}
+	else if(boost::filesystem::exists(tmppath) && !boost::filesystem::exists(tmpcfg))
+	{
+		try
+		{
+			boost::filesystem::remove(tmppath);
+		}
+		catch(boost::filesystem::filesystem_error& error)
+		{
+			logprintf("SAMP-Addon warning: Cannot remove old addon binary, remove it manually (What: %s)", error.what());
+		}
+
+		logprintf("SAMP-Addon warning: old addon binary was removed");
+	}
+
 	logprintf(" SAMP-Addon was loaded");
 
     return true;

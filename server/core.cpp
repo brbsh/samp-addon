@@ -14,6 +14,7 @@ boost::shared_ptr<amxCore> gCore;
 extern boost::shared_ptr<amxDebug> gDebug;
 extern boost::shared_ptr<amxPool> gPool;
 extern boost::shared_ptr<amxSocket> gSocket;
+extern boost::shared_ptr<amxUpdater> gUpdater;
 
 
 
@@ -142,6 +143,7 @@ void amxCore::Thread()
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->Log("Thread amxCore::Thread() successfuly started");
+	gUpdater = boost::shared_ptr<amxUpdater>(new amxUpdater());
 
 	while(!gPool->getPluginStatus())
 		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));

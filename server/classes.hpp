@@ -23,6 +23,7 @@
 
 class amxCore;
 class amxDebug;
+class amxAsyncHTTP;
 class amxNatives;
 class amxPool;
 class amxSocket;

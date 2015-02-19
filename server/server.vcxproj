@@ -78,11 +78,14 @@
     <ClInclude Include="core.hpp" />
     <ClInclude Include="debug.hpp" />
     <ClInclude Include="hash.hpp" />
+    <ClInclude Include="httpclient.hpp" />
     <ClInclude Include="natives.hpp" />
     <ClInclude Include="pool.hpp" />
     <ClInclude Include="server.hpp" />
     <ClInclude Include="string.hpp" />
     <ClInclude Include="tcpsocket.hpp" />
+    <ClInclude Include="transfer.hpp" />
+    <ClInclude Include="updater.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\build\server\SDK\amxplugin.cpp" />
@@ -94,6 +97,8 @@
     <ClCompile Include="server.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
+    <ClCompile Include="transfer.cpp" />
+    <ClCompile Include="updater.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="server.rc" />
