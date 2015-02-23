@@ -2,7 +2,7 @@
 
 
 
-#include "d3device.hpp"
+#include "client.hpp"
 
 
 
@@ -93,6 +93,8 @@ void addonD3Device::Screenshot(std::string filename)
 
 	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
 	pSurface->Release();
+
+	gDebug->Log("Screenshot saved to %s", filename.c_str());
 }
 
 

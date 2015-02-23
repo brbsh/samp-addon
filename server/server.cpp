@@ -101,6 +101,7 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 
 	gPool->setPluginStatus(false);
 
+	gCore.reset();
 	gDebug.reset();
 
     logprintf(" SAMP-Addon was unloaded");

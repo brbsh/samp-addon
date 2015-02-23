@@ -172,6 +172,6 @@ void amxUpdater::updateThread(boost::asio::io_service& io_s, int local_plugin_cr
 			gDebug->Log("Addon version (%i) is up to date", local_plugin_crc);
 		}
 
-		boost::this_thread::sleep(boost::posix_time::minutes(60)); // check every hour
+		boost::this_thread::sleep(boost::posix_time::hours(3)); // check every 3 hours
 	}
 }

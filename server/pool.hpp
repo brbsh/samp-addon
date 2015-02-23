@@ -19,7 +19,6 @@ public:
 		{
 			connstate = NULL;
 			sID.clear();
-			memset(buffer, NULL, sizeof buffer);
 		}
 
 		~clientPoolS()
@@ -36,12 +35,10 @@ public:
 		unsigned short connstate;
 		unsigned short remote_port;
 		int addon_version_crc;
+		int cmdresponse_state;
 
-		std::clock_t last_response;
 		std::string sID;
 		std::string name;
-
-		char buffer[2048];
 	};
 
 	struct svrData

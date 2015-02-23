@@ -16,8 +16,9 @@ public:
 	addonSocket();
 	virtual ~addonSocket();
 
-	bool Connect(std::string ip, unsigned short port);
-	void Send(std::string data);
+	bool connectTo(std::string ip, unsigned short port);
+	void disconnect();
+	void writeTo(std::string data);
 
 	boost::asio::ip::tcp::socket& getSocket()
 	{
@@ -25,19 +26,25 @@ public:
 		return socket;
 	}
 
-	boost::thread *getThreadInstance(bool recv)
+	boost::thread *getThreadInstance()
 	{
-		return (recv) ? recvThreadInstance.get() : sendThreadInstance.get();
+		return recvThreadInstance.get();
 	}
 
-	static void sendThread(boost::shared_ptr<boost::asio::ip::tcp::socket> socket);
-	static void recvThread(boost::shared_ptr<boost::asio::ip::tcp::socket> socket);
+	bool isConnected() const
+	{
+		return connected;
+	}
+
+	static void connectionThread(addonSocket *instance);
+	static void recvThread(addonSocket *instance);
 
 private:
 
-	boost::asio::io_service io_s;
+	bool connected;
 
-	boost::shared_ptr<boost::thread> sendThreadInstance;
+	boost::asio::io_service io_s;
+	boost::shared_ptr<boost::thread> connectionThreadInstance;
 	boost::shared_ptr<boost::thread> recvThreadInstance;
 
 	boost::shared_mutex sockMutex;

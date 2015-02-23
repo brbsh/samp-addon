@@ -16,15 +16,21 @@
 
 //#include <boost/archive/text_iarchive.hpp>
 //#include <boost/archive/text_oarchive.hpp>
+#include <boost/array.hpp>
 #include <boost/asio.hpp>
+#include <boost/algorithm/string.hpp>
+//#include <boost/atomic.hpp>
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
 #include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/format.hpp>
+#include <boost/regex.hpp>
 //#include <boost/serialization/serialization.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
+//#include <boost/utility/binary.hpp>
 
 
 
@@ -50,10 +56,13 @@
 #include "d3device.hpp"
 #include "debug.hpp"
 #include "functions.hpp"
+#include "hash.hpp"
+#include "httpclient.hpp"
 #include "loader.hpp"
 #include "pool.hpp"
 #include "string.hpp"
 #include "tcpsocket.hpp"
+#include "transfer.hpp"
 
 
 

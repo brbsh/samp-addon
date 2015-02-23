@@ -21,17 +21,23 @@ public:
 		return threadInstance.get();
 	}
 
+	amxAsyncServer *getServer() const
+	{
+		return serverHandle.get();
+	}
+
 	bool IsClientConnected(unsigned int clientid);
 	void KickClient(unsigned int clientid, std::string reason);
 
-	static void acceptThread(std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID);
-	static void deadlineThread(unsigned int maxclients);
+	static void acceptThread(amxSocket *instance, std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID);
 
 private:
 
 	boost::shared_ptr<boost::thread> threadInstance;
 	boost::shared_ptr<boost::thread> deadlineThreadInstance;
 	//boost::shared_ptr<boost::thread_group> threadGroup;
+
+	boost::shared_ptr<amxAsyncServer> serverHandle;
 };
 
 
@@ -53,13 +59,14 @@ public:
 
 	void asyncAcceptor(unsigned int maxclients);
 	void asyncHandler(amxAsyncSession *new_session, const boost::system::error_code& error, unsigned int maxclients);
-	void sessionRemove(amxAsyncSession *session);
+	void sessionAdd(unsigned int clientid, boost::asio::ip::address ip);
+	void sessionRemove(unsigned int clientid);
 
 private:
 
 	boost::asio::io_service& io_s;
 	boost::asio::ip::tcp::acceptor acceptor;
-	std::list<amxAsyncSession *> sessions;
+	boost::unordered_map<unsigned int, boost::asio::ip::address> sessions;
 	boost::mutex sMutex;
 };
 
@@ -77,7 +84,6 @@ public:
 
 	~amxAsyncSession()
 	{
-		parentWorker->sessionRemove(this);
 		//poolHandle.sock.cancel();
 		//poolHandle.sock.shutdown(boost::asio::socket_base::shutdown_both);
 		poolHandle.sock.close();

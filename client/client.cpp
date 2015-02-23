@@ -69,11 +69,11 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved
 
 			if(hookCount > 0)
 			{
-				gCore.reset();
-				gD3Device.reset();
-				gDebug.reset();
+				//gCore.reset();
+				//gD3Device.reset();
+				//gDebug.reset();
 
-				boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
+				boost::this_thread::sleep(boost::posix_time::milliseconds(250)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
 				exit(EXIT_SUCCESS);
 			}
 		}
@@ -128,8 +128,8 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 		gD3Device->setRender(render_original, true);
 		gD3Device->setRender(render_hooked, false);
 
-		gDebug->Log("Original render address: 0x%x", (int)render_original);
-		gDebug->Log("Hooked render address: 0x%x", (int)render_hooked);
+		gDebug->Log("Original render address: 0x%x", &render_original);
+		gDebug->Log("Hooked render address: 0x%x", &render_hooked);
 		gDebug->Log("Returning hooked render address, hook was installed!");
 	}
 
@@ -143,11 +143,11 @@ void singlePlayerRender()
 	gDebug->traceLastFunction("singlePlayerRender() at 0x%x", &singlePlayerRender);
 
 	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gD3Device->renderText("SAMP-Addon started in singleplayer mode", 10, 10, 255, 255, 255, 127);
 
-	boost::this_thread::sleep_for(boost::chrono::seconds(5));
+	boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
 
 	gD3Device->stopLastRender();
 }

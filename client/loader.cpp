@@ -2,7 +2,7 @@
 
 
 
-#include "loader.hpp"
+#include "client.hpp"
 
 
 
@@ -25,8 +25,6 @@ addonLoader::addonLoader()
 
 	HRESULT download = NULL;
 
-	boost::system::error_code error;
-
 	boost::filesystem::path current(".");
 	boost::filesystem::path addondll(".\\d3d9.dll");
 	boost::filesystem::path updater(".\\addon_updater.tmp");
@@ -41,7 +39,7 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("Cannot find GTA SA executable, terminating...");
 
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1));
 		exit(EXIT_FAILURE);
 	}
 
@@ -49,7 +47,7 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("Cannot find Vorbis library file, terminating...");
 
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1));
 		exit(EXIT_FAILURE);
 	}
 
@@ -65,14 +63,14 @@ addonLoader::addonLoader()
 		{
 			gDebug->Log("Error while downloading addon updater package: %i (Error code: %i)", download, GetLastError());
 			
-			boost::this_thread::sleep_for(boost::chrono::seconds(1));
+			boost::this_thread::sleep(boost::posix_time::seconds(1));
 			exit(EXIT_FAILURE);
 		}
 	}
 	else
 	{
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
-		std::size_t hashcheck = crc32_file(".\\addon_updater.tmp");
+		std::size_t hashcheck = addonHash::crc32_file(".\\addon_updater.tmp");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -91,7 +89,7 @@ addonLoader::addonLoader()
 		{
 			gDebug->Log("Error while downloading updater version file: %i (Error code: %i)", download, GetLastError());
 
-			boost::this_thread::sleep_for(boost::chrono::seconds(1));
+			boost::this_thread::sleep(boost::posix_time::seconds(1));
 			exit(EXIT_FAILURE);
 		}
 
@@ -107,7 +105,7 @@ addonLoader::addonLoader()
 			{
 				gDebug->Log("Error while downloading addon updater package: %i (Error code: %i)", download, GetLastError());
 
-				boost::this_thread::sleep_for(boost::chrono::seconds(1));
+				boost::this_thread::sleep(boost::posix_time::seconds(1));
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -117,7 +115,7 @@ addonLoader::addonLoader()
 		}
 	}
 
-	STARTUPINFO updaterStart;
+	/*STARTUPINFO updaterStart;
 	PROCESS_INFORMATION updaterStartInfo;
 	std::string cmdline_flags;
 
@@ -139,9 +137,9 @@ addonLoader::addonLoader()
 	{
 		gDebug->Log("Cannot create process addon_updater.tmp: %i", GetLastError());
 
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1));
 		exit(EXIT_FAILURE);
-	}
+	}*/
 
 	char sysdrive[32];
 
@@ -150,20 +148,18 @@ addonLoader::addonLoader()
 
 	std::string cmdline(GetCommandLine());
 
-	//MessageBox(NULL, cmdline.c_str(), "Command Line", NULL);
-
 	std::size_t name_ptr = (cmdline.find("-n") + 3);
 	std::size_t ip_ptr = (cmdline.find("-h") + 3);
 	std::size_t port_ptr = (cmdline.find("-p") + 3);
 	std::size_t pass_ptr = (cmdline.find("-z") + 3);
 
-	gPool->setVar("playerName", cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4)));
-	gPool->setVar("serverIP", cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4)));
-	gPool->setVar("serverPort", cmdline.substr(port_ptr, 5));
+	gPool->setVar("name", cmdline.substr(name_ptr, (ip_ptr - name_ptr - 4)));
+	gPool->setVar("server_ip", cmdline.substr(ip_ptr, (port_ptr - ip_ptr - 4)));
+	gPool->setVar("server_port", cmdline.substr(port_ptr, 5));
 
 	if(pass_ptr != std::string::npos)
 	{
-		gPool->setVar("serverPassword", cmdline.substr(pass_ptr, INFINITE));
+		gPool->setVar("server_password", cmdline.substr(pass_ptr, INFINITE));
 
 		//password
 	}
@@ -172,10 +168,8 @@ addonLoader::addonLoader()
 	strcat_s(sysdrive, "\\");
 
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
-	sprintf(sysdrive, "%i", serial + flags);
 
-	gPool->setVar("playerSerial", strFormat() << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << serial << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << flags);
-	gPool->setVar("playerSerial10", sysdrive);
+	gPool->setVar("serial", strFormat() << UNIQUE_HEX_MOD << serial << UNIQUE_HEX_MOD << (serial ^ flags));
 
 	boost::unordered_map<std::string, std::size_t> legal;
 	boost::unordered_map<std::string, HMODULE> loaded;
@@ -228,7 +222,7 @@ addonLoader::addonLoader()
 			{
 				filename = file->path().filename().string();
 
-				if((filename == i->first) && (crc32_file(filename) == i->second))
+				if((filename == i->first) && (addonHash::crc32_file(filename) == i->second))
 				{
 					isGood = true;
 

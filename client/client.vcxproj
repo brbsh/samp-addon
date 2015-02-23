@@ -79,12 +79,15 @@
     <ClInclude Include="d3device.hpp" />
     <ClInclude Include="debug.hpp" />
     <ClInclude Include="functions.hpp" />
+    <ClInclude Include="hash.hpp" />
+    <ClInclude Include="httpclient.hpp" />
     <ClInclude Include="loader.hpp" />
     <ClInclude Include="pool.hpp" />
     <ClInclude Include="ProxyIDirect3D9.hpp" />
     <ClInclude Include="ProxyIDirect3DDevice9.hpp" />
     <ClInclude Include="string.hpp" />
     <ClInclude Include="tcpsocket.hpp" />
+    <ClInclude Include="transfer.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />
@@ -92,12 +95,14 @@
     <ClCompile Include="d3device.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="functions.cpp" />
+    <ClCompile Include="hash.cpp" />
     <ClCompile Include="loader.cpp" />
     <ClCompile Include="pool.cpp" />
     <ClCompile Include="ProxyIDirect3D9.cpp" />
     <ClCompile Include="ProxyIDirect3DDevice9.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="tcpsocket.cpp" />
+    <ClCompile Include="transfer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="client.rc" />

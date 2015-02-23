@@ -25,6 +25,8 @@ amxCore::amxCore()
 	gDebug->Log("Core constructor called");
 
 	gPool = boost::shared_ptr<amxPool>(new amxPool());
+	//gUpdater = boost::shared_ptr<amxUpdater>(new amxUpdater());
+
 	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxCore::Thread)));
 }
 
@@ -34,7 +36,10 @@ amxCore::~amxCore()
 {
 	gDebug->Log("Core destructor called");
 
-	threadInstance->interruption_requested();
+	gPool.reset();
+	//gUpdater.reset();
+
+	threadInstance->interrupt();
 }
 
 
@@ -82,9 +87,19 @@ void amxCore::processFunc(unsigned int maxclients)
 
 			rescode = atoi(data.at(1).c_str());
 
+			if(rescode != session->pool().cmdresponse_state)
+			{
+				gDebug->Log("Client %i sent invalid response");
+				gSocket->KickClient(clientid, "amxCore::processFunc: Invalid response");
+
+				continue;
+			}
+
+			session->pool().cmdresponse_state = NULL;
+
 			switch(rescode)
 			{
-				case ADDON_CMD_QUERY_SCREENSHOT: // CMDQUERY|1000|*FILE PATH*  == Screenshot query
+				case ADDON_CMD_QUERY_SCREENSHOT: // CMDQUERY|1000|*ERROR STATUS*|*FILE PATH*  == Screenshot query
 				{
 					if(boost::regex_search(data.at(3), boost::regex("[.:%]{1,2}[/\\]+")))
 					{
@@ -113,12 +128,6 @@ void amxCore::processFunc(unsigned int maxclients)
 					pushToPT(ADDON_CALLBACK_OCST, toAMX); // Addon_OnClientScreenshotTaken(clientid, data.at(3));
 				}
 				break;
-
-				case 1001: //
-				{
-					//
-				}
-				break;
 			}
 		}
 		else if(data.at(0).compare("CMDDATASENT") != std::string::npos) // data from client (AFK status, keys pressed etc.)
@@ -143,7 +152,6 @@ void amxCore::Thread()
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->Log("Thread amxCore::Thread() successfuly started");
-	gUpdater = boost::shared_ptr<amxUpdater>(new amxUpdater());
 
 	while(!gPool->getPluginStatus())
 		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
@@ -171,4 +179,6 @@ void amxCore::Thread()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
 	}
 	while(gPool->getPluginStatus());
+
+	gSocket.reset();
 }

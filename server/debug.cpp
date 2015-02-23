@@ -26,7 +26,7 @@ amxDebug::amxDebug()
 
 amxDebug::~amxDebug()
 {
-	threadInstance->interruption_requested();
+	threadInstance->interrupt();
 }
 
 

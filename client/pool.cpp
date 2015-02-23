@@ -2,7 +2,7 @@
 
 
 
-#include "pool.hpp"
+#include "client.hpp"
 
 
 
@@ -38,7 +38,6 @@ addonPool::~addonPool()
 void addonPool::setVar(std::string key, std::string value)
 {
 	boost::unique_lock<boost::shared_mutex> lockit(mapMutex);
-
 	privPool[key] = value;
 }
 
@@ -47,6 +46,5 @@ void addonPool::setVar(std::string key, std::string value)
 std::string addonPool::getVar(std::string key)
 {
 	boost::shared_lock<boost::shared_mutex> lockit(mapMutex);
-
 	return privPool.find(key)->second;
 }

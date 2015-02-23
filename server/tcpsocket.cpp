@@ -25,9 +25,7 @@ amxSocket::amxSocket(std::string ip, unsigned short port, unsigned int maxclient
 
 	unsigned short worker_count = /*boost::thread::hardware_concurrency()*/ 1;
 
-	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxSocket::acceptThread, ip, port, maxclients, worker_count)));
-	deadlineThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxSocket::deadlineThread, maxclients)));
-
+	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&amxSocket::acceptThread, this, ip, port, maxclients, worker_count)));
 	/*threadGroup = boost::shared_ptr<boost::thread_group>(new boost::thread_group());
 
 	for(short i = 0; i < worker_count; i++)
@@ -40,9 +38,7 @@ amxSocket::~amxSocket()
 {
 	gDebug->Log("Socket destructor called");
 
-	threadInstance->interruption_requested();
-	deadlineThreadInstance->interruption_requested();
-
+	threadInstance->interrupt();
 	//threadGroup->interrupt_all();
 }
 
@@ -76,7 +72,7 @@ void amxSocket::KickClient(unsigned int clientid, std::string reason)
 
 
 
-void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID)
+void amxSocket::acceptThread(amxSocket *instance, std::string ip, unsigned short port, unsigned int maxclients, unsigned short workerID)
 {
 	gDebug->Log("Thread amxSocket::acceptThread(worker #%i) successfuly started", workerID);
 
@@ -84,7 +80,7 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 
 	while(gPool->getPluginStatus())
 	{
-		amxAsyncServer *server = new amxAsyncServer(io_service, ip, port, maxclients);
+		instance->serverHandle = boost::shared_ptr<amxAsyncServer>(new amxAsyncServer(io_service, ip, port, maxclients));
 		amxCore::amxPush toAMX;
 
 		try
@@ -107,39 +103,11 @@ void amxSocket::acceptThread(std::string ip, unsigned short port, unsigned int m
 
 		io_service.stop();
 		io_service.reset();
-		delete server;
+		instance->serverHandle.reset();
 
 		gDebug->Log("Restarting TCP worker #%i due to stop detected...", workerID);
 
 		boost::this_thread::sleep(boost::posix_time::seconds(5)); // boost::this_thread::sleep_for(boost::chrono::seconds(5));
-	}
-}
-
-
-
-void amxSocket::deadlineThread(unsigned int maxclients)
-{
-	gDebug->Log("Thread amxSocket::deadlineThread(maxclients = %i) sucessfully started", maxclients);
-
-	while(gPool->getPluginStatus())
-	{
-		boost::this_thread::disable_interruption di;
-
-		for(unsigned int i = 0; i < maxclients; i++)
-		{
-			if(!gSocket->IsClientConnected(i))
-				continue;
-
-			amxAsyncSession *sess = gPool->getClientSession(i);
-
-			if((sess->pool().last_response + (ADDON_CLIENT_TIMEOUT_SECONDS * CLOCKS_PER_SEC)) < clock()) // 30 seconds
-			{
-				gSocket->KickClient(i, "boost::asio::deadline_timer: Timeout");
-			}
-		}
-
-		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
 	}
 }
 
@@ -155,56 +123,20 @@ void amxAsyncServer::asyncAcceptor(unsigned int maxclients)
 
 void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::system::error_code& error, unsigned int maxclients)
 {
-	boost::unique_lock<boost::mutex> lockit(sMutex);
-
-	for(std::list<amxAsyncSession *>::iterator i = sessions.begin(); i != sessions.end(); i++)
-	{
-		if((*i)->pool().sock.remote_endpoint().address() == new_session->pool().sock.remote_endpoint().address())
-		{
-			gDebug->Log("[RAW-NET] Cannot accept connection from %s: (What: IP already connected)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
-
-			delete new_session;
-			return asyncAcceptor(maxclients);
-		}
-	}
-
-	sessions.push_back(new_session);
-	lockit.unlock();
-
 	if(!error)
 	{
-		unsigned int clientid = maxclients;
-
-		for(unsigned int i = 0; i != maxclients; i++)
+		for(boost::unordered_map<unsigned int, boost::asio::ip::address>::iterator i = sessions.begin(); i != sessions.end(); i++)
 		{
-			if(!gSocket->IsClientConnected(i))
+			if((i->second == new_session->pool().sock.remote_endpoint().address()) && !gSocket->IsClientConnected(i->first))
 			{
-				clientid = i;
+				new_session->startSession(i->first);
 
-				break;
+				return asyncAcceptor(maxclients);
 			}
 		}
 
-		if(clientid == maxclients)
-		{
-			gDebug->Log("[RAW-NET] Cannot accept connection from %s (What: Server is full)", new_session->pool().sock.remote_endpoint().address().to_string().c_str());
-
-			amxCore::amxPush toAMX;
-
-			toAMX.pushDataFirst.assign(new_session->pool().sock.remote_endpoint().address().to_string());
-			toAMX.pushDataSecond.assign("boost::asio::async_acceptor: Server is full");
-
-			gCore->pushToPT(ADDON_CALLBACK_OCCE, toAMX); // Addon_OnClientConnectError(remote_endpoint().address(), "Server is full");
-
-			// server is full
-			delete new_session;
-
-			// sleep here if 'full DoS' damages cpu
-			
-			return asyncAcceptor(maxclients);
-		}
-
-		new_session->startSession(clientid);
+		delete new_session;
+		return asyncAcceptor(maxclients);
 	}
 	else
 	{
@@ -225,10 +157,18 @@ void amxAsyncServer::asyncHandler(amxAsyncSession *new_session, const boost::sys
 
 
 
-void amxAsyncServer::sessionRemove(amxAsyncSession *session)
+void amxAsyncServer::sessionAdd(unsigned int clientid, boost::asio::ip::address ip)
 {
 	boost::unique_lock<boost::mutex> lockit(sMutex);
-	sessions.remove(session);
+	sessions[clientid] = ip;
+}
+
+
+
+void amxAsyncServer::sessionRemove(unsigned int clientid)
+{
+	boost::unique_lock<boost::mutex> lockit(sMutex);
+	sessions.erase(clientid);
 }
 
 
@@ -238,7 +178,6 @@ void amxAsyncSession::startSession(unsigned int binded_clid)
 	poolHandle.ip = poolHandle.sock.remote_endpoint().address();
 	poolHandle.remote_port = poolHandle.sock.remote_endpoint().port();
 	poolHandle.connstate = 1;
-	poolHandle.last_response = clock();
 
 	gPool->setClientSession(binded_clid, this);
 	gDebug->Log("Incoming connection from %s (binded clientid: %i)", poolHandle.ip.to_string().c_str(), binded_clid);
@@ -250,17 +189,18 @@ void amxAsyncSession::startSession(unsigned int binded_clid)
 
 	gCore->pushToPT(ADDON_CALLBACK_OCC, toAMX); // Addon_OnClientConnect(binded_clid, poolHandle.ip);
 
-	poolHandle.sock.async_read_some(boost::asio::buffer(poolHandle.buffer, sizeof poolHandle.buffer), boost::bind(&amxAsyncSession::readHandle, this, binded_clid, poolHandle.buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+	poolHandle.sock.async_write_some(boost::asio::buffer("ACCEPTED"), boost::bind(&amxAsyncSession::writeHandle, this, binded_clid, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+	//poolHandle.sock.async_read_some(boost::asio::buffer(poolHandle.buffer, sizeof poolHandle.buffer), boost::bind(&amxAsyncSession::readHandle, this, binded_clid, poolHandle.buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
 
 
 
 void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, const boost::system::error_code& error, std::size_t bytes_rx)
 {
-	poolHandle.last_response = clock();
-
 	if(!error)
 	{
+		gDebug->Log("Got '%s' (length: %i) from client %i", buffer, bytes_rx, clientid);
+
 		std::istringstream input(buffer);
 		std::string output;
 		std::vector<std::string> args;
@@ -342,9 +282,24 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 
 						return;
 					}
+					
+					amxPool::svrData sData;
+					sData = gPool->getServerVar("ip");
 
-					gDebug->Log("Client %i server ip CRC is %i", clientid, atoi(i->c_str()));
-					//server ip check
+					int server_crc = amxHash::crc32(sData.string, sData.string.length());
+					int remote_server_crc = atoi(i->c_str());
+
+					gDebug->Log("Server ip CRC is %i", server_crc);
+					gDebug->Log("Client %i server ip CRC is %i", clientid, remote_server_crc);
+
+					if(server_crc != remote_server_crc)
+					{
+						// CRC missmatch
+						gSocket->KickClient(clientid, boost::str(boost::format("boost::split::arg_parser: server CRC match failed [L:%1% != R:%2%]") % server_crc % remote_server_crc));
+						
+						return;
+					}
+
 				}
 				else if(iter == 3) // OUR SERVER PORT
 				{
@@ -356,8 +311,21 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 						return;
 					}
 
-					gDebug->Log("Client %i server port is %i", clientid, atoi(i->c_str()));
-					// server port check
+					amxPool::svrData sData;
+					sData = gPool->getServerVar("port");
+
+					int remote_server_port = atoi(i->c_str());
+
+					gDebug->Log("Server port is %i", sData.integer);
+					gDebug->Log("Client %i server port is %i", clientid, remote_server_port);
+
+					if(sData.integer != remote_server_port)
+					{
+						// server port invalid
+						gSocket->KickClient(clientid, boost::str(boost::format("boost::split::arg_parser: server port match failed [L:%1% != R:%2%]") % sData.integer % remote_server_port));
+
+						return;
+					}
 				}
 				else if(iter == 4) // CLIENT PLAYER NAME
 				{
@@ -397,8 +365,6 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 		poolHandle.pqMutex.lock();
 		poolHandle.pendingQueue.push(args);
 		poolHandle.pqMutex.unlock();
-
-		gDebug->Log("Got '%s' (length: %i) from client %i", buffer, bytes_rx, clientid);
 	}
 	else
 	{
@@ -422,18 +388,7 @@ void amxAsyncSession::writeTo(unsigned int clientid, std::string data)
 	if(!gSocket->IsClientConnected(clientid))
 		return;
 
-	int packet_crc = amxHash::crc32(data, data.length());
-	char p_crc[15];
-
-	#if defined LINUX
-	snprintf(p_crc, sizeof p_crc, "%i", packet_crc);
-	#else
-	itoa(packet_crc, p_crc, 10);
-	#endif
-
-	strcat(p_crc, "|");
-	data.insert(0, p_crc);
-
+	data.insert(0, boost::str(boost::format("%1%|") % amxHash::crc32(data, data.length())));
 	gDebug->Log("Sending '%s' (length: %i) to client %i", data.c_str(), data.length(), clientid);
 
 	amxAsyncSession *sessid = gPool->getClientSession(clientid);
@@ -446,10 +401,11 @@ void amxAsyncSession::writeHandle(unsigned int clientid, const boost::system::er
 {
 	if(!error)
 	{
-		gDebug->Log("Sent %i bytes to client %i", bytes_tx, clientid);
+		char buffer[2048];
 
-		memset(poolHandle.buffer, NULL, sizeof poolHandle.buffer);
-		poolHandle.sock.async_read_some(boost::asio::buffer(poolHandle.buffer, sizeof poolHandle.buffer), boost::bind(&amxAsyncSession::readHandle, this, clientid, poolHandle.buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+		gDebug->Log("Sent %i bytes to client %i", bytes_tx, clientid);
+		memset(buffer, NULL, sizeof(buffer));
+		poolHandle.sock.async_read_some(boost::asio::buffer(buffer, sizeof(buffer)), boost::bind(&amxAsyncSession::readHandle, this, clientid, buffer, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 	}
 	else
 	{

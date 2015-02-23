@@ -2,6 +2,7 @@
 
 
 
+#define UNIQUE_HEX_MOD					std::hex << std::uppercase << std::setw(8) << std::setfill('0')
 // Engine address pool
 #define GTA_PED_STATUS_ADDR				(*(int *)0xB6F5F0)
 
@@ -38,3 +39,14 @@
 #define ADDON_PENDING_CONNECT_RESPONSE	(0xD911B15)
 #define ADDON_PENDING_KICK_NOTIFICATION	(0x472CD78) // DISCONNECT_RESPONSE, lolwhut?
 #define ADDON_PENDING_SETVAR_QUEUE		(0x573E3FA)
+
+
+
+class addonCore;
+class addonD3Device;
+class addonDebug;
+class addonFunctions;
+class addonAsyncHTTP;
+class addonLoader;
+class addonPool;
+class addonSocket;

@@ -25,7 +25,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
-#include <boost/utility/binary.hpp>
+//#include <boost/utility/binary.hpp>
 
 
 #include <algorithm>

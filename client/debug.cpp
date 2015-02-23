@@ -2,7 +2,7 @@
 
 
 
-#include "debug.hpp"
+#include "client.hpp"
 
 
 
@@ -43,10 +43,8 @@ addonDebug::~addonDebug()
 	traceLastFunction("addonDebug::~addonDebug() at 0x?????");
 	Log("Called debug destructor");
 
-	threadInstance->interruption_requested();
+	threadInstance->interrupt();
 	threadInstance.reset();
-
-	lwrMutex.destroy();
 }
 
 
@@ -79,8 +77,8 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 	report << "-----------------------------------------------------------------" << std::endl;
 	report << "\t\t     SAMP-Addon was crashed" << std::endl;
 	report << "-----------------------------------------------------------------" << std::endl << std::endl;
-	report << "GTA base address: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << GetModuleHandle(NULL) << ", SA:MP base address: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << GetModuleHandle("samp.dll") << std::endl;
-	report << "Exception at address: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionAddress << "  ||  ";
+	report << "GTA base address: 0x" << UNIQUE_HEX_MOD << GetModuleHandle(NULL) << ", SA:MP base address: 0x" << UNIQUE_HEX_MOD << GetModuleHandle("samp.dll") << std::endl;
+	report << "Exception at address: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionAddress << "  ||  ";
 
 	switch(ExceptionInfo->ExceptionRecord->ExceptionCode)
 	{
@@ -91,22 +89,22 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 			if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 0)
 			{
 				// bad read
-				report << "Attempted to read from: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Attempted to read from: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1)
 			{
 				// bad write
-				report << "Attempted to write to: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Attempted to write to: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 8)
 			{
 				// user-mode data execution prevention (DEP)
-				report << "Data Execution Prevention (DEP) at: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Data Execution Prevention (DEP) at: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else
 			{
 				// unknown, shouldn't happen
-				report << "Unknown access violation at: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Unknown access violation at: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 		}
 		break;
@@ -162,26 +160,26 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 			if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 0)
 			{
 				// bad read
-				report << "Attempted to read from: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Attempted to read from: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1)
 			{
 				// bad write
-				report << "Attempted to write to: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Attempted to write to: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else if(ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 8)
 			{
 				// user-mode data execution prevention (DEP)
-				report << "Data Execution Prevention (DEP) at: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Data Execution Prevention (DEP) at: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 			else
 			{
 				// unknown, shouldn't happen
-				report << "Unknown access violation at: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
+				report << "Unknown access violation at: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[1] << std::endl;
 			}
 
 			// log NTSTATUS
-			report << "NTSTATUS: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionInformation[2] << std::endl;
+			report << "NTSTATUS: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionInformation[2] << std::endl;
 		}
 		break;
 
@@ -218,14 +216,14 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 			break;
 
 		default:
-			report << "What: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ExceptionRecord->ExceptionCode << std::endl;
+			report << "What: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ExceptionRecord->ExceptionCode << std::endl;
 	}
 
 	report << std::endl << "Registers:" << std::endl << std::endl;
-	report << "EAX: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Eax << "  ||  ESI: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Esi << std::endl;
-	report << "EBX: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Ebx << "  ||  EDI: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Edi << std::endl;
-	report << "ECX: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Ecx << "  ||  EBP: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Ebp << std::endl;
-	report << "EDX: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Edx << "  ||  ESP: 0x" << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << ExceptionInfo->ContextRecord->Esp << std::endl;
+	report << "EAX: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Eax << "  ||  ESI: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Esi << std::endl;
+	report << "EBX: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Ebx << "  ||  EDI: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Edi << std::endl;
+	report << "ECX: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Ecx << "  ||  EBP: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Ebp << std::endl;
+	report << "EDX: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Edx << "  ||  ESP: 0x" << UNIQUE_HEX_MOD << ExceptionInfo->ContextRecord->Esp << std::endl;
 	report << std::endl;
 	report << "Backtrace:" << std::endl << std::endl;
 
@@ -244,7 +242,7 @@ LONG WINAPI addonDebug::UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *Exc
 
 	gDebug->Log("Exception 0x%08x at address 0x%08x. Addon was terminated. See 'addon_crashreport.log'", ExceptionInfo->ExceptionRecord->ExceptionCode, ExceptionInfo->ExceptionRecord->ExceptionAddress);
 
-	boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
+	boost::this_thread::sleep(boost::posix_time::milliseconds(250)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
 	exit(EXIT_FAILURE);
 
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -267,7 +265,7 @@ void addonDebug::Log(char *format, ...)
 	}
 	else
 	{
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 		goto try_lock_mutex;
 	}
 
@@ -348,11 +346,11 @@ void addonDebug::processFW()
 		else
 		{
 			gDebug->Log("Cannot lock debug queue mutex, continuing anyway");
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			boost::this_thread::yield();
 			goto try_lock_mutex;
 		}
 
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 	}
 }
 
@@ -372,6 +370,6 @@ void addonDebug::Thread()
 		gDebug->processFW();
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 }

@@ -2,7 +2,7 @@
 
 
 
-#include "core.hpp"
+#include "client.hpp"
 
 
 
@@ -41,11 +41,8 @@ addonCore::~addonCore()
 	gDebug->traceLastFunction("addonCore::~addonCore() at 0x?????");
 	gDebug->Log("Core destructor called");
 
-	threadInstance->interruption_requested();
+	threadInstance->interrupt();
 	threadInstance.reset();
-
-	pqMutex.destroy();
-	ouMutex.destroy();
 
 	gLoader.reset();
 	gSocket.reset();
@@ -55,100 +52,49 @@ addonCore::~addonCore()
 
 
 
-void addonCore::queueIN(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
+void addonCore::queueIN(addonSocket *instance)
 {
-	boost::asio::streambuf buffer;
-	std::size_t length;
+	boost::array<char, 2048> buffer;
+	std::size_t bytes_rx;
 
 	try
 	{
-		length = boost::asio::read_until(*sock.get(), buffer, "\n.\n.\n.");
+		bytes_rx = instance->getSocket().read_some(boost::asio::buffer(buffer));
 	}
-	catch(boost::system::system_error &err)
+	catch(boost::system::system_error& error)
 	{
-		gDebug->Log("Cannot read from socket (What: %s)", err.what());
+		gDebug->Log("Cannot read from socket (What: %s)", error.what());
+		gSocket->disconnect();
+
+		return;
 	}
 
-	if(length > 0)
+	if((bytes_rx > 0) && (bytes_rx < buffer.max_size()))
 	{
-		std::istream response(&buffer);
-		std::pair<UINT, std::string> pushData;
+		std::string data(buffer.data());
+		data.erase(bytes_rx, INFINITE);
 
-		response >> pushData.first;
-		std::getline(response, pushData.second);
+		gDebug->Log("Got '%s' (length: %i) from server", data.c_str(), bytes_rx);
 
 		try_lock_mutex:
 
 		if(pqMutex.try_lock())
 		{
-			pendingQueue.push(pushData);
+			//pendingQueue.push(pushData);
 			pqMutex.unlock();
 		}
 		else
 		{
 			gDebug->Log("Cannot lock pending queue mutex, continuing anyway");
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			boost::this_thread::yield();
 			goto try_lock_mutex;
 		}
 	}
 	else
 	{
-		gDebug->Log("Invalid length (%i) returned by socket read function", length);
-	}
-}
+		gDebug->Log("Invalid length (%i) returned by socket read function", bytes_rx);
 
-
-
-void addonCore::queueOUT(boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
-{
-	boost::asio::streambuf buffer;
-	std::size_t length;
-
-	while(true)
-	{
-		ouMutex.lock();
-
-		if(outputQueue.empty())
-		{
-			ouMutex.unlock();
-
-			break;
-		}
-
-		std::ostream request(&buffer);
-		std::pair<UINT, std::string> sendData = outputQueue.front();
-		ouMutex.unlock();
-
-		request << "TCPQUERY CLIENT_CALL" << " " << sendData.first << std::endl;
-		request << "DATA" << " " << sendData.second << "\n.\n.\n.";
-
-		try
-		{
-			length = boost::asio::write(*sock.get(), buffer);
-		}
-		catch(boost::system::system_error &err)
-		{
-			gDebug->Log("Cannot write to socket (What: %s)", err.what());
-		}
-
-		if(length < 1)
-			gDebug->Log("Invalid length (%i) returned by socket write function", length);
-
-		try_lock_mutex:
-
-		if(ouMutex.try_lock())
-		{
-			pendingQueue.pop();
-			ouMutex.unlock();
-		}
-		else
-		{
-			gDebug->Log("Cannot lock output queue mutex, continuing anyway");
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-			goto try_lock_mutex;
-		}
-
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		gSocket->disconnect();
 	}
 }
 
@@ -167,7 +113,7 @@ void addonCore::processFunc()
 			break;
 		}
 
-		std::pair<UINT, std::string> data = pendingQueue.front();
+		std::pair<unsigned int, std::string> data = pendingQueue.front();
 		pqMutex.unlock();
 
 		/*switch(data.first)
@@ -185,11 +131,11 @@ void addonCore::processFunc()
 		else
 		{
 			gDebug->Log("Cannot lock pending queue mutex, continuing anyway");
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+			boost::this_thread::yield();
 			goto try_lock_mutex;
 		}
 
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+		boost::this_thread::yield();
 	}
 }
 
@@ -200,12 +146,12 @@ void addonCore::Thread()
 	assert(gCore->getThreadInstance()->get_id() == boost::this_thread::get_id());
 
 	gDebug->traceLastFunction("addonCore::Thread() at 0x%x", &addonCore::Thread);
-	//gDebug->Log("Started Core thread with id 0x%x", gCore->getThreadInstance()->get_thread_info()->id);
+	gDebug->Log("Started Core thread");
 
-	boost::this_thread::sleep_for(boost::chrono::seconds(5));
+	boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
 
 	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
-		boost::this_thread::sleep_for(boost::chrono::seconds(1));
+		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127);
 	gD3Device->renderText("Scanning GTA dir for illegal files...", 10, 30, 255, 255, 255, 127);
@@ -217,27 +163,12 @@ void addonCore::Thread()
 	gD3Device->renderText("Loading SAMP-Addon... OK!", 10, 10, 255, 255, 255, 127);
 	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127);
 
-	std::string serial = gPool->getVar("playerSerial");
-	std::string ip = gPool->getVar("serverIP");
-	UINT port = (atoi(gPool->getVar("serverPort").c_str()) + 1);
+	std::string serial = gPool->getVar("serial");
 
 	gD3Device->renderText(strFormat() << "Your UID is: " << serial, 300, 30, 255, 255, 255, 127);
-	gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ...", 10, 50, 255, 255, 255, 127);
-
-	if(gSocket->Connect(ip, port))
-	{
-		gD3Device->stopLastRender();
-		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ... OK!", 10, 50, 255, 255, 255, 127);
-	}
-	else
-	{
-		gD3Device->stopLastRender();
-		gD3Device->renderText(strFormat() << "Connecting to addon TCP server " << ip << ":" << port << " ... ERROR!", 10, 50, 255, 255, 255, 127);
-		gD3Device->renderText("Addon TCP server is temporary unavalible, or this server hasn't support of SAMP-Addon", 10, 70, 255, 255, 255, 127);
-	}
 
 	while(!GTA_PED_STATUS_ADDR) // PED context load flag
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(250)); ///boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
 
 	gD3Device->clearRender();
 
@@ -253,6 +184,6 @@ void addonCore::Thread()
 		gCore->processFunc();
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }
