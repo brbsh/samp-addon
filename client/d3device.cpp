@@ -68,7 +68,7 @@ void addonD3Device::setDevice(IDirect3DDevice9 *device, bool original)
 
 
 
-void addonD3Device::Screenshot(std::string filename)
+bool addonD3Device::Screenshot(std::string filename)
 {
 	gDebug->traceLastFunction("addonD3Device::Screenshot(filename = '%s') at 0x%x", filename.c_str(), &addonD3Device::Screenshot);
 
@@ -76,41 +76,144 @@ void addonD3Device::Screenshot(std::string filename)
 
 	if(boost::filesystem::exists(file))
 	{
-		boost::system::error_code error;
+		try
+		{
+			boost::filesystem::remove(file);
+		}
+		catch(boost::filesystem::filesystem_error& error)
+		{
+			gDebug->Log("Cannot remove file %s (%s)", filename.c_str(), error.what());
 
-		boost::filesystem::remove(file, error);
-
-		if(error)
-			gDebug->Log("Cannot remove file %s: %s (Error code: %i)", filename.c_str(), error.message().c_str(), error.value());
+			return false;
+		}
 	}
 
-	IDirect3DSurface9 *pSurface;
+	/*char *fnArray = new char[filename.length() + 1];
+	strcpy(fnArray, filename.c_str());
 
-	boost::shared_lock<boost::shared_mutex> lockit(devMutex);
+	DWORD sfAddr = 0x5D0820;
 
-	originalDevice->CreateOffscreenPlainSurface(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &pSurface, NULL);
-	originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
+	try
+	{
+		_asm
+		{
+			mov     eax, [0xB6F97C]
+			mov     eax, [eax]
+			push    fnArray
+			push    eax
+			call    sfAddr
+			add     esp,8
+		}
 
-	D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pSurface, NULL, NULL);
-	pSurface->Release();
+		delete[] fnArray;
+	}
+	catch(...)
+	{
+		delete[] fnArray;
 
-	gDebug->Log("Screenshot saved to %s", filename.c_str());
+		return false;
+	}
+
+	IDirect3DSurface9 *pSurface = NULL;
+	IDirect3DSurface9 *surfPool = NULL;
+
+	boost::shared_lock<boost::shared_mutex> lockit(d3Mutex);
+
+	try
+	{
+		originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pSurface);
+		originalDevice->GetRenderTargetData(pSurface, surfPool);
+		D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, surfPool, NULL, NULL);
+		surfPool->Release();
+		pSurface->Release();
+	}
+	catch(...)
+	{
+		return false;
+	}*/
+
+	LPDIRECT3DSURFACE9 pd3dsBack = NULL;
+    LPDIRECT3DSURFACE9 pd3dsTemp = NULL;
+
+	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
+
+    if(originalDevice->GetBackBuffer(NULL, NULL, D3DBACKBUFFER_TYPE_MONO, &pd3dsBack) == D3D_OK)
+    {
+        D3DSURFACE_DESC desc;
+        pd3dsBack->GetDesc(&desc);
+
+        LPDIRECT3DSURFACE9 pd3dsCopy = NULL;
+
+        if(desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+        {
+            if(originalDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, NULL, FALSE, &pd3dsCopy, NULL) == D3D_OK)
+            {
+                if(originalDevice->StretchRect(pd3dsBack, NULL, pd3dsCopy, NULL, D3DTEXF_NONE) == D3D_OK)
+                {
+                    pd3dsBack->Release();
+                    pd3dsBack = pd3dsCopy;
+                }
+                else
+                {
+                    pd3dsCopy->Release();
+                }
+            }
+        }
+
+        if(originalDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &pd3dsTemp, NULL) == D3D_OK)
+        {
+            if(originalDevice->GetRenderTargetData(pd3dsBack, pd3dsTemp) == D3D_OK)
+            {
+                D3DXSaveSurfaceToFile(filename.c_str(), D3DXIFF_PNG, pd3dsTemp, NULL, NULL);
+				pd3dsTemp->Release();
+				pd3dsBack->Release();
+				lockit.unlock();
+
+				return true;
+            }
+
+            pd3dsTemp->Release();
+        }
+
+        pd3dsBack->Release();
+    }
+
+	return false;
 }
 
 
 
 void addonD3Device::initRender()
 {
-	boost::unique_lock<boost::shared_mutex> lockit(d3Mutex);
+	boost::upgrade_lock<boost::shared_mutex> lockit(d3Mutex);
 
-	if(!renderInstance)
+	if(!renderList.empty())
 	{
-		D3DXCreateFont(hookedDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Arial"), &renderInstance);
+		if(!renderInstance)
+		{
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockit_(lockit);
+			D3DXCreateFont(originalDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Lucidia Console"), &renderInstance);
+		}
+		else
+		{
+			//renderInstance->Release();
+			//D3DXCreateFont(originalDevice, 18, NULL, FW_BOLD, NULL, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, TEXT("Lucidia Console"), &renderInstance);
+
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockit_(lockit);
+
+			renderInstance->OnLostDevice();
+			renderInstance->OnResetDevice();
+		}
 	}
 	else
 	{
-		renderInstance->OnLostDevice();
-		renderInstance->OnResetDevice();
+		if(renderInstance)
+		{
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockit_(lockit);
+
+			renderInstance->Release();
+			renderInstance = NULL;
+		}
 	}
 }
 

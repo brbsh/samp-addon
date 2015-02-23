@@ -289,12 +289,12 @@ cell AMX_NATIVE_CALL amxNatives::Addon_TakeClientScreenshot(AMX *amx, cell *para
 
 	std::string filename = amxString::Get(amx, params[2]);
 
-	if((filename.find("|") != std::string::npos) || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)) || boost::regex_search(filename, boost::regex("[.:%]{1,2}[/\\]+")))
+	/*if((filename.find("|") != std::string::npos) || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)) || boost::regex_search(filename, boost::regex("[.:%]{1,2}[/\\]+")))
 	{
 		logprintf("SAMP-Addon: Invalid file name format");
 
 		return NULL;
-	}
+	}*/
 
 	gPool->getClientSession(clientid)->pool().cmdresponse_state = ADDON_CMD_QUERY_SCREENSHOT;
 	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%") % ADDON_CMD_QUERY_SCREENSHOT % filename));

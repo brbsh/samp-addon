@@ -54,11 +54,12 @@ addonCore::~addonCore()
 
 void addonCore::queueIN(addonSocket *instance)
 {
-	boost::array<char, 2048> buffer;
+	char buffer[2048];
 	std::size_t bytes_rx;
 
 	try
 	{
+		memset(buffer, NULL, sizeof(buffer));
 		bytes_rx = instance->getSocket().read_some(boost::asio::buffer(buffer));
 	}
 	catch(boost::system::system_error& error)
@@ -69,18 +70,38 @@ void addonCore::queueIN(addonSocket *instance)
 		return;
 	}
 
-	if((bytes_rx > 0) && (bytes_rx < buffer.max_size()))
+	if((bytes_rx > 0) && (bytes_rx < sizeof(buffer)))
 	{
-		std::string data(buffer.data());
-		data.erase(bytes_rx, INFINITE);
+		gDebug->Log("Got '%s' (length: %i) from server", buffer, bytes_rx);
 
-		gDebug->Log("Got '%s' (length: %i) from server", data.c_str(), bytes_rx);
+		std::istringstream input(buffer);
+		std::string output;
+		std::vector<std::string> args;
+
+		int packet_crc;
+		int remote_packet_crc;
+
+		std::getline(input, output, '|');
+		remote_packet_crc = atoi(output.c_str());
+
+		std::getline(input, output, '\0');
+		packet_crc = addonHash::crc32(output, output.length());
+
+		if(packet_crc != remote_packet_crc)
+		{
+			gDebug->Log("Server sent bad packet: CRC not passed [L:%i != R:%i]", packet_crc, remote_packet_crc);
+			gSocket->disconnect();
+
+			return;
+		}
+
+		boost::split(args, output, boost::is_any_of("|"));
 
 		try_lock_mutex:
 
 		if(pqMutex.try_lock())
 		{
-			//pendingQueue.push(pushData);
+			pendingQueue.push(args);
 			pqMutex.unlock();
 		}
 		else
@@ -113,13 +134,41 @@ void addonCore::processFunc()
 			break;
 		}
 
-		std::pair<unsigned int, std::string> data = pendingQueue.front();
+		std::vector<std::string> data = pendingQueue.front();
 		pqMutex.unlock();
 
-		/*switch(data.first)
+		if(data.at(0).compare("CMDQUERY") != std::string::npos)
 		{
+			unsigned int code = atoi(data.at(1).c_str());
 
-		}*/
+			switch(code)
+			{
+				case ADDON_CMD_QUERY_SCREENSHOT:
+				{
+					if(data.size() != 3)
+					{
+						//error
+					}
+
+					/*if(boost::regex_search(data.at(2), boost::regex("[.:%]{1,2}[/\\]+")))
+					{
+						// found dir hack
+					}*/
+
+					if(gD3Device->Screenshot(data.at(2)))
+						gSocket->writeTo(boost::str(boost::format("CMDRESPONSE|%1%|OK|%2%") % ADDON_CMD_QUERY_SCREENSHOT % data.at(2)));
+					else
+						gSocket->writeTo(boost::str(boost::format("CMDRESPONSE|%1%|ERROR|%2%") % ADDON_CMD_QUERY_SCREENSHOT % data.at(2)));
+				}
+				break;
+			}
+		}
+		else
+		{
+			gDebug->Log("Invalid query from server");
+
+			return;
+		}
 
 		try_lock_mutex:
 

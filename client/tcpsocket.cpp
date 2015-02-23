@@ -68,11 +68,11 @@ bool addonSocket::connectTo(std::string host, unsigned short port)
 	{
 		socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(host), port));
 
-		boost::array<char, 9> buffer;
+		char buffer[9];
 		socket.read_some(boost::asio::buffer(buffer));
 		buffer[8] = '\0';
 
-		if(!strcmp(buffer.data(), "ACCEPTED"))
+		if(!strcmp(buffer, "ACCEPTED"))
 		{
 			gDebug->Log("Connect: Received 'ACCEPTED' flag from server");
 			// connection accepted

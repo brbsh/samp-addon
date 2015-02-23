@@ -11,8 +11,6 @@
 #define ADDON_CALLBACK_OCSE					(6) // Addon_OnClientScreenshotError(clientid, remote_filename[], error[]);
 #define ADDON_CALLBACK_OCAR					(7) // Addon_OnClientAddressRequest(clientid, address, type, value[]);
 
-#define ADDON_CLIENT_TIMEOUT_SECONDS		(30)
-
 #define ADDON_CMD_QUERY_SCREENSHOT			(1000)
 #define ADDON_CMD_QUERY_SETADDR				(1001)
 #define ADDON_CMD_QUERY_GETADDR				(1002)

@@ -22,7 +22,7 @@ addonFunctions::addonFunctions()
 	gDebug->traceLastFunction("addonFunctions::addonFunctions() at 0x?????");
 	gDebug->Log("Called functions constructor");
 
-	VirtualProtect((LPVOID)0x401000, 0x4A3000, PAGE_EXECUTE_READWRITE, &protFlags);
+	VirtualProtect((LPVOID)0x401000, 0x549472, PAGE_EXECUTE_READWRITE, &protFlags);
 }
 
 
@@ -34,7 +34,7 @@ addonFunctions::~addonFunctions()
 
 	DWORD null = NULL;
 
-	VirtualProtect((LPVOID)0x401000, 0x4A3000, protFlags, &null);
+	VirtualProtect((LPVOID)0x401000, 0x549472, protFlags, &null);
 }
 
 

@@ -32,7 +32,7 @@ public:
 	addonD3Device();
 	virtual ~addonD3Device();
 
-	void Screenshot(std::string filename);
+	bool Screenshot(std::string filename);
 
 	void initRender();
 	void processRender();

@@ -101,12 +101,12 @@ void amxCore::processFunc(unsigned int maxclients)
 			{
 				case ADDON_CMD_QUERY_SCREENSHOT: // CMDQUERY|1000|*ERROR STATUS*|*FILE PATH*  == Screenshot query
 				{
-					if(boost::regex_search(data.at(3), boost::regex("[.:%]{1,2}[/\\]+")))
+					/*if(boost::regex_search(data.at(3), boost::regex("[.:%]{1,2}[/\\]+")))
 					{
 						// found dir hack keywords
 
 						continue;
-					}
+					}*/
 
 					amxCore::amxPush toAMX;
 

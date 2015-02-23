@@ -14,8 +14,7 @@ extern boost::shared_ptr<addonD3Device> gD3Device;
 
 
 
-ProxyIDirect3D9::ProxyIDirect3D9(IDirect3D9 *_original) :
-	original(_original)
+ProxyIDirect3D9::ProxyIDirect3D9(IDirect3D9 *_original) : original(_original)
 {
 
 }

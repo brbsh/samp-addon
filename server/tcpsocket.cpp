@@ -220,7 +220,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 
 		remote_packet_crc = atoi(output.c_str());
 
-		std::getline(input, output);
+		std::getline(input, output, '\0');
 		packet_crc = amxHash::crc32(output, output.length());
 
 		if(remote_packet_crc != packet_crc)
@@ -357,7 +357,10 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 			poolHandle.connstate = 2; // must be 2
 
 			// SEND TEMPLATE: "*HERE IS CLIENT REMOTE IP CRC*|*HERE IS CLIENT REMOTE PORT*"
-			writeTo(clientid, boost::str(boost::format("%1%|%2%") % amxHash::crc32(poolHandle.ip.to_string(), poolHandle.ip.to_string().length()) % poolHandle.remote_port));
+			char buffer_[2048];
+
+			memset(buffer_, NULL, sizeof(buffer_));
+			poolHandle.sock.async_read_some(boost::asio::buffer(buffer_), boost::bind(&amxAsyncSession::readHandle, this, clientid, buffer_, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 
 			return;
 		}

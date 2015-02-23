@@ -29,7 +29,7 @@ public:
 private:
 
 	boost::mutex pqMutex;
-	std::queue<std::pair<unsigned int, std::string>> pendingQueue;
+	std::queue< std::vector<std::string> > pendingQueue;
 
 	boost::shared_ptr<boost::thread> threadInstance;
 };
