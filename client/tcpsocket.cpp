@@ -16,6 +16,7 @@ extern boost::shared_ptr<addonCore> gCore;
 extern boost::shared_ptr<addonD3Device> gD3Device;
 extern boost::shared_ptr<addonDebug> gDebug;
 extern boost::shared_ptr<addonPool> gPool;
+extern boost::shared_ptr<addonTransfer> gTransfer;
 
 
 
@@ -100,12 +101,10 @@ bool addonSocket::connectTo(std::string host, unsigned short port)
 	//gD3Device->renderText(strFormat() << "Connecting to " << host << ":" << port << "... OK!", 10, 10, 1, 255, 1, 127);
 	gDebug->Log("Connected to %s:%i trough TCP", host.c_str(), port);
 
+	gTransfer = boost::shared_ptr<addonTransfer>(new addonTransfer(socket));
+
 	writeTo(boost::str(boost::format("%1%|%2%|%3%|%4%|%5%") % gPool->getVar("serial") % 1488 % addonHash::crc32(host, host.length()) % port % gPool->getVar("name")));
 	recvThreadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonSocket::recvThread, this)));
-
-	//boost::this_thread::sleep(boost::posix_time::seconds(1));
-
-	//gD3Device->clearRender();
 
 	return true;
 }
@@ -117,6 +116,7 @@ void addonSocket::disconnect()
 	connected = false;
 	recvThreadInstance->interrupt();
 	recvThreadInstance.reset();
+	gTransfer.reset();
 	socket.close();
 }
 
@@ -124,6 +124,9 @@ void addonSocket::disconnect()
 
 void addonSocket::writeTo(std::string data)
 {
+	while(gTransfer->isTransfering())
+		boost::this_thread::sleep(boost::posix_time::seconds(1));
+
 	data.insert(0, boost::str(boost::format("%1%|") % addonHash::crc32(data, data.length())));
 	gDebug->Log("Sending '%s' (length: %i) to server", data.c_str(), data.length());
 
@@ -176,9 +179,10 @@ void addonSocket::recvThread(addonSocket *instance)
 	{
 		boost::this_thread::disable_interruption di;
 
-		gCore->queueIN(instance);
+		if(!gTransfer->isTransfering())
+			gCore->queueIN(instance);
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 	}
 }

@@ -12,6 +12,7 @@ extern boost::shared_ptr<amxCore> gCore;
 extern boost::shared_ptr<amxDebug> gDebug;
 extern boost::shared_ptr<amxPool> gPool;
 extern boost::shared_ptr<amxSocket> gSocket;
+extern boost::shared_ptr<amxTransfer> gTransfer;
 
 
 logprintf_t logprintf;
@@ -141,8 +142,9 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 		return;
 
 	int idx = NULL;
-	cell amxAddr[2];
+	cell amxAddr[3];
 	std::pair<unsigned int, amxCore::amxPush> data = gCore->getFromPT();
+	amxPool::svrData fData;
 
 	for(std::list<AMX *>::iterator i = gCore->amxList.begin(); i != gCore->amxList.end(); i++)
 	{
@@ -152,22 +154,28 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			{
 				if(!amx_FindPublic(*i, "Addon_OnTCPWorkerStarted", &idx))
 				{
-					amx_Push(*i, data.second.clientid);
+					amx_Push(*i, data.second.clientid); // workerid
 
 					amx_Exec(*i, NULL, idx);
 				}
 			}
 			break;
 
-			case ADDON_CALLBACK_OTWE: // Addon_OnTCPWorkerError(workerid, error[]);
+			case ADDON_CALLBACK_OTWE: // Addon_OnTCPWorkerError(workerid, error_code, error[]);
 			{
 				if(!amx_FindPublic(*i, "Addon_OnTCPWorkerError", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
-					amx_Push(*i, data.second.clientid);
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // error[]
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_Push(*i, fData.integer); // error_code
+
+					amx_Push(*i, data.second.clientid); // workerid
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[0]);
 				}
 			}
@@ -177,25 +185,35 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			{
 				if(!amx_FindPublic(*i, "Addon_OnClientConnect", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
-					amx_Push(*i, data.second.clientid);
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // client_ip[]
+
+					amx_Push(*i, data.second.clientid); // clientid
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[0]);
 				}
 			}
 			break;
 
-			case ADDON_CALLBACK_OCCE: // Addon_OnClientConnectError(client_ip[], error[]);
+			case ADDON_CALLBACK_OCCE: // Addon_OnClientConnectError(client_ip[], error_code, error[]);
 			{
 				if(!amx_FindPublic(*i, "Addon_OnClientConnectError", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataSecond.c_str(), NULL, NULL);
-					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // error[]
+					
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_Push(*i, fData.integer); // error_code
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // client_ip[]
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[1]);
 					amx_Release(*i, amxAddr[0]);
 				}
@@ -204,21 +222,23 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 			case ADDON_CALLBACK_OCD: // Addon_OnClientDisconnect(clientid, client_ip[], reason_code, reason[]);
 			{
-				std::vector<std::string> tokens;
-				boost::split(tokens, data.second.pushDataSecond, boost::is_any_of("|"));
-
-				if(tokens.size() != 2)
-					break;
-
 				if(!amx_FindPublic(*i, "Addon_OnClientDisconnect", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, tokens.at(1).c_str(), NULL, NULL);
-					amx_Push(*i, atoi(tokens.at(0).c_str()));
-					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
-					amx_Push(*i, data.second.clientid);
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // reason[]
+
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_Push(*i, fData.integer); // reason_code
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // client_ip[]
+
+					amx_Push(*i, data.second.clientid); // clientid
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[1]);
 					amx_Release(*i, amxAddr[0]);
 				}
@@ -229,11 +249,13 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			{
 				if(!amx_FindPublic(*i, "Addon_OnClientScreenshotTaken", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
-					amx_Push(*i, data.second.clientid);
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[0]);
 				}
 			}
@@ -243,23 +265,82 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 			{
 				if(!amx_FindPublic(*i, "Addon_OnClientScreenshotError", &idx))
 				{
-					amx_PushString(*i, &amxAddr[0], NULL, data.second.pushDataSecond.c_str(), NULL, NULL);
-					amx_PushString(*i, &amxAddr[1], NULL, data.second.pushDataFirst.c_str(), NULL, NULL);
-					amx_Push(*i, data.second.clientid);
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // error[]
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
 
 					amx_Exec(*i, NULL, idx);
-
 					amx_Release(*i, amxAddr[1]);
 					amx_Release(*i, amxAddr[0]);
 				}
 			}
 			break;
 
-			case ADDON_CALLBACK_OCAR: // Addon_OnClientAddressRequest(clientid, address, type, value[]);
+			case ADDON_CALLBACK_OLFT: // Addon_OnLocalFileTransfered(filename[], clientid, remote_filename[], bytes_transfered);
 			{
-				if(!amx_FindPublic(*i, "Addon_OnClientAddressRequest", &idx))
+				// some dirty cleanup
+				amxTransfer *pointer = gPool->getClientSession(data.second.clientid)->pool().fileT;
+				delete pointer;
+
+				if(!amx_FindPublic(*i, "Addon_OnLocalFileTransfered", &idx))
 				{
-					//todo
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_Push(*i, fData.integer); // bytes_transfered
+
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // filename[]
+
+					amx_Exec(*i, NULL, idx);
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_OLFTE: // Addon_OnLocalFileTransferError(filename[], clientid, remote_filename[], error_code, error[]);
+			{
+				// some dirty cleanup
+				amxTransfer *pointer = gPool->getClientSession(data.second.clientid)->pool().fileT;
+				delete pointer;
+
+				if(!amx_FindPublic(*i, "Addon_OnLocalFileTransferError", &idx))
+				{
+					fData.reset();
+					fData = data.second.args.at(3);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // error[]
+
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_Push(*i, fData.integer); // error_code
+
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[2], NULL, fData.string.c_str(), NULL, NULL); // filename[]
+
+					amx_Exec(*i, NULL, idx);
+					amx_Release(*i, amxAddr[2]);
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
 				}
 			}
 			break;

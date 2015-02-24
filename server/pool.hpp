@@ -39,6 +39,9 @@ public:
 
 		std::string sID;
 		std::string name;
+
+		bool file_t;
+		amxTransfer *fileT;
 	};
 
 	struct svrData

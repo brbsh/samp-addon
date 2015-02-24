@@ -32,8 +32,8 @@
 
 // Queues to server
 #define ADDON_CMD_QUERY_SCREENSHOT			(1000)
-#define ADDON_CMD_QUERY_SETADDR				(1001)
-#define ADDON_CMD_QUERY_GETADDR				(1002)
+#define ADDON_CMD_QUERY_TLF					(1001)
+#define ADDON_CMD_QUERY_TRF					(1002)
 
 
 

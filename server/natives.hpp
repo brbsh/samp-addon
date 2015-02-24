@@ -33,8 +33,6 @@ public:
 	static cell AMX_NATIVE_CALL Addon_KickClient(AMX *amx, cell *params);
 	static cell AMX_NATIVE_CALL Addon_GetClientSerial(AMX *amx, cell *params);
 	static cell AMX_NATIVE_CALL Addon_TakeClientScreenshot(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL Addon_SetClientAddr(AMX *amx, cell *params);
-	static cell AMX_NATIVE_CALL Addon_GetClientAddr(AMX *amx, cell *params);
-	//static cell AMX_NATIVE_CALL Addon_TransferLocalFile(AMX *amx, cell *params);
+	static cell AMX_NATIVE_CALL Addon_TransferLocalFile(AMX *amx, cell *params);
 	//static cell AMX_NATIVE_CALL Addon_TransferRemoteFile(AMX *amx, cell *params);
 };

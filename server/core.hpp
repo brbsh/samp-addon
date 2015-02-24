@@ -2,6 +2,7 @@
 
 
 
+#include "pool.hpp"
 #include "server.hpp"
 
 
@@ -15,10 +16,19 @@ public:
 
 	struct amxPush
 	{
+		amxPush()
+		{
+
+		}
+
+		~amxPush()
+		{
+
+		}
+
 		unsigned int clientid;
 
-		std::string pushDataFirst;
-		std::string pushDataSecond;
+		std::vector<amxPool::svrData> args;
 	};
 
 	std::list<AMX *> amxList;
@@ -37,7 +47,7 @@ public:
 	std::pair<unsigned short, amxPush> getFromPT()
 	{
 		boost::unique_lock<boost::mutex> lockit(qMutex);
-		std::pair<unsigned short, amxCore::amxPush> res = amxQueue.front();
+		std::pair<unsigned short, amxPush> res = amxQueue.front();
 		amxQueue.pop();
 
 		return res;

@@ -30,9 +30,7 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 	{"Addon_KickClient", amxNatives::Addon_KickClient}, // native Addon_KickClient(clientid);
 	{"Addon_GetClientSerial", amxNatives::Addon_GetClientSerial}, // native Addon_GetClientSerial(clientid, buffer[], size = sizeof(buffer));
 	{"Addon_TakeClientScreenshot", amxNatives::Addon_TakeClientScreenshot}, // native Addon_TakeClientScreenshot(clientid, const remote_filename[]);
-	{"Addon_SetClientAddr", amxNatives::Addon_SetClientAddr},
-	{"Addon_GetClientAddr", amxNatives::Addon_GetClientAddr},
-	//{"Addon_TransferLocalFile", amxNatives::Addon_TransferLocalFile},
+	{"Addon_TransferLocalFile", amxNatives::Addon_TransferLocalFile}, // native Addon_TransferLocalFile(const filename[], toclient, const remote_filename[]);
 	//{"Addon_TransferRemoteFile", amxNatives::Addon_TransferRemoteFile},
 
 	{NULL, NULL}
@@ -40,7 +38,7 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 
 
 
-// native Addon_StartTCPServer(ip[], port, maxplayers);
+// native Addon_StartTCPServer(const ip[], port, maxplayers);
 cell AMX_NATIVE_CALL amxNatives::Addon_StartTCPServer(AMX *amx, cell *params)
 {
 	if(!arguments(3))
@@ -272,7 +270,7 @@ cell AMX_NATIVE_CALL amxNatives::Addon_GetClientSerial(AMX *amx, cell *params)
 
 
 
-// native Addon_TakeClientScreenshot(clientid, remote_filename[]);
+// native Addon_TakeClientScreenshot(clientid, const remote_filename[]);
 cell AMX_NATIVE_CALL amxNatives::Addon_TakeClientScreenshot(AMX *amx, cell *params)
 {
 	if(!arguments(2))
@@ -289,7 +287,7 @@ cell AMX_NATIVE_CALL amxNatives::Addon_TakeClientScreenshot(AMX *amx, cell *para
 
 	std::string filename = amxString::Get(amx, params[2]);
 
-	/*if((filename.find("|") != std::string::npos) || (filename.length() > 256) || (filename.find(".png") != (filename.length() - 4)) || boost::regex_search(filename, boost::regex("[.:%]{1,2}[/\\]+")))
+	/*if((filename.find("|") != std::string::npos) || (filename.find(".png") != (filename.length() - 4)) || boost::regex_search(filename, boost::regex("[.:%]{1,2}[/\\]+")))
 	{
 		logprintf("SAMP-Addon: Invalid file name format");
 
@@ -304,83 +302,50 @@ cell AMX_NATIVE_CALL amxNatives::Addon_TakeClientScreenshot(AMX *amx, cell *para
 
 
 
-// native Addon_SetClientAddr(clientid, addr, type, value[]);
-cell AMX_NATIVE_CALL amxNatives::Addon_SetClientAddr(AMX *amx, cell *params)
-{
-	if(!arguments(4))
-	{
-		return NULL;
-	}
-
-	int clientid = params[1];
-
-	if(!gSocket->IsClientConnected(clientid))
-		return NULL;
-
-	int addr = params[2];
-	int type = params[3]; // 0 = integer, 1 = floating, 2 = string
-
-	std::string value = amxString::Get(amx, params[4]);
-
-	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%|%4%") % ADDON_CMD_QUERY_SETADDR % addr % type % value));
-
-	return 1;
-}
-
-
-
-// native Addon_GetClientAddr(clientid, addr, type);
-cell AMX_NATIVE_CALL amxNatives::Addon_GetClientAddr(AMX *amx, cell *params)
-{
-	if(!arguments(3))
-	{
-		return NULL;
-	}
-
-	int clientid = params[1];
-
-	if(!gSocket->IsClientConnected(clientid))
-		return NULL;
-
-	int addr = params[2];
-	int type = params[3];
-
-	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%") % ADDON_CMD_QUERY_GETADDR % addr % type));
-
-	return 1;
-}
-
-
-
-/*// native Addon_TransferLocalFile(file[], toclient, remote_filename[]);
+// native Addon_TransferLocalFile(const filename[], toclient, const remote_filename[]);
 cell AMX_NATIVE_CALL amxNatives::Addon_TransferLocalFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
+	{
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_TransferLocalFile' (%i)", (params[0] >> 2));
+
 		return NULL;
+	}
 
 	int clientid = params[2];
 
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	cliPool cPool;
+	std::string filename = amxString::Get(amx, params[1]);
+	std::string remote_filename = amxString::Get(amx, params[3]);
 
-	boost::mutex::scoped_lock lock(gMutex);
-	cPool = gPool->clientPool.find(clientid)->second;
+	boost::filesystem::path fpath(filename);
 
-	cPool.Transfer.Active = true;
+	if(!boost::filesystem::exists(fpath))
+	{
+		return NULL;
+	}
 
-	gPool->clientPool[clientid] = cPool;
-	lock.unlock();
+	/*if((filename.find("|") != std::string::npos) || (remote_filename.find("|") != std::string::npos) || boost::regex_search(filename, boost::regex("[/.:%]{1,2}[/\\]+")) || boost::regex_search(remote_filename, boost::regex("[.:%]{1,2}[/\\]+")))
+	{
+		return NULL;
+	}*/
 
-	boost::thread send(boost::bind(&amxTransfer::SendThread, clientid, gString->Get(amx, params[1]), gString->Get(amx, params[3])));
+	amxAsyncSession *sess = gPool->getClientSession(clientid);
+	sess->pool().cmdresponse_state = ADDON_CMD_QUERY_TLF;
+
+	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%|%4%") % ADDON_CMD_QUERY_TLF % remote_filename % boost::filesystem::file_size(fpath) % amxHash::crc32_file(filename)));
+
+	sess->pool().file_t = true;
+	sess->pool().fileT = new amxTransfer(true, clientid, filename, remote_filename);
 
 	return 1;
 }
 
 
 
-// native TransferRemoteFile(remote_filename[], fromclient, file[]);
+/*// native TransferRemoteFile(remote_filename[], fromclient, file[]);
 cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))

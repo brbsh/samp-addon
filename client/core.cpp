@@ -17,6 +17,7 @@ extern boost::shared_ptr<addonFunctions> gFunctions;
 extern boost::shared_ptr<addonLoader> gLoader;
 extern boost::shared_ptr<addonPool> gPool;
 extern boost::shared_ptr<addonSocket> gSocket;
+extern boost::shared_ptr<addonTransfer> gTransfer;
 
 
 
@@ -70,7 +71,7 @@ void addonCore::queueIN(addonSocket *instance)
 		return;
 	}
 
-	if((bytes_rx > 0) && (bytes_rx < sizeof(buffer)))
+	if((bytes_rx > 0) && (bytes_rx <= sizeof(buffer)))
 	{
 		gDebug->Log("Got '%s' (length: %i) from server", buffer, bytes_rx);
 
@@ -134,6 +135,13 @@ void addonCore::processFunc()
 			break;
 		}
 
+		if(gTransfer->isTransfering())
+		{
+			boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+
+			continue;
+		}
+
 		std::vector<std::string> data = pendingQueue.front();
 		pqMutex.unlock();
 
@@ -143,7 +151,7 @@ void addonCore::processFunc()
 
 			switch(code)
 			{
-				case ADDON_CMD_QUERY_SCREENSHOT:
+				case ADDON_CMD_QUERY_SCREENSHOT: // CMDQUERY|ADDON_CMD_QUERY_SCREENSHOT|*filename*
 				{
 					if(data.size() != 3)
 					{
@@ -159,6 +167,25 @@ void addonCore::processFunc()
 						gSocket->writeTo(boost::str(boost::format("CMDRESPONSE|%1%|OK|%2%") % ADDON_CMD_QUERY_SCREENSHOT % data.at(2)));
 					else
 						gSocket->writeTo(boost::str(boost::format("CMDRESPONSE|%1%|ERROR|%2%") % ADDON_CMD_QUERY_SCREENSHOT % data.at(2)));
+				}
+				break;
+
+				case ADDON_CMD_QUERY_TLF: // CMDQUERY|ADDON_CMD_QUERY_TLF|*filename*|*file size*|*file CRC*
+				{
+					if(data.size() != 5)
+					{
+						// error
+					}
+
+					std::size_t remote_file_size = atoi(data.at(3).c_str());
+					int remote_file_crc = atoi(data.at(4).c_str());
+
+					/*if(boost::filesystem::exists(boost::filesystem::path(data.at(2))) && (remote_file_crc == addonHash::crc32_file(data.at(2))))
+					{
+						// file already exists
+					}*/
+
+					gTransfer->recvFile(data.at(2), remote_file_size, remote_file_crc);
 				}
 				break;
 			}
@@ -199,7 +226,7 @@ void addonCore::Thread()
 
 	boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
 
-	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
+	while(!gD3Device->getDevice(false)) // Wait until we create D3D device
 		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gD3Device->renderText("Loading SAMP-Addon...", 10, 10, 255, 255, 255, 127);
@@ -207,23 +234,22 @@ void addonCore::Thread()
 
 	gLoader = boost::shared_ptr<addonLoader>(new addonLoader());
 
-	gD3Device->stopLastRender();
-	gD3Device->stopLastRender();
+	gD3Device->clearRender();
 	gD3Device->renderText("Loading SAMP-Addon... OK!", 10, 10, 255, 255, 255, 127);
 	gD3Device->renderText("Scanning GTA dir for illegal files... OK!", 10, 30, 255, 255, 255, 127);
 
 	std::string serial = gPool->getVar("serial");
 
-	gD3Device->renderText(strFormat() << "Your UID is: " << serial, 300, 30, 255, 255, 255, 127);
+	gD3Device->renderText(boost::str(boost::format("Your UID is: %1%") % serial), 300, 30, 255, 255, 255, 127);
 
 	while(!GTA_PED_STATUS_ADDR) // PED context load flag
-		boost::this_thread::sleep(boost::posix_time::milliseconds(250)); ///boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); ///boost::this_thread::sleep_for(boost::chrono::milliseconds(15));
 
 	gD3Device->clearRender();
 
 	gFunctions->ToggleGrassRendering(true);
 	gFunctions->ToggleMotionBlur(true);
-	gFunctions->ToggleHUD(false);
+	//gFunctions->ToggleHUD(false);
 	gFunctions->ToggleSeaWays(true);
 
 	while(true)
@@ -233,6 +259,6 @@ void addonCore::Thread()
 		gCore->processFunc();
 
 		boost::this_thread::restore_interruption re(di);
-		boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(25)); //boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
 	}
 }

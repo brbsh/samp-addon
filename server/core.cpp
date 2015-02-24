@@ -109,21 +109,29 @@ void amxCore::processFunc(unsigned int maxclients)
 					}*/
 
 					amxCore::amxPush toAMX;
+					amxPool::svrData toData;
 
 					toAMX.clientid = clientid;
 
 					if(data.at(2).compare("OK") == std::string::npos)
 					{
 						// error occured, push to amx
-						toAMX.pushDataFirst.assign(data.at(3));
-						toAMX.pushDataSecond.assign(data.at(2));
+						toData.reset();
+						toData.string.assign(data.at(3));
+						toAMX.args.push_back(toData);
+
+						toData.reset();
+						toData.string.append(data.at(2));
+						toAMX.args.push_back(toData);
 
 						pushToPT(ADDON_CALLBACK_OCSE, toAMX); // Addon_OnClientScreenshotError(clientid, data.at(3), data.at(2));
 
 						continue;
 					}
 
-					toAMX.pushDataFirst.assign(data.at(3));
+					toData.reset();
+					toData.string.assign(data.at(3));
+					toAMX.args.push_back(toData);
 
 					pushToPT(ADDON_CALLBACK_OCST, toAMX); // Addon_OnClientScreenshotTaken(clientid, data.at(3));
 				}
