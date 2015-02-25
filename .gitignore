@@ -56,7 +56,7 @@ x64/
 *_i.c
 *_p.c
 *.exp
-*.filters
+#*.filters
 *.ilk
 #*.lib
 *.meta
