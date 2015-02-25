@@ -13,7 +13,6 @@ bool sampLoaded = false;
 
 HINSTANCE addonDLLInstance = NULL;
 HINSTANCE d3d9DLLInstance = NULL;
-
 FARPROC proxy = NULL;
 
 
@@ -40,12 +39,11 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved
 			if(!GetModuleHandle("gta_sa.exe") && !GetModuleHandle("gta-sa.exe"))
 				return false;
 
+			char filename[MAX_PATH];
+
 			sampLoaded = !(!GetModuleHandle("samp.dll"));
 
 			DisableThreadLibraryCalls(hModule);
-
-			char filename[MAX_PATH];
-
 			GetSystemDirectory(filename, (UINT)(MAX_PATH - 10));
 			strcat_s(filename, "\\d3d9.dll");
 
@@ -93,7 +91,7 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 
 	hookCount++;
 
-	if(sampLoaded)
+	if(sampLoaded) // SA-MP mode
 	{
 		if(hookCount == 1)
 		{
@@ -105,7 +103,7 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 			gDebug->Log("Called Direct3DCreate9, hooking it...");
 		}
 	}
-	else
+	else // singleplayer mode
 	{
 		if(hookCount == 1)
 		{
@@ -114,9 +112,10 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 		}
 		else if(hookCount == 2)
 		{
-			MessageBox(NULL, "SA-MP isn't launching, forcing singleplayer mode\n\nSA-MP не запущен, выбран режим одиночной игры", "SAMP-Addon", NULL);
+			gDebug->Log("SAMP-Addon forcing start in singleplayer mode");
+			//MessageBox(NULL, "SA-MP isn't launching, forcing singleplayer mode\n\nSA-MP не запущен, выбран режим одиночной игры", "SAMP-Addon", NULL);
 
-			boost::thread render(&singlePlayerRender);
+			boost::thread render(boost::bind(&singlePlayerRender));
 		}
 	}
 
@@ -141,13 +140,12 @@ IDirect3D9 *WINAPI d3dHook_Direct3DCreate9(UINT SDKVersion)
 void singlePlayerRender()
 {
 	gDebug->traceLastFunction("singlePlayerRender() at 0x%x", &singlePlayerRender);
+	gDebug->Log("SinglePlayer render thread successfuly started with id: 0x%x", boost::this_thread::get_id());
 
-	while(!gD3Device->getDevice(true)) // Wait until we create D3D device
+	while(!gD3Device->getDevice(false)) // Wait until we create D3D device
 		boost::this_thread::sleep(boost::posix_time::seconds(1)); //boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
 	gD3Device->renderText("SAMP-Addon started in singleplayer mode", 10, 10, 255, 255, 255, 127);
-
 	boost::this_thread::sleep(boost::posix_time::seconds(5)); //boost::this_thread::sleep_for(boost::chrono::seconds(5));
-
-	gD3Device->stopLastRender();
+	gD3Device->clearRender();
 }

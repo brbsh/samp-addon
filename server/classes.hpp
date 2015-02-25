@@ -11,6 +11,8 @@
 #define ADDON_CALLBACK_OCSE					(6) // Addon_OnClientScreenshotError(clientid, remote_filename[], error[]);
 #define ADDON_CALLBACK_OLFT					(7) // Addon_OnLocalFileTransfered(filename[], clientid, remote_filename[], bytes_transfered);
 #define ADDON_CALLBACK_OLFTE				(8) // Addon_OnLocalFileTransferError(filename[], clientid, remote_filename[], error_code, error[]);
+#define ADDON_CALLBACK_ORFT					(9) // Addon_OnRemoteFileTransfered(remote_filename[], clientid, filename[], bytes_transfered);
+#define ADDON_CALLBACK_ORFTE				(10) // Addon_OnRemoteFileTransferError(remote_filename[], clientid, filename[], error_code, error[]);
 
 #define ADDON_CMD_QUERY_SCREENSHOT			(1000)
 #define ADDON_CMD_QUERY_TLF					(1001)

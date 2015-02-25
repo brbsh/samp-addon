@@ -243,7 +243,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 			}
 			else
 			{
-
+				return;
 			}
 		}
 
@@ -266,7 +266,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 			return;
 		}
 
-		remote_packet_crc = atoi(output.c_str());
+		remote_packet_crc = boost::lexical_cast<int>(output);
 
 		std::getline(input, output, '\0');
 		packet_crc = amxHash::crc32(output, output.length());
@@ -318,7 +318,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 						return;
 					}
 
-					poolHandle.addon_version_crc = atoi(i->c_str());
+					poolHandle.addon_version_crc = boost::lexical_cast<int>(*i);
 					gDebug->Log("Client %i addon version is %i", clientid, poolHandle.addon_version_crc);
 				}
 				else if(iter == 2) // OUR SERVER IP CRC
@@ -335,7 +335,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					sData = gPool->getServerVar("ip");
 
 					int server_crc = amxHash::crc32(sData.string, sData.string.length());
-					int remote_server_crc = atoi(i->c_str());
+					int remote_server_crc = boost::lexical_cast<int>(*i);
 
 					gDebug->Log("Server ip CRC is %i", server_crc);
 					gDebug->Log("Client %i server ip CRC is %i", clientid, remote_server_crc);
@@ -363,7 +363,7 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 					amxPool::svrData sData;
 					sData = gPool->getServerVar("port");
 
-					int remote_server_port = atoi(i->c_str());
+					int remote_server_port = boost::lexical_cast<int>(*i);
 
 					gDebug->Log("Server port is %i", sData.integer);
 					gDebug->Log("Client %i server port is %i", clientid, remote_server_port);
@@ -385,12 +385,12 @@ void amxAsyncSession::readHandle(unsigned int clientid, const char *buffer, cons
 						return;
 					}*/
 
-					if(!boost::regex_match(*i, boost::regex("[0-9a-zA-Z[\\]()$@._=]{3,20}")))
+					/*if(!boost::regex_match(*i, boost::regex("[0-9a-zA-Z[\\]()$@._=]{3,20}")))
 					{
 						// invalid chars in name
 
 						return;
-					}
+					}*/
 
 					poolHandle.name.assign(*i);
 					gDebug->Log("Client %i player name is %s", clientid, poolHandle.name.c_str());

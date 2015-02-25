@@ -85,7 +85,7 @@ void amxCore::processFunc(unsigned int maxclients)
 				continue;
 			}
 
-			rescode = atoi(data.at(1).c_str());
+			rescode = boost::lexical_cast<int>(data.at(1));
 
 			if(rescode != session->pool().cmdresponse_state)
 			{
@@ -99,8 +99,13 @@ void amxCore::processFunc(unsigned int maxclients)
 
 			switch(rescode)
 			{
-				case ADDON_CMD_QUERY_SCREENSHOT: // CMDQUERY|1000|*ERROR STATUS*|*FILE PATH*  == Screenshot query
+				case ADDON_CMD_QUERY_SCREENSHOT: // CMDRESPONSE|ADDON_CMD_QUERY_SCREENSHOT|*ERROR STATUS*|*FILE PATH*  == Screenshot query
 				{
+					if(data.size() != 4)
+					{
+						// invalid arg count
+					}
+
 					/*if(boost::regex_search(data.at(3), boost::regex("[.:%]{1,2}[/\\]+")))
 					{
 						// found dir hack keywords
@@ -134,6 +139,21 @@ void amxCore::processFunc(unsigned int maxclients)
 					toAMX.args.push_back(toData);
 
 					pushToPT(ADDON_CALLBACK_OCST, toAMX); // Addon_OnClientScreenshotTaken(clientid, data.at(3));
+				}
+				break;
+
+				case ADDON_CMD_QUERY_TRF: // CMDRESPONSE|ADDON_CMD_QUERY_TRF|*remote file name*|*file size*|*file CRC*
+				{
+					if(data.size() != 5)
+					{
+						// invalid arg count
+					}
+
+					std::size_t remote_file_size = boost::lexical_cast<std::size_t>(data.at(3));
+					int remote_file_crc = boost::lexical_cast<int>(data.at(4));
+
+					session->pool().file_t = true;
+					session->pool().fileT = new amxTransfer(false, clientid, session->pool().file_tmp_name, data.at(2), remote_file_size, remote_file_crc);
 				}
 				break;
 			}

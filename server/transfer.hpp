@@ -13,10 +13,11 @@ class amxTransfer
 
 public:
 
-	amxTransfer(bool TLF, unsigned int clientid, std::string filename, std::string remote_filename);
+	amxTransfer(bool TLF, unsigned int clientid, std::string filename, std::string remote_filename, std::size_t remote_file_size, int remote_file_crc);
 	virtual ~amxTransfer();
 
-	void processSend(unsigned int clientid, const boost::system::error_code& error, std::size_t bytes_tx, std::size_t file_size);
+	void processSend(unsigned int clientid, const boost::system::error_code& error, std::size_t bytes_tx);
+	void processRecv(unsigned int clientid, const char *buffer, const boost::system::error_code& error, std::size_t bytes_rx);
 
 	bool isLocal()
 	{

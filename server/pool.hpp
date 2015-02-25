@@ -42,6 +42,7 @@ public:
 
 		bool file_t;
 		amxTransfer *fileT;
+		std::string file_tmp_name;
 	};
 
 	struct svrData

@@ -31,7 +31,7 @@ const AMX_NATIVE_INFO amxNatives::addonNatives[] =
 	{"Addon_GetClientSerial", amxNatives::Addon_GetClientSerial}, // native Addon_GetClientSerial(clientid, buffer[], size = sizeof(buffer));
 	{"Addon_TakeClientScreenshot", amxNatives::Addon_TakeClientScreenshot}, // native Addon_TakeClientScreenshot(clientid, const remote_filename[]);
 	{"Addon_TransferLocalFile", amxNatives::Addon_TransferLocalFile}, // native Addon_TransferLocalFile(const filename[], toclient, const remote_filename[]);
-	//{"Addon_TransferRemoteFile", amxNatives::Addon_TransferRemoteFile},
+	{"Addon_TransferRemoteFile", amxNatives::Addon_TransferRemoteFile}, // native Addon_TransferRemoteFile(const remote_filename[], fromclient, const filename[]);
 
 	{NULL, NULL}
 };
@@ -338,35 +338,48 @@ cell AMX_NATIVE_CALL amxNatives::Addon_TransferLocalFile(AMX *amx, cell *params)
 	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%|%3%|%4%") % ADDON_CMD_QUERY_TLF % remote_filename % boost::filesystem::file_size(fpath) % amxHash::crc32_file(filename)));
 
 	sess->pool().file_t = true;
-	sess->pool().fileT = new amxTransfer(true, clientid, filename, remote_filename);
+	sess->pool().fileT = new amxTransfer(true, clientid, filename, remote_filename, NULL, NULL);
 
 	return 1;
 }
 
 
 
-/*// native TransferRemoteFile(remote_filename[], fromclient, file[]);
-cell AMX_NATIVE_CALL amxNatives::TransferRemoteFile(AMX *amx, cell *params)
+// native TransferRemoteFile(const remote_filename[], fromclient, const filename[]);
+cell AMX_NATIVE_CALL amxNatives::Addon_TransferRemoteFile(AMX *amx, cell *params)
 {
 	if(!arguments(3))
+	{
+		logprintf("SAMP-Addon: Invalid argument count in native 'Addon_TransferRemoteFile' (%i)", (params[0] >> 2));
+
 		return NULL;
+	}
 
 	int clientid = params[2];
 
 	if(!gSocket->IsClientConnected(clientid))
 		return NULL;
 
-	cliPool cPool;
+	std::string remote_filename = amxString::Get(amx, params[1]);
+	std::string filename = amxString::Get(amx, params[3]);
 
-	boost::mutex::scoped_lock lock(gMutex);
-	cPool = gPool->clientPool.find(clientid)->second;
+	boost::filesystem::path fpath(filename);
 
-	cPool.Transfer.file = gString->Get(amx, params[3]);
+	if(boost::filesystem::exists(fpath))
+	{
+		return NULL;
+	}
 
-	gPool->clientPool[clientid] = cPool;
-	lock.unlock();
+	/*if((filename.find("|") != std::string::npos) || (remote_filename.find("|") != std::string::npos) || boost::regex_search(filename, boost::regex("[/.:%]{1,2}[/\\]+")) || boost::regex_search(remote_filename, boost::regex("[.:%]{1,2}[/\\]+")))
+	{
+		return NULL;
+	}*/
 
-	gSocket->Send(clientid, formatString() << "TCPQUERY SERVER_CALL" << " " << 2001 << " " << gString->Get(amx, params[1]));
+	amxAsyncSession *sess = gPool->getClientSession(clientid);
+	sess->pool().cmdresponse_state = ADDON_CMD_QUERY_TRF;
+	sess->pool().file_tmp_name.assign(filename);
+
+	amxAsyncSession::writeTo(clientid, boost::str(boost::format("CMDQUERY|%1%|%2%") % ADDON_CMD_QUERY_TRF % remote_filename));
 
 	return 1;
-}*/
+}

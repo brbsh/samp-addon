@@ -27,7 +27,7 @@ addonLoader::addonLoader()
 
 	boost::filesystem::path current(".");
 	boost::filesystem::path addondll(".\\d3d9.dll");
-	boost::filesystem::path updater(".\\addon_updater.tmp");
+	boost::filesystem::path updater(".\\addon_updater.exe");
 	boost::filesystem::path vorbishooked(".\\VorbisHooked.dll");
 	boost::filesystem::path vorbisfile(".\\VorbisFile.dll");
 	boost::filesystem::path gtasa(".\\gta_sa.exe");
@@ -53,7 +53,7 @@ addonLoader::addonLoader()
 
 	if(!boost::filesystem::exists(updater))
 	{
-		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
+		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.exe", NULL, NULL);
 
 		if(download == S_OK)
 		{
@@ -70,7 +70,7 @@ addonLoader::addonLoader()
 	else
 	{
 		download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater_version.txt", ".\\updater_version.tmp", NULL, NULL);
-		std::size_t hashcheck = addonHash::crc32_file(".\\addon_updater.tmp");
+		std::size_t hashcheck = addonHash::crc32_file(".\\addon_updater.exe");
 		std::size_t hashcheck_remote = hashcheck;
 
 		if(download == S_OK)
@@ -95,7 +95,7 @@ addonLoader::addonLoader()
 
 		if(hashcheck != hashcheck_remote)
 		{
-			HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.tmp", NULL, NULL);
+			HRESULT download = URLDownloadToFile(NULL, "https://raw.githubusercontent.com/BJIADOKC/samp-addon/master/build/client/updater.exe", ".\\addon_updater.exe", NULL, NULL);
 
 			if(download == S_OK)
 			{
@@ -129,7 +129,7 @@ addonLoader::addonLoader()
 	if(boost::filesystem::exists(vorbishooked))
 		cmdline_flags += " /removeasiloader";
 
-	if(CreateProcess("addon_updater.tmp", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &updaterStart, &updaterStartInfo))
+	if(CreateProcess("addon_updater.exe", (LPSTR)cmdline_flags.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &updaterStart, &updaterStartInfo))
 	{
 		gDebug->Log("Started updater daemon with flags: %s", cmdline_flags.c_str());
 	}
@@ -168,7 +168,6 @@ addonLoader::addonLoader()
 	strcat_s(sysdrive, "\\");
 
 	GetVolumeInformation(sysdrive, NULL, NULL, &serial, NULL, &flags, NULL, NULL);
-
 	gPool->setVar("serial", strFormat() << UNIQUE_HEX_MOD << serial << UNIQUE_HEX_MOD << (serial ^ flags));
 
 	boost::unordered_map<std::string, std::size_t> legal;
@@ -187,7 +186,7 @@ addonLoader::addonLoader()
 		while(std::getline(f, tmp))
 		{
 			fname = tmp.substr(0, tmp.find(" "));
-			legal[fname] = atoi(tmp.substr((tmp.find(" ") + 1), INFINITE).c_str());
+			legal[fname] = boost::lexical_cast<int>(tmp.substr((tmp.find(" ") + 1), INFINITE));
 		}
 
 		f.close();

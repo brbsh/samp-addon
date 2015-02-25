@@ -19,6 +19,7 @@
 #include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
 //#include <boost/serialization/serialization.hpp>
 #include <boost/shared_ptr.hpp>

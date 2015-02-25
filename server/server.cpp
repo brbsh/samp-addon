@@ -344,6 +344,69 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 				}
 			}
 			break;
+
+			case ADDON_CALLBACK_ORFT: // Addon_OnRemoteFileTransfered(remote_filename[], clientid, filename[], bytes_transfered);
+			{
+				// some dirty cleanup
+				amxTransfer *pointer = gPool->getClientSession(data.second.clientid)->pool().fileT;
+				delete pointer;
+
+				if(!amx_FindPublic(*i, "Addon_OnRemoteFileTransfered", &idx))
+				{
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_Push(*i, fData.integer); // bytes_transfered
+
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Exec(*i, NULL, idx);
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
+
+			case ADDON_CALLBACK_ORFTE: // Addon_OnRemoteFileTransferError(remote_filename[], clientid, filename[], error_code, error[]);
+			{
+				// some dirty cleanup
+				amxTransfer *pointer = gPool->getClientSession(data.second.clientid)->pool().fileT;
+				delete pointer;
+
+				if(!amx_FindPublic(*i, "Addon_OnRemoteFileTransferError", &idx))
+				{
+					fData.reset();
+					fData = data.second.args.at(3);
+					amx_PushString(*i, &amxAddr[0], NULL, fData.string.c_str(), NULL, NULL); // error[]
+
+					fData.reset();
+					fData = data.second.args.at(2);
+					amx_Push(*i, fData.integer); // error_code
+
+					fData.reset();
+					fData = data.second.args.at(1);
+					amx_PushString(*i, &amxAddr[1], NULL, fData.string.c_str(), NULL, NULL); // filename[]
+
+					amx_Push(*i, data.second.clientid); // clientid
+
+					fData.reset();
+					fData = data.second.args.at(0);
+					amx_PushString(*i, &amxAddr[2], NULL, fData.string.c_str(), NULL, NULL); // remote_filename[]
+
+					amx_Exec(*i, NULL, idx);
+					amx_Release(*i, amxAddr[2]);
+					amx_Release(*i, amxAddr[1]);
+					amx_Release(*i, amxAddr[0]);
+				}
+			}
+			break;
 		}
 	}
 }

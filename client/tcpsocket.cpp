@@ -157,7 +157,7 @@ void addonSocket::connectionThread(addonSocket *instance)
 		if(!instance->isConnected())
 		{
 			std::string ip = gPool->getVar("server_ip");
-			unsigned short port = (atoi(gPool->getVar("server_port").c_str()) + 1);
+			unsigned short port = (boost::lexical_cast<unsigned short>(gPool->getVar("server_port")) + 1);
 
 			instance->connectTo(ip, port);
 		}

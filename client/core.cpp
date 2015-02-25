@@ -29,7 +29,7 @@ addonCore::addonCore()
 	gPool = boost::shared_ptr<addonPool>(new addonPool());
 	gSocket = boost::shared_ptr<addonSocket>(new addonSocket());
 
-	gDebug->traceLastFunction("addonCore::addonCore() at 0x?????");
+	gDebug->traceLastFunction("addonCore::addonCore() at 0x%x", &gCore);
 	gDebug->Log("Core constructor called");
 
 	threadInstance = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&addonCore::Thread)));
@@ -83,7 +83,7 @@ void addonCore::queueIN(addonSocket *instance)
 		int remote_packet_crc;
 
 		std::getline(input, output, '|');
-		remote_packet_crc = atoi(output.c_str());
+		remote_packet_crc = boost::lexical_cast<int>(output);
 
 		std::getline(input, output, '\0');
 		packet_crc = addonHash::crc32(output, output.length());
@@ -147,7 +147,7 @@ void addonCore::processFunc()
 
 		if(data.at(0).compare("CMDQUERY") != std::string::npos)
 		{
-			unsigned int code = atoi(data.at(1).c_str());
+			unsigned int code = boost::lexical_cast<unsigned int>(data.at(1));
 
 			switch(code)
 			{
@@ -177,8 +177,8 @@ void addonCore::processFunc()
 						// error
 					}
 
-					std::size_t remote_file_size = atoi(data.at(3).c_str());
-					int remote_file_crc = atoi(data.at(4).c_str());
+					std::size_t remote_file_size = boost::lexical_cast<std::size_t>(data.at(3));
+					int remote_file_crc = boost::lexical_cast<int>(data.at(4));
 
 					/*if(boost::filesystem::exists(boost::filesystem::path(data.at(2))) && (remote_file_crc == addonHash::crc32_file(data.at(2))))
 					{
@@ -186,6 +186,17 @@ void addonCore::processFunc()
 					}*/
 
 					gTransfer->recvFile(data.at(2), remote_file_size, remote_file_crc);
+				}
+				break;
+
+				case ADDON_CMD_QUERY_TRF: // CMDQUERY|ADDON_CMD_QUERY_TRF|*filename*
+				{
+					if(data.size() != 3)
+					{
+						// error
+					}
+
+					gTransfer->sendFile(data.at(2));
 				}
 				break;
 			}

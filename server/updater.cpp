@@ -74,7 +74,7 @@ void amxUpdater::updateThread(boost::asio::io_service& io_s, int local_plugin_cr
 			continue;
 		}
 
-		int remote_plugin_crc = atoi(httpreq->getResult());
+		int remote_plugin_crc = boost::lexical_cast<int>(httpreq->getResult());
 		gDebug->Log("L:%i R:%i", local_plugin_crc, remote_plugin_crc);
 
 		delete httpreq;
